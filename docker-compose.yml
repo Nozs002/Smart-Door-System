@@ -1,0 +1,66 @@
+services:
+  mysql:
+    image: mysql:8.4
+    environment:
+      MYSQL_DATABASE: ${MYSQL_DATABASE}
+      MYSQL_USER: ${MYSQL_USER}
+      MYSQL_PASSWORD: ${MYSQL_PASSWORD}
+      MYSQL_ROOT_PASSWORD: ${MYSQL_ROOT_PASSWORD}
+    volumes:
+      - mysql-data:/var/lib/mysql
+      - ./infrastructure/mysql/init:/docker-entrypoint-initdb.d:ro
+    healthcheck:
+      test: ["CMD", "mysqladmin", "ping", "-h", "localhost"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+    restart: unless-stopped
+
+  phpmyadmin:
+    image: phpmyadmin:latest
+    environment:
+      PMA_HOST: mysql
+      PMA_PORT: 3306
+      PMA_ARBITRARY: 0
+    ports:
+      - "8081:80"
+    depends_on:
+      mysql:
+        condition: service_healthy
+    restart: unless-stopped
+
+  mosquitto:
+    image: eclipse-mosquitto:2
+    ports:
+      - "1883:1883"
+    volumes:
+      - ./infrastructure/mosquitto/config:/mosquitto/config:ro
+      - mosquitto-data:/mosquitto/data
+      - mosquitto-log:/mosquitto/log
+    restart: unless-stopped
+
+  # backend:
+  #   build:
+  #     context: ./backend
+  #   environment:
+  #     SPRING_DATASOURCE_URL: jdbc:mysql://mysql:3306/${MYSQL_DATABASE}
+  #     SPRING_DATASOURCE_USERNAME: ${MYSQL_USER}
+  #     SPRING_DATASOURCE_PASSWORD: ${MYSQL_PASSWORD}
+  #     JWT_SECRET: ${JWT_SECRET}
+  #     MQTT_HOST: mosquitto
+  #     MQTT_PORT: 1883
+  #     MQTT_USERNAME: ${MQTT_USERNAME}
+  #     MQTT_PASSWORD: ${MQTT_PASSWORD}
+  #   ports:
+  #     - "8080:8080"
+  #   depends_on:
+  #     mysql:
+  #       condition: service_healthy
+  #     mosquitto:
+  #       condition: service_started
+  #   restart: unless-stopped
+
+volumes:
+  mysql-data:
+  mosquitto-data:
+  mosquitto-log:

@@ -1,0 +1,32 @@
+# Environment and secrets
+.env
+*.local
+
+# IDE and OS
+.idea/
+.vscode/
+.DS_Store
+Thumbs.db
+
+# Java / Spring Boot
+backend/target/
+backend/.mvn/wrapper/maven-wrapper.jar
+
+# Flutter / Dart
+mobile/.dart_tool/
+mobile/.flutter-plugins
+mobile/.flutter-plugins-dependencies
+mobile/build/
+mobile/.packages
+
+# PlatformIO
+firmware/**/.pio/
+firmware/**/.vscode/
+
+# Runtime data
+infrastructure/mysql/data/
+infrastructure/mosquitto/data/
+infrastructure/mosquitto/log/
+
+# Logs
+*.log
