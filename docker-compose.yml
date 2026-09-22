@@ -39,26 +39,26 @@ services:
       - mosquitto-log:/mosquitto/log
     restart: unless-stopped
 
-  # backend:
-  #   build:
-  #     context: ./backend
-  #   environment:
-  #     SPRING_DATASOURCE_URL: jdbc:mysql://mysql:3306/${MYSQL_DATABASE}
-  #     SPRING_DATASOURCE_USERNAME: ${MYSQL_USER}
-  #     SPRING_DATASOURCE_PASSWORD: ${MYSQL_PASSWORD}
-  #     JWT_SECRET: ${JWT_SECRET}
-  #     MQTT_HOST: mosquitto
-  #     MQTT_PORT: 1883
-  #     MQTT_USERNAME: ${MQTT_USERNAME}
-  #     MQTT_PASSWORD: ${MQTT_PASSWORD}
-  #   ports:
-  #     - "8080:8080"
-  #   depends_on:
-  #     mysql:
-  #       condition: service_healthy
-  #     mosquitto:
-  #       condition: service_started
-  #   restart: unless-stopped
+  backend:
+    build:
+      context: ./backend
+    environment:
+      SPRING_DATASOURCE_URL: jdbc:mysql://mysql:3306/${MYSQL_DATABASE}
+      SPRING_DATASOURCE_USERNAME: ${MYSQL_USER}
+      SPRING_DATASOURCE_PASSWORD: ${MYSQL_PASSWORD}
+      JWT_SECRET: ${JWT_SECRET}
+      MQTT_HOST: mosquitto
+      MQTT_PORT: 1883
+      MQTT_USERNAME: ${MQTT_USERNAME}
+      MQTT_PASSWORD: ${MQTT_PASSWORD}
+    ports:
+      - "8080:8080"
+    depends_on:
+      mysql:
+        condition: service_healthy
+      mosquitto:
+        condition: service_started
+    restart: unless-stopped
 
 volumes:
   mysql-data:
