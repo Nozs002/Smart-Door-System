@@ -80,7 +80,40 @@ Không sử dụng tên commit chung chung như `update`, `fix bug`, `change cod
 - Trước khi commit hoặc tạo Pull Request, thành viên phải kiểm tra để bảo đảm thay đổi không chứa thông tin nhạy cảm.
 - Nếu thông tin bí mật bị commit nhầm, phải thông báo ngay cho nhóm và thu hồi hoặc thay mới thông tin đó. Chỉ xóa nội dung khỏi commit là chưa đủ để bảo đảm an toàn.
 
-## 5. Quy trình làm việc đề xuất
+## 5. Quy định về tag và release
+
+- Tag release phải tuân theo Semantic Versioning với định dạng:
+
+  ```text
+  v<MAJOR>.<MINOR>.<PATCH>
+  ```
+
+  Ví dụ: `v1.0.0`, `v1.2.0`, `v1.2.3`.
+
+- Ý nghĩa của từng thành phần phiên bản:
+
+  - `MAJOR`: tăng khi có thay đổi lớn không tương thích ngược.
+  - `MINOR`: tăng khi bổ sung tính năng mới và vẫn tương thích ngược.
+  - `PATCH`: tăng khi sửa lỗi và vẫn tương thích ngược.
+
+- Chỉ được tạo tag release trên commit thuộc nhánh `main`.
+- Chỉ tạo tag sau khi Pull Request phát hành từ `dev` vào `main` đã được review, approve và merge thành công.
+- Mỗi tag phải trỏ tới đúng commit tương ứng với phiên bản được phát hành.
+- Ưu tiên sử dụng annotated tag và ghi rõ phiên bản trong nội dung tag.
+- Sau khi tạo tag, phải push tag lên GitHub và tạo GitHub Release tương ứng. Release cần có phần mô tả các tính năng mới, lỗi đã sửa và thay đổi quan trọng.
+- Không được tự ý xóa, ghi đè hoặc di chuyển một tag đã phát hành. Nếu phát hành sai, phải tạo một phiên bản mới để sửa lỗi.
+- Không được tái sử dụng số phiên bản đã tồn tại.
+
+Ví dụ tạo và push tag:
+
+```bash
+git switch main
+git pull origin main
+git tag -a v1.0.0 -m "release: v1.0.0"
+git push origin v1.0.0
+```
+
+## 6. Quy trình làm việc đề xuất
 
 1. Cập nhật nhánh `dev` lên phiên bản mới nhất.
 2. Tạo nhánh `task/<ten-cong-viec>`, `feature/<ten-tinh-nang>` hoặc `bug/<ten-loi>` từ `dev`.
@@ -91,3 +124,4 @@ Không sử dụng tên commit chung chung như `update`, `fix bug`, `change cod
 7. Xử lý đầy đủ các góp ý và xung đột, nếu có.
 8. Merge Pull Request vào `dev` sau khi đáp ứng tất cả yêu cầu trên.
 9. Khi phiên bản trên `dev` đã ổn định và sẵn sàng phát hành, tạo Pull Request từ `dev` vào `main` và thực hiện đầy đủ quy trình review, approve trước khi merge.
+10. Sau khi Pull Request phát hành được merge vào `main`, tạo tag phiên bản và GitHub Release theo quy định tại mục 5.
