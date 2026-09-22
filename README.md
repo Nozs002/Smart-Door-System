@@ -15,6 +15,8 @@ firmware cho hai ESP32 và hạ tầng Docker.
 
 Xem yêu cầu hệ thống tại [`docs/requirement.md`](docs/requirement.md).
 
+Quy trình CI/CD và phát hành backend được mô tả tại [`docs/ci-cd.md`](docs/ci-cd.md).
+
 ## Giao diện quản lý MySQL
 
 Sau khi tạo file `.env` từ `.env.example`, khởi động các dịch vụ:
