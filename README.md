@@ -15,6 +15,8 @@ firmware cho hai ESP32 và hạ tầng Docker.
 
 Xem yêu cầu hệ thống tại [`docs/requirement.md`](docs/requirement.md).
 
+Thành viên mới xem checklist thiết lập môi trường tại [`docs/getting-started.md`](docs/getting-started.md).
+
 Quy trình CI/CD và phát hành backend được mô tả tại [`docs/ci-cd.md`](docs/ci-cd.md).
 
 ## Giao diện quản lý MySQL
