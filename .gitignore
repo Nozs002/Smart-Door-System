@@ -5,6 +5,7 @@
 # IDE and OS
 .idea/
 .vscode/
+.obsidian/
 .DS_Store
 Thumbs.db
 
