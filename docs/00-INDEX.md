@@ -4,17 +4,17 @@ Tài liệu của dự án Smart Door System được tổ chức theo các nhó
 
 | Thư mục | Nội dung |
 | --- | --- |
-| [`00-getting-started/`](00-getting-started/) | Hướng dẫn thiết lập môi trường và bắt đầu phát triển. |
-| [`01-requirements/`](01-requirements/) | Yêu cầu nghiệp vụ và phạm vi hệ thống. |
-| [`02-modules/`](02-modules/) | Tài liệu các module và chức năng. |
-| [`03-technical-reference/`](03-technical-reference/) | Kiến trúc hiện tại, database, MQTT, phần cứng và kiểm thử. |
-| [`04-srs-specs/`](04-srs-specs/) | Đặc tả yêu cầu phần mềm (SRS). |
-| [`05-backend/`](05-backend/) | Tài liệu thiết kế và phát triển Backend. |
-| [`06-frontend/`](06-frontend/) | Tài liệu thiết kế và phát triển Mobile/Frontend. |
-| [`07-security-planning/`](07-security-planning/) | Kế hoạch bảo mật và threat modeling. |
-| [`08-process/`](08-process/) | Quy trình phát triển, CI/CD và phát hành. |
-| [`09-architecture-future/`](09-architecture-future/) | Đề xuất kiến trúc trong tương lai. |
-| [`10-meetings/`](10-meetings/) | Biên bản họp và quyết định của nhóm. |
+| [Getting Started](00-getting-started/README.md) | Hướng dẫn thiết lập môi trường và bắt đầu phát triển. |
+| [Requirements](01-requirements/README.md) | Yêu cầu nghiệp vụ và phạm vi hệ thống. |
+| [Modules](02-modules/README.md) | Tài liệu các module và chức năng. |
+| [Technical Reference](03-technical-reference/README.md) | Kiến trúc hiện tại, database, MQTT, phần cứng và kiểm thử. |
+| [SRS / Specs](04-srs-specs/README.md) | Đặc tả yêu cầu phần mềm (SRS). |
+| [Backend](05-backend/README.md) | Tài liệu thiết kế và phát triển Backend. |
+| [Frontend](06-frontend/README.md) | Tài liệu thiết kế và phát triển Mobile/Frontend. |
+| [Security Planning](07-security-planning/README.md) | Kế hoạch bảo mật và threat modeling. |
+| [Process](08-process/README.md) | Quy trình phát triển, CI/CD và phát hành. |
+| [Future Architecture](09-architecture-future/README.md) | Đề xuất kiến trúc trong tương lai. |
+| [Meetings](10-meetings/README.md) | Biên bản họp và quyết định của nhóm. |
 
 ## Tài liệu hiện có
 
