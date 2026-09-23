@@ -31,3 +31,8 @@ Mở phpMyAdmin tại <http://localhost:8081> và đăng nhập bằng:
 
 Có thể dùng tài khoản `root` cùng `MYSQL_ROOT_PASSWORD` khi thực sự cần quyền
 quản trị toàn bộ database.
+## Contributors
+
+<a href="https://github.com/Nozs002/SmartStock/graphs/contributors">
+  <img src="https://contrib.rocks/image?repo=Nozs002/SmartStock" />
+</a>
