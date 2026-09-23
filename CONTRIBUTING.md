@@ -15,6 +15,7 @@ Tài liệu này quy định quy trình làm việc với Git và GitHub cho d�
   task/<ten-cong-viec>
   feature/<ten-tinh-nang>
   bug/<ten-loi>
+  docs/<ten-tai-lieu>
   ```
 
 - Tên nhánh phải ngắn gọn, rõ nghĩa, viết thường và dùng dấu gạch ngang để phân tách các từ.

@@ -13,11 +13,11 @@ firmware cho hai ESP32 và hạ tầng Docker.
 - `infrastructure/`: cấu hình MySQL và Mosquitto.
 - `docs/`: tài liệu yêu cầu, kiến trúc, phần cứng và kiểm thử.
 
-Xem yêu cầu hệ thống tại [`docs/requirement.md`](docs/requirement.md).
+Xem yêu cầu hệ thống tại [`docs/01-requirements/requirement.md`](docs/01-requirements/requirement.md).
 
-Thành viên mới xem checklist thiết lập môi trường tại [`docs/getting-started.md`](docs/getting-started.md).
+Thành viên mới xem checklist thiết lập môi trường tại [`docs/00-getting-started/getting-started.md`](docs/00-getting-started/getting-started.md).
 
-Quy trình CI/CD và phát hành backend được mô tả tại [`docs/ci-cd.md`](docs/ci-cd.md).
+Xem toàn bộ tài liệu tại [`docs/00-INDEX.md`](docs/00-INDEX.md). Quy trình CI/CD và phát hành backend được mô tả tại [`docs/09-process/ci-cd.md`](docs/09-process/ci-cd.md).
 
 ## Giao diện quản lý MySQL
 

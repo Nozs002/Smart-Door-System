@@ -189,5 +189,4 @@ Sau khi xác nhận PR đã merge, có thể xóa nhánh local:
 git branch -d <ten-nhanh>
 ```
 
-Xem toàn bộ quy định GitHub tại [`CONTRIBUTING.md`](../CONTRIBUTING.md) và quy trình CI/CD tại [`docs/ci-cd.md`](ci-cd.md).
-
+Xem toàn bộ quy định GitHub tại [`CONTRIBUTING.md`](../../CONTRIBUTING.md) và quy trình CI/CD tại [`09-process/ci-cd.md`](../09-process/ci-cd.md).
