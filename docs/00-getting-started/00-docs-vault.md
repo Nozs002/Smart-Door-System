@@ -1,79 +1,161 @@
 ---
-title: Docs & Process Standards — Luật nền (project-agnostic)
-type: sop
-version: 1.0
+title: Quy chuẩn quản lý tài liệu Smart Door System
+type: standards
+version: 1.1
 lang: vi
-tags: [standards, conventions, process]
-updated: 2026-06-19
+tags: [standards, documentation, process]
+updated: 2026-09-23
 ---
 
-# 📐 Nguyên tắc quản lý tài liệu
+# Quy chuẩn quản lý tài liệu
 
-> Bộ quy ước **dùng cho dự án**. Người mới đọc file này để hiểu cấu trúc tổ chức tài liệu của dự án.
+Tài liệu này quy định cách tổ chức, đặt tên, liên kết và duy trì tài liệu trong dự án Smart Door System. Thành viên mới nên đọc tài liệu này trước khi tạo hoặc chỉnh sửa nội dung trong `docs/`.
 
-## 1. Cấu trúc vault
+## 1. Cấu trúc thư mục
 
-Cây chuẩn — tài liệu xuyên suốt đánh số `00 → NN`, tài liệu tính năng đi theo **module**:
-
-```
+```text
 docs/
-├── 00-INDEX.md                 # điểm vào DUY NHẤT, mọi thứ link từ đây
-├── 00-getting-started/         # exec summary, quick ref, overview, foundation/
-├── 01-requirements/            # yêu cầu khách/CEO, functional req
-├── 02-modules/                 # ⭐ trục chính: mỗi module 1 folder NN-name/
-│   ├── _MODULE-MAP.md          #   bản đồ module
-│   ├── _registry/              #   module-registry (tên wikilink chuẩn)
-│   ├── _appendix/              #   open-questions, ba-crossref…
-│   └── NN-<module>/            #   README + VI/ + EN/ + screens/
-├── 03-technical-reference/     # API endpoints, data model, tech ref
-├── 04-srs-specs/               # SRS
-├── 05-backend-audit/  06-frontend-audit/  07-security-planning/  08-scalability/
-├── 09-process/                 # SOP đánh số 00..NN + templates/ + _packages/ + _standards/ + en/
-├── 10-architecture-future/     # kiến trúc tương lai/refactor
-├── 11-meetings/                # _templates/ _registry/ change-requests/ clients/ 2026/MM/
-└── _learning/                  # ghi chú học/handoff
+├── 00-INDEX.md
+├── 00-getting-started/
+│   ├── README.md
+│   ├── 00-docs-vault.md
+│   ├── 01-getting-started.md
+│   ├── 02-template-pack.md
+│   ├── 03-plantuml-conventions.md
+│   └── templates/
+├── 01-requirements/
+├── 02-modules/
+├── 03-technical-reference/
+├── 04-srs-specs/
+├── 05-backend/
+├── 06-frontend/
+├── 07-security-planning/
+├── 08-process/
+├── 09-architecture-future/
+└── 10-meetings/
 ```
 
-**Quy tắc:**
-- Prefix số 2 chữ số theo **thứ tự đọc**; file phụ trợ dùng prefix `_` (vd `_MODULE-MAP`, `_templates`).
-- Một chủ đề = một note ngắn (≤ ~300 dòng). Note dài → tách + link.
+`00-INDEX.md` là điểm vào chính của kho tài liệu. Khi thêm một tài liệu quan trọng, phải bổ sung liên kết tới tài liệu đó trong chỉ mục hoặc README của khu vực tương ứng.
 
-## 2. Đặt tên
-- Folder/file: `NN-kebab-case` (vd `04-logistics-director`). Slug không dấu, ngắn (≤6 từ).
-- Meeting: `2026/MM/YYYY-MM-DD-<client>-<chu-de>.md`. CR: `CR-NNNN-<slug>.md`. Work package: `_packages/2026/MM/YYYY-MM-DD-<slug>.md`.
+## 2. Mục đích của từng khu vực
 
-## 3. Song ngữ (bilingual)
-- Mặc định VI; bản EN là `<tên>.en.md` hoặc vault `EN/` gương y hệt VI (**tên file giống nhau**).
-- Liên kết chéo: bản VI có `🇬🇧 [[...en|EN]]`, bản EN có `🇻🇳 [[...|VI]]`.
-- ⚠️ **Wikilink chỉ trỏ trong cùng bản** (EN↔EN, VI↔VI). EN↔VI **chỉ** nối ở Home/đầu file bằng link tương đối → đổi/ tạo bản dịch không vỡ wikilink.
+| Thư mục | Nội dung |
+| --- | --- |
+| `00-getting-started/` | Hướng dẫn thiết lập môi trường, onboarding và quy chuẩn tài liệu. |
+| `01-requirements/` | Yêu cầu nghiệp vụ, yêu cầu chức năng và phạm vi hệ thống. |
+| `02-modules/` | Tài liệu theo từng module hoặc nhóm tính năng. |
+| `03-technical-reference/` | Kiến trúc hiện tại, database, MQTT, phần cứng và tài liệu tham khảo kỹ thuật. |
+| `04-srs-specs/` | Đặc tả yêu cầu phần mềm chính thức. |
+| `05-backend/` | Thiết kế, API, dữ liệu và hướng dẫn phát triển Backend. |
+| `06-frontend/` | Thiết kế và hướng dẫn phát triển Mobile/Frontend. |
+| `07-security-planning/` | Kế hoạch bảo mật, threat model và đánh giá rủi ro. |
+| `08-process/` | Quy trình phát triển, CI/CD, release và các SOP của nhóm. |
+| `09-architecture-future/` | Đề xuất refactor và kiến trúc trong tương lai. |
+| `10-meetings/` | Biên bản họp, quyết định và change request. |
 
-## 4. Liên kết & điều hướng (Obsidian/LLM-wiki)
-- Dùng `[[wikilink]]` theo tên chuẩn trong registry. **Không note mồ côi**; mỗi note có breadcrumb 🏠 + Related.
-- Mỗi khu vực có **MOC/Home** (mục lục). Mọi thứ truy được từ `00-INDEX`.
-- **Audit link** sau khi viết (script trong skill) — mọi `[[...]]` phải resolve.
+## 3. Quy tắc đặt tên
 
-## 5. Độ tin & truy vết (provenance)
-- **Frontmatter `type` (OKF):** mọi note có `type` → trở thành node query được bởi LLM (xem [[04-okf-module-content-standard]]). Bảng `type` chuẩn:
+- Tên thư mục và file sử dụng chữ thường theo dạng `kebab-case`.
+- Không dùng dấu tiếng Việt, khoảng trắng hoặc ký tự đặc biệt trong tên file.
+- Prefix hai chữ số thể hiện thứ tự đọc hoặc nhóm nội dung, ví dụ `00-`, `01-`, `02-`.
+- Tên phải ngắn gọn nhưng mô tả đúng nội dung.
+- Biên bản họp sử dụng định dạng `YYYY-MM-DD-<chu-de>.md`.
+- Không dùng các tên chung chung như `note.md`, `new.md`, `temp.md` hoặc `final-final.md`.
 
-  | Nhóm | `type` |
-  |---|---|
-  | Xuyên suốt | `sop` · `moc` · `reference` · `registry` · `standards` |
-  | Module | `module-home` · `screen` · `data-lineage` · `diagram` · `entity` · `api-reference` · `formula` · `rbac` · `handoff` |
-  | Họp/việc | `meeting` · `change-request` · `work-package` · `daily-log` · `client` |
+Ví dụ:
 
-- **Verified / provenance:** công thức/endpoint/quy tắc phải trích nguồn `file:line` (FE+BE) hoặc URL. Frontmatter `verified: true|false`; chưa verify → `verified: false` + banner ⚠️ đầu file. Inline gắn cờ **✅ verified-in-code** / **❌ not-in-code (UI-only)**; chỗ chưa rõ ghi "chưa biết công thức", **không bịa**.
-- **Truy vết 2 chiều**: yêu cầu nghiệp vụ ↔ Change Request ↔ Jira ↔ commit/PR. Mỗi CR ghi `source_meeting` + `modules` + `jira`.
-- **Ánh xạ trạng thái CR ↔ Jira:** `requested`→(chưa có Jira) · `approved`→To Do · `in-progress`→In Progress · `testing`→In Review · `done`→Done · ngoài luồng: `rejected`/`deferred`.
+```text
+device-lifecycle.md
+mqtt-authentication-flow.md
+2026-09-23-sprint-planning.md
+```
 
-## 6. Nguyên tắc "đóng gói mọi việc"
-- Mọi việc lớn xong → **đóng gói** thành work package 10 mục (skill `package-work`, [[14-work-packaging-sop]]).
-- Quy trình tái dùng nhiều lần → **nâng thành SOP đánh số** trong `09-process`.
-- Task giao dev/Jira → theo [[02-template-pack|template task chuẩn]] (Current/Expected + use case + link doc + ảnh).
+## 4. Nội dung tài liệu
 
-## 7. Where-to-put (để tài liệu ở đâu)
-- Tính năng 1 module → `02-modules/NN-<module>/`.
-- Quy trình/SOP → `09-process/`. Biên bản/CR → `11-meetings/`. Kiến trúc tương lai → `10-architecture-future/`.
-- Chi tiết: [[00-where-to-put-docs]].
+- Mỗi tài liệu chỉ nên tập trung vào một chủ đề chính.
+- Nội dung phải phản ánh trạng thái thực tế của source code và hệ thống.
+- Không suy đoán API, cấu trúc database hoặc hành vi hệ thống. Nội dung chưa được xác minh phải được đánh dấu rõ là đề xuất hoặc cần xác minh.
+- Sơ đồ, payload, endpoint và cấu hình phải có ví dụ khi điều đó giúp người đọc kiểm chứng nội dung.
+- Tài liệu dài nên được chia thành các phần hoặc file nhỏ và liên kết qua chỉ mục.
+- Không đưa mật khẩu, token, API key, private key hoặc thông tin bí mật vào tài liệu.
 
-## Related
-- [[01-skills-catalog]] · [[02-template-pack]] · [[03-new-project-scaffold]] · [[04-okf-module-content-standard]] · [[05-skill-authoring-standard]] · [[06-mermaid-conventions]] · [[14-work-packaging-sop]]
+## 5. Liên kết và điều hướng
+
+- Ưu tiên Markdown link tương đối để liên kết hoạt động trên GitHub.
+- Không để tài liệu quan trọng ở trạng thái không có liên kết từ `00-INDEX.md` hoặc README khu vực.
+- Khi di chuyển hoặc đổi tên file, phải cập nhật tất cả liên kết tham chiếu.
+- Trước khi commit, kiểm tra repository không còn đường dẫn cũ hoặc link hỏng.
+
+Ví dụ:
+
+```markdown
+[Hướng dẫn bắt đầu](01-getting-started.md)
+[Quy trình CI/CD](../08-process/ci-cd.md)
+```
+
+## 6. Frontmatter
+
+Tài liệu có nhu cầu phân loại hoặc sử dụng trong công cụ quản lý kiến thức nên có frontmatter:
+
+```yaml
+---
+title: Tên tài liệu
+type: reference
+version: 1.0
+lang: vi
+tags: [backend, mqtt]
+updated: YYYY-MM-DD
+---
+```
+
+Các giá trị `type` khuyến nghị:
+
+- `moc`: mục lục hoặc trang điều hướng.
+- `standards`: quy chuẩn của dự án.
+- `reference`: tài liệu tham khảo kỹ thuật.
+- `requirements`: yêu cầu hệ thống.
+- `module`: tài liệu module hoặc tính năng.
+- `sop`: quy trình thực hiện công việc.
+- `meeting`: biên bản họp.
+- `decision`: quyết định kỹ thuật hoặc nghiệp vụ.
+
+Không bắt buộc thêm frontmatter vào file chỉ dùng làm placeholder.
+
+## 7. Chọn vị trí lưu tài liệu
+
+- Hướng dẫn cho thành viên mới → `00-getting-started/`.
+- Yêu cầu nghiệp vụ → `01-requirements/`.
+- Tính năng thuộc một module → `02-modules/<ten-module>/`.
+- Database, MQTT, phần cứng hoặc tham khảo kỹ thuật dùng chung → `03-technical-reference/`.
+- Đặc tả SRS → `04-srs-specs/`.
+- Nội dung riêng của Backend → `05-backend/`.
+- Nội dung riêng của Mobile/Frontend → `06-frontend/`.
+- Bảo mật và threat modeling → `07-security-planning/`.
+- Quy trình, CI/CD và release → `08-process/`.
+- Kiến trúc đề xuất chưa áp dụng → `09-architecture-future/`.
+- Biên bản họp và quyết định nhóm → `10-meetings/`.
+
+Nếu một tài liệu phù hợp với nhiều khu vực, lưu tại khu vực chịu trách nhiệm chính và tạo liên kết từ các khu vực liên quan; không sao chép thành nhiều bản độc lập.
+
+## 8. Quy trình cập nhật tài liệu
+
+1. Cập nhật nhánh `dev` và tạo nhánh công việc riêng.
+2. Chỉnh sửa hoặc thêm tài liệu vào đúng thư mục.
+3. Cập nhật `00-INDEX.md` hoặc README của khu vực nếu cần.
+4. Kiểm tra link, đường dẫn và thông tin bí mật.
+5. Chạy `git diff --check`.
+6. Commit với tiền tố `docs`, ví dụ:
+
+   ```text
+   docs: update backend setup guide
+   ```
+
+7. Push nhánh và tạo Pull Request vào `dev`.
+
+## 9. Tài liệu liên quan
+
+- [Chỉ mục tài liệu](../00-INDEX.md)
+- [Hướng dẫn bắt đầu phát triển](01-getting-started.md)
+- [Bộ mẫu tài liệu](02-template-pack.md)
+- [Quy định đóng góp](../../CONTRIBUTING.md)
+- [Quy trình CI/CD](../08-process/ci-cd.md)

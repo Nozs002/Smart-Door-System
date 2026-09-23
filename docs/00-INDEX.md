@@ -12,17 +12,20 @@ Tài liệu của dự án Smart Door System được tổ chức theo các nhó
 | [`05-backend/`](05-backend/) | Tài liệu thiết kế và phát triển Backend. |
 | [`06-frontend/`](06-frontend/) | Tài liệu thiết kế và phát triển Mobile/Frontend. |
 | [`07-security-planning/`](07-security-planning/) | Kế hoạch bảo mật và threat modeling. |
-| [`09-process/`](09-process/) | Quy trình phát triển, CI/CD và phát hành. |
-| [`10-architecture-future/`](10-architecture-future/) | Đề xuất kiến trúc trong tương lai. |
-| [`11-meetings/`](11-meetings/) | Biên bản họp và quyết định của nhóm. |
+| [`08-process/`](08-process/) | Quy trình phát triển, CI/CD và phát hành. |
+| [`09-architecture-future/`](09-architecture-future/) | Đề xuất kiến trúc trong tương lai. |
+| [`10-meetings/`](10-meetings/) | Biên bản họp và quyết định của nhóm. |
 
 ## Tài liệu hiện có
 
-- [Hướng dẫn bắt đầu phát triển](00-getting-started/getting-started.md)
+- [Quy chuẩn quản lý tài liệu](00-getting-started/00-docs-vault.md)
+- [Hướng dẫn bắt đầu phát triển](00-getting-started/01-getting-started.md)
+- [Bộ mẫu tài liệu](00-getting-started/02-template-pack.md)
+- [Quy chuẩn sơ đồ PlantUML](00-getting-started/03-plantuml-conventions.md)
 - [Yêu cầu hệ thống](01-requirements/requirement.md)
 - [Kiến trúc hệ thống](03-technical-reference/architecture.md)
 - [Database ERD](03-technical-reference/database-erd.md)
 - [Sơ đồ kết nối phần cứng](03-technical-reference/hardware-wiring.md)
 - [Luồng MQTT](03-technical-reference/mqtt-flow.md)
 - [Kịch bản kiểm thử](03-technical-reference/test-scenarios.md)
-- [Quy trình CI/CD](09-process/ci-cd.md)
+- [Quy trình CI/CD](08-process/ci-cd.md)

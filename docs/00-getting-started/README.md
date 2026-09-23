@@ -1,25 +1,18 @@
 ---
-title: Bộ chuẩn tài liệu & quy trình
+title: Hướng dẫn cho thành viên mới
 type: moc
 lang: vi
-tags: [standards, kit, onboarding, process]
-updated: 2026-06-22
+tags: [onboarding, standards, process]
+updated: 2026-09-23
 ---
 
-# 🧱 Tài liệu hướng dẫn cho người mới (Smart Door System)
+# Hướng dẫn cho thành viên mới
 
-> Điểm vào cho **người mới**. Dự án được tổ chức: cấu trúc folder đánh số, quy ước đặt tên, song ngữ, wikilink/MOC, và nguyên tắc **mọi việc đều đóng gói + có SOP**. Mục tiêu: đỡ tốn thời gian training, dễ scale, áp dụng lại nhanh.
+Đọc các tài liệu trong thư mục này theo thứ tự:
 
-## Đọc theo thứ tự (người mới)
-1. [[00-docs-process-standards]] — **luật nền**: cây folder, đặt tên, song ngữ, wikilink, where-to-put, "đóng gói mọi việc".
+1. [Quy chuẩn quản lý tài liệu](00-docs-vault.md): cấu trúc, cách đặt tên và vị trí lưu tài liệu.
+2. [Hướng dẫn bắt đầu phát triển](01-getting-started.md): cài đặt môi trường, chạy dự án và quy trình Git.
+3. [Bộ mẫu tài liệu](02-template-pack.md): danh mục và hướng dẫn sử dụng các file trong [`templates/`](templates/).
+4. [Quy chuẩn sơ đồ PlantUML](03-plantuml-conventions.md): cách tạo, lưu, render và kiểm tra sơ đồ kỹ thuật.
 
-## Nguyên tắc cốt lõi
-- **Đánh số folder** `00 → NN` theo thứ tự đọc; module-first cho tài liệu tính năng.
-- **Song ngữ** VI + `.en` tương đương; **wikilink + MOC/Home**, không note mồ côi.
-- **Không đoán — mở code/DB, dẫn `file:line`**; cái chưa chắc → OPEN QUESTION (xem [[07-investigation-playbooks]]).
-- **Tài liệu theo thứ tự phụ thuộc**: document module sau khi đã có module nguồn dữ liệu của nó (vd Logistics sau Purchasing + System Setup).
-- **Truy vết 2 chiều**: meeting ↔ CR ↔ Jira ↔ commit (ghim cả timestamp recording).
-- **Kỷ luật Jira (luật Feroz)**: mọi việc có task · task↔PR · track tới production · Epic cho chương trình.
-
-## Liên quan
-- [[README|00-getting-started]]
+Quay lại [chỉ mục tài liệu](../00-INDEX.md).
