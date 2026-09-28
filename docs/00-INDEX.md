@@ -28,4 +28,5 @@ Tài liệu của dự án Smart Door System được tổ chức theo các nhó
 - [Sơ đồ kết nối phần cứng](03-technical-reference/hardware-wiring.md)
 - [Luồng MQTT](03-technical-reference/mqtt-flow.md)
 - [Kịch bản kiểm thử](03-technical-reference/test-scenarios.md)
+- [Thiết lập và phát triển Flutter Android](06-frontend/android-development.md)
 - [Quy trình CI/CD](08-process/ci-cd.md)

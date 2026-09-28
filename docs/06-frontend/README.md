@@ -3,14 +3,18 @@ title: Tài liệu Mobile và Frontend
 type: moc
 lang: vi
 tags: [mobile, frontend, flutter]
-updated: 2026-09-23
+updated: 2026-09-28
 ---
 
 # Tài liệu Mobile và Frontend
 
-Khu vực lưu tài liệu thiết kế và phát triển ứng dụng Flutter, bao gồm navigation, state management, API integration, UI/UX và thông báo.
+Khu vực lưu tài liệu thiết kế và phát triển ứng dụng Android bằng Flutter, bao gồm navigation, state management, API integration, UI/UX và thông báo.
 
-Hiện chưa có tài liệu Mobile/Frontend chuyên biệt trong khu vực này.
+Phạm vi hiện tại chỉ hỗ trợ Android; iOS, Web và Desktop chưa được triển khai.
+
+## Tài liệu
+
+- [Thiết lập và phát triển Flutter Android](android-development.md)
 
 ## Liên kết
 

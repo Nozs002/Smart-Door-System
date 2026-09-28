@@ -6,7 +6,7 @@ firmware cho hai ESP32 và hạ tầng Docker.
 ## Thành phần
 
 - `backend/`: REST API Spring Boot và MQTT integration.
-- `mobile/`: ứng dụng Flutter.
+- `mobile/`: ứng dụng Android viết bằng Flutter.
 - `firmware/node-auth/`: ESP32 xác thực và tương tác ngoài cửa.
 - `firmware/node-control/`: ESP32 điều khiển khóa và cảnh báo trong nhà.
 - `contracts/`: hợp đồng REST API, MQTT topic và JSON payload.
