@@ -1,0 +1,114 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>SmartLock System - Alerts</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;600;700&family=Outfit:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="style.css" />
+</head>
+<body>
+  <div class="app-container dashboard-home">
+    
+    <!-- Status bar -->
+    <div class="status-bar" style="color: #fff; text-shadow: 0 1px 4px rgba(0,0,0,0.3);">
+      <span>09:41</span>
+      <div class="status-right">
+        <button class="theme-toggle" id="theme-toggle" title="Chuyển giao diện">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <circle cx="12" cy="12" r="5" />
+            <line x1="12" y1="1" x2="12" y2="3" /><line x1="12" y1="21" x2="12" y2="23" />
+            <line x1="4.22" y1="4.22" x2="5.64" y2="5.64" /><line x1="18.36" y1="18.36" x2="19.78" y2="19.78" />
+            <line x1="1" y1="12" x2="3" y2="12" /><line x1="21" y1="12" x2="23" y2="12" />
+            <line x1="4.22" y1="19.78" x2="5.64" y2="18.36" /><line x1="18.36" y1="5.64" x2="19.78" y2="4.22" />
+          </svg>
+        </button>
+        <span>●●●</span><span>LTE</span><span>78%</span>
+      </div>
+    </div>
+
+    <!-- ALERTS & LOGS SCREEN -->
+    <div class="screen active" style="background: transparent;">
+      <div class="screen-content">
+        <h1 style="font-size: 22px; font-weight: 700; letter-spacing: -0.3px;">Cảnh báo & Nhật ký</h1>
+        
+        <!-- Tabs -->
+        <div class="segment-tabs">
+          <button class="segment-tab active" data-tab-target="tab-alerts">Cảnh báo</button>
+          <button class="segment-tab" data-tab-target="tab-logs">Lịch sử</button>
+        </div>
+
+        <!-- Alerts Tab -->
+        <div id="tab-alerts" class="tab-content active">
+          <div class="list-item alert-item">
+            <div class="icon-box red">
+              <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M8.5 14.5A2.5 2.5 0 0011 12c0-1.38-.5-2-1-3-1.072-2.143-.224-4.054 2-6 .5 2.5 2 4.9 4 6.5 2 1.6 3 3.5 3 5.5a7 7 0 11-14 0c0-1.153.433-2.294 1-3a2.5 2.5 0 002.5 3z" /></svg>
+            </div>
+            <div style="flex: 1;">
+              <p style="font-size: 14px; font-weight: 700; color: var(--red);">Cảnh báo cháy! <span style="background: rgba(220,38,38,0.1); color: var(--red); font-size: 10px; padding: 2px 6px; border-radius: 4px; margin-left: 4px;">KHẨN</span></p>
+              <p style="font-size: 13px; color: var(--muted);">Nhiệt độ vượt 52°C — chốt tự động mở</p>
+              <p style="font-size: 11px; color: var(--muted2); margin-top: 4px;">14:22 hôm nay</p>
+            </div>
+          </div>
+          <div class="list-item alert-item">
+            <div class="icon-box amber">
+              <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M10.29 3.86L1.82 18a2 2 0 001.71 3h16.94a2 2 0 001.71-3L13.71 3.86a2 2 0 00-3.42 0z" /><line x1="12" y1="9" x2="12" y2="13" /><line x1="12" y1="17" x2="12.01" y2="17" /></svg>
+            </div>
+            <div style="flex: 1;">
+              <p style="font-size: 14px; font-weight: 700; color: var(--amber);">Nhập mật khẩu sai liên tục</p>
+              <p style="font-size: 13px; color: var(--muted);">5 lần sai — keypad đã bị khóa 60s</p>
+              <p style="font-size: 11px; color: var(--muted2); margin-top: 4px;">06:41 hôm nay</p>
+            </div>
+          </div>
+        </div>
+
+        <!-- Logs Tab -->
+        <div id="tab-logs" class="tab-content">
+          <div class="list-item history-item">
+            <div class="icon-box green font-bold">N</div>
+            <div style="flex: 1;">
+              <p style="font-size: 13px; font-weight: 600;">Nguyễn Minh</p>
+              <p style="font-size: 12px; color: var(--muted);">Vân tay #01</p>
+            </div>
+            <div style="text-align: right;">
+              <p style="font-size: 12px; font-weight: 600; color: var(--green);">Mở cửa</p>
+              <p style="font-size: 11px; color: var(--muted2);">07:32</p>
+            </div>
+          </div>
+          <div class="list-item history-item">
+            <div class="icon-box red font-bold">K</div>
+            <div style="flex: 1;">
+              <p style="font-size: 13px; font-weight: 600;">Không xác định</p>
+              <p style="font-size: 12px; color: var(--muted);">Mã PIN (Sai)</p>
+            </div>
+            <div style="text-align: right;">
+              <p style="font-size: 12px; font-weight: 600; color: var(--red);">Từ chối</p>
+              <p style="font-size: 11px; color: var(--muted2);">06:41</p>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+        <!-- Floating Bottom Navigation -->
+    <div class="floating-nav">
+      <button class="nav-icon" onclick="window.location.href='dashboard.html'">
+        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="7" height="7"></rect><rect x="14" y="3" width="7" height="7"></rect><rect x="14" y="14" width="7" height="7"></rect><rect x="3" y="14" width="7" height="7"></rect></svg>
+      </button>
+      <button class="nav-icon" onclick="window.location.href='door.html'">
+        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 9l9-7 9 7v11a2 2 0 01-2 2H5a2 2 0 01-2-2z" /><polyline points="9 22 9 12 15 12 15 22" /></svg>
+      </button>
+      <button class="nav-icon active" onclick="window.location.href='alerts.html'">
+        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z" /></svg>
+      </button>
+      <button class="nav-icon" onclick="window.location.href='settings.html'">
+        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="20" x2="18" y2="10"></line><line x1="12" y1="20" x2="12" y2="4"></line><line x1="6" y1="20" x2="6" y2="14"></line></svg>
+      </button>
+    </div>
+
+  </div>
+  <script src="script.js"></script>
+</body>
+</html>

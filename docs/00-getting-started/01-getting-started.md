@@ -15,17 +15,26 @@ Thành viên phát triển Backend cần cài thêm:
 
 - JDK 21.
 
+Thành viên phát triển Mobile cần cài thêm:
+
+- Flutter SDK stable.
+- Android Studio cùng Android SDK, Android SDK Command-line Tools và NDK.
+- Visual Studio Code với extension Flutter và Dart, hoặc IDE hỗ trợ Flutter khác.
+
 Kiểm tra các công cụ từ PowerShell:
 
 ```powershell
 git --version
 docker --version
 java --version
+flutter --version
+flutter doctor -v
 ```
 
 Docker Desktop phải được khởi động trước khi chạy Docker Compose.
 
-> Mobile và Firmware hiện mới có cấu trúc thư mục. Hướng dẫn cài Flutter và PlatformIO sẽ được bổ sung sau khi các project tương ứng được khởi tạo.
+Ứng dụng Mobile hiện chỉ hỗ trợ Android. Xem hướng dẫn chi tiết tại
+[`06-frontend/android-development.md`](../06-frontend/android-development.md).
 
 ## 2. Clone và cập nhật repository
 

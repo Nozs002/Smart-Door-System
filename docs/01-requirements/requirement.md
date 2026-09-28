@@ -9,7 +9,7 @@
   - **Ngoại vi**: Module RFID (RC522), Bàn phím số (Keypad), Cảm biến siêu âm (JSN-SR04T), Cảm biến nhiệt độ (DHT11), Màn hình OLED, Còi báo động (Buzzer), Động cơ (Servo/Solenoid khóa chốt).
 - **Giao thức Mạng**: Kết nối Wi-Fi, giao tiếp thời gian thực qua MQTT (Mosquitto Broker) bằng định dạng JSON. Gửi tín hiệu "Heartbeat" định kỳ để báo trạng thái online/offline.
 - **Backend & Cơ sở dữ liệu**: RESTful API viết bằng Spring Boot (Java). Cơ sở dữ liệu quan hệ MySQL. API bảo mật bằng JWT và mật khẩu băm Bcrypt.
-- **Frontend (Mobile App)**: Sử dụng Flutter (chuyển từ Web sang Mobile App để tối ưu trải nghiệm người dùng, điều khiển từ xa và nhận thông báo đẩy).
+- **Frontend (Mobile App)**: Sử dụng Flutter cho ứng dụng Android để tối ưu trải nghiệm người dùng, điều khiển từ xa và nhận thông báo đẩy. iOS, Web và Desktop không thuộc phạm vi hiện tại.
 
 ## Môi trường triển khai & Docker
 
@@ -22,7 +22,7 @@
 ### Thành phần không dùng Docker
 
 - **Firmware ESP32**: Viết bằng C/C++ qua PlatformIO/Arduino và nạp trực tiếp vào vi điều khiển bằng cáp USB. Firmware không được đóng gói hoặc chạy bằng Docker.
-- **Mobile App**: Ứng dụng hiện tại sử dụng Flutter và chạy trên máy ảo điện thoại (Emulator) hoặc thiết bị thật. Nếu nhóm chuyển sang React Native thì ứng dụng vẫn chạy theo cách này, không chạy trong Docker.
+- **Mobile App**: Ứng dụng Flutter chạy trên Android Emulator hoặc thiết bị Android thật và không chạy trong Docker.
 
 ## Tính năng cốt lõi (In Scope)
 
