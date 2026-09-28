@@ -1,0 +1,93 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>SmartLock System - Settings</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;600;700&family=Outfit:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="style.css" />
+</head>
+<body>
+  <div class="app-container dashboard-home">
+    
+    <!-- Status bar -->
+    <div class="status-bar" style="color: #fff; text-shadow: 0 1px 4px rgba(0,0,0,0.3);">
+      <span>09:41</span>
+      <div class="status-right">
+        <button class="theme-toggle" id="theme-toggle" title="Chuyển giao diện">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <circle cx="12" cy="12" r="5" />
+            <line x1="12" y1="1" x2="12" y2="3" /><line x1="12" y1="21" x2="12" y2="23" />
+            <line x1="4.22" y1="4.22" x2="5.64" y2="5.64" /><line x1="18.36" y1="18.36" x2="19.78" y2="19.78" />
+            <line x1="1" y1="12" x2="3" y2="12" /><line x1="21" y1="12" x2="23" y2="12" />
+            <line x1="4.22" y1="19.78" x2="5.64" y2="18.36" /><line x1="18.36" y1="5.64" x2="19.78" y2="4.22" />
+          </svg>
+        </button>
+        <span>●●●</span><span>LTE</span><span>78%</span>
+      </div>
+    </div>
+
+    <!-- SETTINGS SCREEN -->
+    <div class="screen active" style="background: transparent;">
+      <div class="screen-content">
+        <h1 style="font-size: 22px; font-weight: 700; letter-spacing: -0.3px;">Cài đặt</h1>
+        
+        <div class="card">
+          <p style="font-size: 12px; color: var(--muted); font-weight: 600; letter-spacing: 0.8px; margin-bottom: 14px;">HỆ THỐNG CẢNH BÁO</p>
+          <div class="setting-row">
+            <div>
+              <p style="font-size: 14px; font-weight: 500;">Thông báo cháy nổ</p>
+              <p style="font-size: 12px; color: var(--muted);">Khi nhiệt độ vượt ngưỡng</p>
+            </div>
+            <button class="toggle-btn on"><div class="knob"></div></button>
+          </div>
+          <div class="setting-row">
+            <div>
+              <p style="font-size: 14px; font-weight: 500;">Báo động cạy phá</p>
+            </div>
+            <button class="toggle-btn on"><div class="knob"></div></button>
+          </div>
+        </div>
+
+        <div class="card">
+          <p style="font-size: 12px; color: var(--muted); font-weight: 600; letter-spacing: 0.8px; margin-bottom: 14px;">THÔNG SỐ CẢM BIẾN</p>
+          <div style="margin-bottom: 16px;">
+            <div class="flex justify-between" style="margin-bottom: 8px;">
+              <span style="font-size: 14px; font-weight: 500;">Ngưỡng nhiệt độ báo cháy</span>
+              <span style="font-family: 'JetBrains Mono', monospace; color: var(--cyan);">50°C</span>
+            </div>
+            <input type="range" min="30" max="80" value="50" style="width: 100%; height: 4px; accent-color: var(--cyan);" />
+          </div>
+          <div>
+            <div class="flex justify-between" style="margin-bottom: 8px;">
+              <span style="font-size: 14px; font-weight: 500;">Giới hạn nhập sai PIN</span>
+              <span style="font-family: 'JetBrains Mono', monospace; color: var(--cyan);">5 Lần</span>
+            </div>
+            <input type="range" min="1" max="10" value="5" style="width: 100%; height: 4px; accent-color: var(--cyan);" />
+          </div>
+        </div>
+      </div>
+    </div>
+
+        <!-- Floating Bottom Navigation -->
+    <div class="floating-nav">
+      <button class="nav-icon" onclick="window.location.href='dashboard.html'">
+        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="7" height="7"></rect><rect x="14" y="3" width="7" height="7"></rect><rect x="14" y="14" width="7" height="7"></rect><rect x="3" y="14" width="7" height="7"></rect></svg>
+      </button>
+      <button class="nav-icon" onclick="window.location.href='door.html'">
+        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 9l9-7 9 7v11a2 2 0 01-2 2H5a2 2 0 01-2-2z" /><polyline points="9 22 9 12 15 12 15 22" /></svg>
+      </button>
+      <button class="nav-icon" onclick="window.location.href='alerts.html'">
+        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z" /></svg>
+      </button>
+      <button class="nav-icon active" onclick="window.location.href='settings.html'">
+        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="20" x2="18" y2="10"></line><line x1="12" y1="20" x2="12" y2="4"></line><line x1="6" y1="20" x2="6" y2="14"></line></svg>
+      </button>
+    </div>
+
+  </div>
+  <script src="script.js"></script>
+</body>
+</html>
