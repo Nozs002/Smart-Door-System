@@ -3,13 +3,13 @@ SET time_zone = '+07:00';
 
 START TRANSACTION;
 
-INSERT INTO users (id, display_name, username, password_hash, created_at, role, phone, name)
+INSERT INTO users (id, display_name, username, password_hash, created_at, role, status, phone, name)
 VALUES
-    (1, 'Quản trị viên', 'admin', '$2a$10$N9qo8uLOickgx2ZMRZoMyeIjZAgcfl7p92ldGxad68LJZdL17lhWy', NOW(3) - INTERVAL 180 DAY, 'ADMIN', '0901000001', 'Nguyễn Minh Admin'),
-    (2, 'Nguyễn An', 'nguyen.an', '$2a$10$N9qo8uLOickgx2ZMRZoMyeIjZAgcfl7p92ldGxad68LJZdL17lhWy', NOW(3) - INTERVAL 120 DAY, 'USER', '0901000002', 'Nguyễn Hoàng An'),
-    (3, 'Trần Bình', 'tran.binh', '$2a$10$N9qo8uLOickgx2ZMRZoMyeIjZAgcfl7p92ldGxad68LJZdL17lhWy', NOW(3) - INTERVAL 90 DAY, 'USER', '0901000003', 'Trần Gia Bình'),
-    (4, 'Lê Chi', 'le.chi', '$2a$10$N9qo8uLOickgx2ZMRZoMyeIjZAgcfl7p92ldGxad68LJZdL17lhWy', NOW(3) - INTERVAL 60 DAY, 'USER', '0901000004', 'Lê Minh Chi'),
-    (5, 'Khách thử nghiệm', NULL, NULL, NOW(3) - INTERVAL 7 DAY, 'USER', NULL, 'Người dùng thử');
+    (1, 'Quản trị viên', 'admin', '$2a$10$N9qo8uLOickgx2ZMRZoMyeIjZAgcfl7p92ldGxad68LJZdL17lhWy', NOW(3) - INTERVAL 180 DAY, 'ADMIN', 'ACTIVE', '0901000001', 'Nguyễn Minh Admin'),
+    (2, 'Nguyễn An', 'nguyen.an', '$2a$10$N9qo8uLOickgx2ZMRZoMyeIjZAgcfl7p92ldGxad68LJZdL17lhWy', NOW(3) - INTERVAL 120 DAY, 'USER', 'ACTIVE', '0901000002', 'Nguyễn Hoàng An'),
+    (3, 'Trần Bình', 'tran.binh', '$2a$10$N9qo8uLOickgx2ZMRZoMyeIjZAgcfl7p92ldGxad68LJZdL17lhWy', NOW(3) - INTERVAL 90 DAY, 'USER', 'ACTIVE', '0901000003', 'Trần Gia Bình'),
+    (4, 'Lê Chi', 'le.chi', '$2a$10$N9qo8uLOickgx2ZMRZoMyeIjZAgcfl7p92ldGxad68LJZdL17lhWy', NOW(3) - INTERVAL 60 DAY, 'USER', 'DISABLED', '0901000004', 'Lê Minh Chi'),
+    (5, 'Khách thử nghiệm', NULL, NULL, NOW(3) - INTERVAL 7 DAY, 'USER', 'ACTIVE', NULL, 'Người dùng thử');
 
 INSERT INTO rfid_credentials (id, uid, status, issued_at, revoked_at, user_id)
 VALUES
@@ -19,17 +19,13 @@ VALUES
     (4, '04-D4-E5-F6-07-81-B3', 'REVOKED', NOW(3) - INTERVAL 55 DAY, NOW(3) - INTERVAL 5 DAY, 4),
     (5, '04-E5-F6-07-18-92-C4', 'EXPIRED', NOW(3) - INTERVAL 365 DAY, NULL, 2);
 
-INSERT INTO doors (id, name, operating_mode, updated_at)
+INSERT INTO doors (id, name, operating_mode, commanded_lock_state)
 VALUES
-    (1, 'Cửa chính', 'SECURITY', NOW(3)),
-    (2, 'Cửa phòng kỹ thuật', 'SECURITY', NOW(3) - INTERVAL 1 HOUR),
-    (3, 'Cửa thoát hiểm', 'AUTOMATIC', NOW(3) - INTERVAL 30 MINUTE);
+    (1, 'Cửa chính', 'SECURITY', 'LOCKED');
 
-INSERT INTO door_configs (id, max_failed_attempts, lockout_seconds, temperature_threshold, open_timeout_seconds)
+INSERT INTO door_configs (id, door_id, max_failed_attempts, lockout_seconds, temperature_threshold, open_timeout_seconds)
 VALUES
-    (1, 5, 300, 55.00, 30),
-    (2, 3, 600, 50.00, 20),
-    (3, 5, 180, 60.00, 45);
+    (1, 1, 3, 60, 55.00, 30);
 
 INSERT INTO system_pins (id, pin_hash, status, changed_at)
 VALUES

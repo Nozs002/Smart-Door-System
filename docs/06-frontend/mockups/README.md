@@ -14,9 +14,11 @@ vào ứng dụng trong `mobile/` và không phải là một Flutter Web projec
 | File | Nội dung |
 | --- | --- |
 | `index.html` | Đăng nhập và điểm bắt đầu của prototype. |
-| `dashboard.html` | Tổng quan trạng thái hệ thống và cửa. |
-| `door.html` | Chi tiết cửa và thao tác mở khóa. |
-| `access.html` | Quản lý vân tay, thẻ RFID và mã PIN. |
+| `dashboard.html` | Tổng quan, quản lý truy cập và điều khiển cửa. |
+| `users.html` | Quản lý trạng thái hoạt động của người dùng. |
+| `fingerprints.html` | Mockup vân tay chưa khả dụng do chưa có schema và API. |
+| `rfid.html` | Cấp phát và quản lý thẻ RFID. |
+| `pin.html` | Thay đổi mã PIN và xem chính sách khóa tạm. |
 | `alerts.html` | Cảnh báo và lịch sử hoạt động. |
 | `settings.html` | Cài đặt ứng dụng và hệ thống. |
 
@@ -48,7 +50,5 @@ liệu mô phỏng; prototype không kết nối Backend, MQTT hoặc thiết b�
 
 ## Vấn đề đã biết
 
-- Nút quay lại trong `door.html` đang điều hướng tới `index.html` thay vì
-  `dashboard.html`; cần xác nhận đây có phải luồng mong muốn hay không.
 - Font và avatar phụ thuộc tài nguyên bên ngoài nên có thể không hiển thị khi
   offline.
