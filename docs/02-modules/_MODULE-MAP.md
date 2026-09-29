@@ -21,7 +21,7 @@ Bảng này định nghĩa các module nghiệp vụ cốt lõi và phạm vi k�
 | 05 | Door Control | Mở/đóng khóa tại chỗ hoặc từ xa và theo dõi trạng thái cửa. | Mobile, Backend, MQTT, ESP32 Control | Chưa tạo |
 | 06 | Access Logs | Ghi nhận và truy vấn lịch sử ra vào. | Mobile, Backend, MySQL | Chưa tạo |
 | 07 | Alerts & Security Rules | Sai thông tin xác thực nhiều lần, cửa mở lâu và cảnh báo xâm nhập. | Mobile, Backend, MQTT, ESP32 | Chưa tạo |
-| 08 | Fire Safety | Phát hiện nhiệt độ cao, kích hoạt còi và tự động mở cửa thoát hiểm. | ESP32 Control, MQTT, Backend, Mobile | Chưa tạo |
+| 08 | Fire Safety | Phát hiện nhiệt độ cao, kích hoạt còi và tự động mở khóa Cửa chính để thoát hiểm. | ESP32 Control, MQTT, Backend, Mobile | Chưa tạo |
 
 ## Tên thư mục chuẩn
 

@@ -8,11 +8,13 @@ CREATE TABLE users (
     password_hash VARCHAR(255) NULL,
     created_at DATETIME(3) NOT NULL DEFAULT CURRENT_TIMESTAMP(3),
     role ENUM('ADMIN', 'USER') NOT NULL DEFAULT 'USER',
+    status ENUM('ACTIVE', 'DISABLED') NOT NULL DEFAULT 'ACTIVE',
     phone VARCHAR(20) NULL,
     name VARCHAR(100) NULL,
     PRIMARY KEY (id),
     UNIQUE KEY uk_users_username (username),
-    UNIQUE KEY uk_users_phone (phone)
+    UNIQUE KEY uk_users_phone (phone),
+    KEY idx_users_status (status)
 ) ENGINE = InnoDB
   DEFAULT CHARACTER SET = utf8mb4
   COLLATE = utf8mb4_unicode_ci;
@@ -41,8 +43,7 @@ CREATE TABLE doors (
     id BIGINT UNSIGNED NOT NULL AUTO_INCREMENT,
     name VARCHAR(100) NOT NULL,
     operating_mode ENUM('AUTOMATIC', 'SECURITY') NOT NULL DEFAULT 'SECURITY',
-    updated_at DATETIME(3) NOT NULL DEFAULT CURRENT_TIMESTAMP(3)
-        ON UPDATE CURRENT_TIMESTAMP(3),
+    commanded_lock_state ENUM('LOCKED', 'UNLOCKED') NULL DEFAULT NULL,
     PRIMARY KEY (id)
 ) ENGINE = InnoDB
   DEFAULT CHARACTER SET = utf8mb4
@@ -50,11 +51,17 @@ CREATE TABLE doors (
 
 CREATE TABLE door_configs (
     id BIGINT UNSIGNED NOT NULL AUTO_INCREMENT,
-    max_failed_attempts INT UNSIGNED NOT NULL DEFAULT 5,
-    lockout_seconds INT UNSIGNED NOT NULL DEFAULT 300,
+    door_id BIGINT UNSIGNED NOT NULL,
+    max_failed_attempts INT UNSIGNED NOT NULL DEFAULT 3,
+    lockout_seconds INT UNSIGNED NOT NULL DEFAULT 60,
     temperature_threshold DECIMAL(5, 2) NOT NULL,
     open_timeout_seconds INT UNSIGNED NULL,
     PRIMARY KEY (id),
+    UNIQUE KEY uk_door_configs_door_id (door_id),
+    CONSTRAINT fk_door_configs_door
+        FOREIGN KEY (door_id) REFERENCES doors (id)
+        ON UPDATE CASCADE
+        ON DELETE CASCADE,
     CONSTRAINT chk_door_configs_max_failed_attempts
         CHECK (max_failed_attempts > 0),
     CONSTRAINT chk_door_configs_lockout_seconds

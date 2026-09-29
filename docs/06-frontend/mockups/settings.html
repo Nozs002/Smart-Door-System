@@ -32,59 +32,118 @@
     <!-- SETTINGS SCREEN -->
     <div class="screen active" style="background: transparent;">
       <div class="screen-content">
+        <button class="back-btn" onclick="window.location.href='dashboard.html'" aria-label="Quay lại Dashboard">
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M15 18l-6-6 6-6" />
+          </svg>
+        </button>
         <h1 style="font-size: 22px; font-weight: 700; letter-spacing: -0.3px;">Cài đặt</h1>
-        
-        <div class="card">
-          <p style="font-size: 12px; color: var(--muted); font-weight: 600; letter-spacing: 0.8px; margin-bottom: 14px;">HỆ THỐNG CẢNH BÁO</p>
+
+        <form id="settings-form" novalidate>
+        <div class="card settings-card">
+          <p class="settings-section-label">CẤU HÌNH CỬA CHÍNH</p>
           <div class="setting-row">
             <div>
-              <p style="font-size: 14px; font-weight: 500;">Thông báo cháy nổ</p>
-              <p style="font-size: 12px; color: var(--muted);">Khi nhiệt độ vượt ngưỡng</p>
+              <p class="settings-item-title">Cửa chính</p>
+              <p class="settings-item-subtitle">Cập nhật gần nhất: vừa xong</p>
             </div>
-            <button class="toggle-btn on"><div class="knob"></div></button>
+            <span class="settings-status active">Đang hoạt động</span>
           </div>
           <div class="setting-row">
             <div>
-              <p style="font-size: 14px; font-weight: 500;">Báo động cạy phá</p>
+              <p class="settings-item-title">Chế độ vận hành</p>
+              <p class="settings-item-subtitle">Quy định cách cửa xử lý yêu cầu mở</p>
             </div>
-            <button class="toggle-btn on"><div class="knob"></div></button>
+            <select id="operating-mode" name="operatingMode" class="settings-select" aria-label="Chế độ vận hành" required>
+              <option value="SECURITY" selected>Bảo mật</option>
+              <option value="AUTOMATIC">Tự động</option>
+            </select>
           </div>
         </div>
 
-        <div class="card">
-          <p style="font-size: 12px; color: var(--muted); font-weight: 600; letter-spacing: 0.8px; margin-bottom: 14px;">THÔNG SỐ CẢM BIẾN</p>
-          <div style="margin-bottom: 16px;">
+        <div class="card settings-card">
+          <p class="settings-section-label">BẢO MẬT TRUY CẬP</p>
+          <div class="settings-control">
             <div class="flex justify-between" style="margin-bottom: 8px;">
-              <span style="font-size: 14px; font-weight: 500;">Ngưỡng nhiệt độ báo cháy</span>
-              <span style="font-family: 'JetBrains Mono', monospace; color: var(--cyan);">50°C</span>
+              <span class="settings-item-title">Số lần xác thực sai tối đa</span>
             </div>
-            <input type="range" min="30" max="80" value="50" style="width: 100%; height: 4px; accent-color: var(--cyan);" />
+            <label class="settings-number-field">
+              <input id="max-failed-attempts" name="maxFailedAttempts" type="number" min="1" max="10" value="3" aria-label="Số lần xác thực sai tối đa" aria-describedby="max-failed-attempts-error" required />
+              <span>lần</span>
+            </label>
+            <p class="settings-field-error" id="max-failed-attempts-error"></p>
           </div>
-          <div>
+          <div class="settings-control">
             <div class="flex justify-between" style="margin-bottom: 8px;">
-              <span style="font-size: 14px; font-weight: 500;">Giới hạn nhập sai PIN</span>
-              <span style="font-family: 'JetBrains Mono', monospace; color: var(--cyan);">5 Lần</span>
+              <span class="settings-item-title">Thời gian khóa tạm</span>
             </div>
-            <input type="range" min="1" max="10" value="5" style="width: 100%; height: 4px; accent-color: var(--cyan);" />
+            <label class="settings-number-field">
+              <input id="lockout-seconds" name="lockoutSeconds" type="number" min="10" max="600" step="10" value="60" aria-label="Thời gian khóa tạm" aria-describedby="lockout-seconds-error" required />
+              <span>giây</span>
+            </label>
+            <p class="settings-field-error" id="lockout-seconds-error"></p>
+          </div>
+          <div class="setting-row">
+            <div>
+              <p class="settings-item-title">Mã PIN hệ thống</p>
+              <p class="settings-item-subtitle">Đang hoạt động · đổi 30 ngày trước</p>
+            </div>
+            <button type="button" class="settings-action-btn" onclick="window.location.href='pin.html'">Đổi PIN</button>
+          </div>
+        </div>
+
+        <div class="card settings-card">
+          <p class="settings-section-label">AN TOÀN VÀ CẢNH BÁO</p>
+          <div class="settings-control">
+            <div class="flex justify-between" style="margin-bottom: 8px;">
+              <span class="settings-item-title">Ngưỡng nhiệt độ báo cháy</span>
+            </div>
+            <label class="settings-number-field">
+              <input id="temperature-threshold" name="temperatureThreshold" type="number" min="30" max="80" step="0.5" value="55" aria-label="Ngưỡng nhiệt độ báo cháy" aria-describedby="temperature-threshold-error" required />
+              <span>°C</span>
+            </label>
+            <p class="settings-field-error" id="temperature-threshold-error"></p>
+            <p class="settings-item-subtitle">Tạo cảnh báo nhiệt độ cao và mở khóa khẩn cấp.</p>
+          </div>
+          <div class="settings-control">
+            <div class="flex justify-between" style="margin-bottom: 8px;">
+              <span class="settings-item-title">Thời gian cửa mở tối đa</span>
+            </div>
+            <label class="settings-number-field">
+              <input id="open-timeout-seconds" name="openTimeoutSeconds" type="number" min="10" max="120" step="5" value="30" aria-label="Thời gian cửa mở tối đa" aria-describedby="open-timeout-seconds-error" required />
+              <span>giây</span>
+            </label>
+            <p class="settings-field-error" id="open-timeout-seconds-error"></p>
+            <p class="settings-item-subtitle">Tạo cảnh báo khi cửa mở quá thời gian này.</p>
+          </div>
+        </div>
+
+        <div class="settings-save-panel">
+          <p id="settings-save-status" class="settings-save-status" role="status" aria-live="polite">Chưa có thay đổi.</p>
+          <button id="save-settings-btn" class="btn-primary settings-save-btn" type="submit" disabled>
+            Lưu cấu hình
+          </button>
+        </div>
+        </form>
+
+        <div class="card settings-card">
+          <p class="settings-section-label">THIẾT BỊ LIÊN KẾT</p>
+          <div class="setting-row">
+            <div>
+              <p class="settings-item-title">Trạm xác thực</p>
+              <p class="settings-item-subtitle">SD-NODE1-ENTRANCE-01 · NODE 1</p>
+            </div>
+            <span class="settings-status active">Online</span>
+          </div>
+          <div class="setting-row">
+            <div>
+              <p class="settings-item-title">Trạm điều khiển &amp; cảnh báo</p>
+              <p class="settings-item-subtitle">SD-NODE2-LOCK-01 · NODE 2</p>
+            </div>
+            <span class="settings-status active">Online</span>
           </div>
         </div>
       </div>
-    </div>
-
-        <!-- Floating Bottom Navigation -->
-    <div class="floating-nav">
-      <button class="nav-icon" onclick="window.location.href='dashboard.html'">
-        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="7" height="7"></rect><rect x="14" y="3" width="7" height="7"></rect><rect x="14" y="14" width="7" height="7"></rect><rect x="3" y="14" width="7" height="7"></rect></svg>
-      </button>
-      <button class="nav-icon" onclick="window.location.href='door.html'">
-        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 9l9-7 9 7v11a2 2 0 01-2 2H5a2 2 0 01-2-2z" /><polyline points="9 22 9 12 15 12 15 22" /></svg>
-      </button>
-      <button class="nav-icon" onclick="window.location.href='alerts.html'">
-        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z" /></svg>
-      </button>
-      <button class="nav-icon active" onclick="window.location.href='settings.html'">
-        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="20" x2="18" y2="10"></line><line x1="12" y1="20" x2="12" y2="4"></line><line x1="6" y1="20" x2="6" y2="14"></line></svg>
-      </button>
     </div>
 
   </div>

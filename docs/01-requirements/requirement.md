@@ -30,7 +30,7 @@
 - **Điều khiển từ xa**: Nút "Mở cửa khẩn cấp" và xem trạng thái đóng/mở trực tiếp trên Mobile App.
 - **Đánh thức thông minh (Wake-up)**: Cảm biến siêu âm phát hiện người đến gần (40-60cm) kích hoạt hệ thống/bật sáng màn hình để tiết kiệm điện.
 - **Bảo mật & Cảnh báo**:
-  - Nhập sai mật khẩu/thẻ quá 3 lần: Khóa bàn phím tạm thời (10-60s), bật còi hú, gửi cảnh báo lên App.
+  - Nhập sai mật khẩu/thẻ 3 lần: Mặc định khóa bàn phím tạm thời 60 giây, bật còi hú và gửi cảnh báo lên App. Người dùng có quyền cấu hình có thể thay đổi ngưỡng số lần sai và thời gian khóa.
   - Cửa mở quá lâu (ví dụ: 30s) hoặc có lực cạy phá: Bật còi hú.
 - **Báo cháy & An toàn**: Cảm biến nhiệt độ phát hiện > 50°C sẽ hú còi và tự động rút chốt mở cửa để thoát hiểm.
 - **Quản lý vòng đời (Lifecycle)**: Backend theo dõi trạng thái thiết bị, quản lý cấp quyền (Admin/User), cấp phát mã thẻ và lưu trữ 100% lịch sử ra vào (Access Logs).
@@ -95,5 +95,5 @@ Lắp đặt an toàn bên trong nhà, làm nhiệm vụ trực tiếp điều k
   - Nút nhấn mở cửa cơ học (Exit button)
 - **Nhiệm vụ chính**:
   - **Lắng nghe lệnh**: Subscribe topic MQTT từ Backend. Khi Backend kiểm tra mã thẻ từ Node 1 hợp lệ, Backend gửi lệnh "Mở khóa", Node 2 kích hoạt Relay rút chốt cửa.
-  - **Báo cháy tự động**: Cảm biến DHT11 đo nhiệt độ phòng liên tục. Nếu vượt 50°C, Node 2 tự động hú còi Buzzer, kích hoạt Relay mở cửa thoát hiểm, bắn cảnh báo lên MQTT để App nhận thông báo đẩy.
-  - **Báo động xâm nhập**: Nhận lệnh từ Backend để hú còi khi Node 1 bị nhập sai mật khẩu quá 3 lần.
+  - **Báo cháy tự động**: Cảm biến DHT11 đo nhiệt độ phòng liên tục. Nếu vượt 50°C, Node 2 tự động hú còi Buzzer, kích hoạt Relay mở khóa Cửa chính để thoát hiểm, bắn cảnh báo lên MQTT để App nhận thông báo đẩy.
+  - **Báo động xâm nhập**: Nhận lệnh từ Backend để hú còi khi Node 1 đạt ngưỡng xác thực sai đang cấu hình, mặc định là 3 lần.

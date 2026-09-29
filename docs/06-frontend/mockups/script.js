@@ -77,6 +77,21 @@ document.addEventListener('DOMContentLoaded', () => {
   const modal = document.getElementById('unlock-modal');
   const closeModalBtn = document.getElementById('close-modal-btn');
   const closeXBtn = document.getElementById('close-x-btn');
+
+  const updateDoorCommandLabel = (state) => {
+    if (!doorStatus) return;
+
+    const labels = {
+      LOCKED: 'Lệnh gần nhất: Khóa cửa',
+      UNLOCKED: 'Lệnh gần nhất: Mở khóa',
+    };
+    const span = doorStatus.querySelector('span');
+    if (span) span.innerText = labels[state] || 'Chưa có lệnh điều khiển';
+  };
+
+  if (doorCard) {
+    updateDoorCommandLabel(doorCard.dataset.commandedLockState);
+  }
   
   if (doorCard && modal) {
     // Open modal
@@ -121,15 +136,15 @@ document.addEventListener('DOMContentLoaded', () => {
       swipeSlider.classList.remove('unlocked');
       currentTranslate = 0;
       
-      if(modalLockStatus) modalLockStatus.innerText = 'Đang Khóa';
-      if(modalLockSub) modalLockSub.innerText = 'Vuốt để mở khóa';
+      if(modalLockStatus) modalLockStatus.innerText = 'Lệnh gần nhất: Khóa cửa';
+      if(modalLockSub) modalLockSub.innerText = 'Trạng thái vật lý chưa được xác nhận';
       if(handleIcon) handleIcon.innerHTML = `<rect x="3" y="11" width="18" height="11" rx="2" ry="2"></rect><path d="M7 11V7a5 5 0 0 1 10 0v4"></path>`;
       
       if(doorCard) {
         doorCard.classList.add('locked');
         doorCard.classList.remove('unlocked');
-        const span = doorStatus.querySelector('span');
-        if (span) span.innerText = 'Đang Khóa';
+        doorCard.dataset.commandedLockState = 'LOCKED';
+        updateDoorCommandLabel('LOCKED');
         const svg = doorStatus.querySelector('svg');
         if (svg) svg.innerHTML = `<rect x="3" y="11" width="18" height="11" rx="2" ry="2"></rect><path d="M7 11V7a5 5 0 0 1 10 0v4"></path>`;
       }
@@ -147,15 +162,15 @@ document.addEventListener('DOMContentLoaded', () => {
       swipeSlider.classList.add('unlocked');
       currentTranslate = maxScroll;
       
-      if(modalLockStatus) modalLockStatus.innerText = 'Đã Mở';
-      if(modalLockSub) modalLockSub.innerText = 'Cửa sẽ tự khóa sau 30 giây';
+      if(modalLockStatus) modalLockStatus.innerText = 'Lệnh gần nhất: Mở khóa';
+      if(modalLockSub) modalLockSub.innerText = 'Trạng thái vật lý chưa được xác nhận';
       if(handleIcon) handleIcon.innerHTML = `<rect x="3" y="11" width="18" height="11" rx="2" ry="2"></rect><path d="M7 11V7a5 5 0 0 1 9.9-1"></path>`;
       
       if(doorCard) {
         doorCard.classList.remove('locked');
         doorCard.classList.add('unlocked');
-        const span = doorStatus.querySelector('span');
-        if (span) span.innerText = 'Đã Mở';
+        doorCard.dataset.commandedLockState = 'UNLOCKED';
+        updateDoorCommandLabel('UNLOCKED');
         const svg = doorStatus.querySelector('svg');
         if (svg) svg.innerHTML = `<rect x="3" y="11" width="18" height="11" rx="2" ry="2"></rect><path d="M7 11V7a5 5 0 0 1 9.9-1"></path>`;
       }
@@ -250,6 +265,224 @@ document.addEventListener('DOMContentLoaded', () => {
       });
     });
   });
+
+  // --- User status management mockup ---
+  const userStatusModal = document.getElementById('user-status-modal');
+  const userStatusTitle = document.getElementById('user-status-modal-title');
+  const userStatusMessage = document.getElementById('user-status-modal-message');
+  const userStatusWarning = document.getElementById('user-status-modal-warning');
+  const confirmUserStatusBtn = document.getElementById('confirm-user-status-btn');
+  const cancelUserStatusBtn = document.getElementById('cancel-user-status-btn');
+  const userActionStatus = document.getElementById('user-action-status');
+  const activeUserCount = document.getElementById('active-user-count');
+  let selectedUserItem = null;
+
+  const closeUserStatusModal = () => {
+    userStatusModal?.classList.remove('open');
+    selectedUserItem = null;
+  };
+
+  const refreshActiveUserCount = () => {
+    if (!activeUserCount) return;
+    const count = document.querySelectorAll('.user-list-item[data-user-status="ACTIVE"]').length;
+    activeUserCount.textContent = `${count} hoạt động`;
+  };
+
+  document.querySelectorAll('.user-status-btn').forEach(button => {
+    button.addEventListener('click', () => {
+      selectedUserItem = button.closest('.user-list-item');
+      if (!selectedUserItem || !userStatusModal) return;
+
+      const isActive = selectedUserItem.dataset.userStatus === 'ACTIVE';
+      const userName = selectedUserItem.dataset.userName;
+      userStatusTitle.textContent = isActive ? 'Xác nhận vô hiệu hóa' : 'Xác nhận kích hoạt lại';
+      userStatusMessage.textContent = isActive
+        ? `Bạn có chắc muốn vô hiệu hóa ${userName}?`
+        : `Bạn có chắc muốn kích hoạt lại ${userName}?`;
+      userStatusWarning.textContent = isActive
+        ? 'Vô hiệu hóa người dùng sẽ thu hồi toàn bộ thẻ RFID và vân tay của người này. Các thông tin xác thực đã thu hồi sẽ không tự khôi phục khi kích hoạt lại.'
+        : 'Kích hoạt lại chỉ khôi phục trạng thái người dùng. Thẻ RFID và vân tay cũ vẫn bị thu hồi và phải được cấp lại riêng.';
+      confirmUserStatusBtn.textContent = isActive ? 'Vô hiệu hóa' : 'Kích hoạt lại';
+      confirmUserStatusBtn.classList.toggle('danger-action', isActive);
+      userStatusModal.classList.add('open');
+    });
+  });
+
+  cancelUserStatusBtn?.addEventListener('click', closeUserStatusModal);
+  userStatusModal?.addEventListener('click', event => {
+    if (event.target === userStatusModal) closeUserStatusModal();
+  });
+
+  confirmUserStatusBtn?.addEventListener('click', () => {
+    if (!selectedUserItem) return;
+    const statusBadge = selectedUserItem.querySelector('.settings-status');
+    const actionButton = selectedUserItem.querySelector('.user-status-btn');
+    const subtitle = selectedUserItem.querySelector('.settings-item-subtitle');
+    const userName = selectedUserItem.dataset.userName;
+    const isActive = selectedUserItem.dataset.userStatus === 'ACTIVE';
+
+    if (isActive) {
+      selectedUserItem.dataset.userStatus = 'DISABLED';
+      selectedUserItem.classList.add('is-disabled');
+      statusBadge.className = 'settings-status inactive';
+      statusBadge.textContent = 'Vô hiệu hóa';
+      actionButton.className = 'access-icon-btn user-status-btn';
+      actionButton.textContent = 'Kích hoạt lại';
+      subtitle.textContent = 'Thẻ và vân tay đã bị thu hồi';
+      if (userActionStatus) {
+        userActionStatus.className = 'settings-save-status success';
+        userActionStatus.textContent = `Đã vô hiệu hóa ${userName} và thu hồi các thông tin xác thực liên quan.`;
+      }
+    } else {
+      selectedUserItem.dataset.userStatus = 'ACTIVE';
+      selectedUserItem.classList.remove('is-disabled');
+      statusBadge.className = 'settings-status active';
+      statusBadge.textContent = 'Hoạt động';
+      actionButton.className = 'access-icon-btn danger user-status-btn';
+      actionButton.textContent = 'Vô hiệu hóa';
+      subtitle.textContent = 'Đã kích hoạt lại · thẻ và vân tay cũ vẫn bị thu hồi';
+      if (userActionStatus) {
+        userActionStatus.className = 'settings-save-status success';
+        userActionStatus.textContent = `Đã kích hoạt lại ${userName}. Cần cấp lại thẻ hoặc vân tay nếu cần.`;
+      }
+    }
+
+    refreshActiveUserCount();
+    closeUserStatusModal();
+  });
+
+  // --- RFID enrollment mockup ---
+  const rfidEnrollModal = document.getElementById('rfid-enroll-modal');
+  const openRfidEnrollBtn = document.getElementById('open-rfid-enroll-btn');
+  const cancelRfidEnrollBtn = document.getElementById('cancel-rfid-enroll-btn');
+  const rfidEnrollForm = document.getElementById('rfid-enroll-form');
+  const rfidUserSelect = document.getElementById('rfid-user-select');
+  const rfidEnrollStatus = document.getElementById('rfid-enroll-status');
+
+  const closeRfidEnrollModal = () => rfidEnrollModal?.classList.remove('open');
+  openRfidEnrollBtn?.addEventListener('click', () => rfidEnrollModal?.classList.add('open'));
+  cancelRfidEnrollBtn?.addEventListener('click', closeRfidEnrollModal);
+  rfidEnrollModal?.addEventListener('click', event => {
+    if (event.target === rfidEnrollModal) closeRfidEnrollModal();
+  });
+
+  rfidEnrollForm?.addEventListener('submit', event => {
+    event.preventDefault();
+    if (!rfidUserSelect.value) {
+      rfidEnrollStatus.className = 'settings-save-status error';
+      rfidEnrollStatus.textContent = 'Vui lòng chọn một người dùng đang hoạt động.';
+      rfidUserSelect.focus();
+      return;
+    }
+    rfidEnrollStatus.className = 'settings-save-status success';
+    rfidEnrollStatus.textContent = 'Đã chọn người nhận. Tiếp tục quét thẻ tại trạm xác thực.';
+  });
+
+  // --- Settings form validation and save states ---
+  const settingsForm = document.getElementById('settings-form');
+  const saveSettingsBtn = document.getElementById('save-settings-btn');
+  const settingsSaveStatus = document.getElementById('settings-save-status');
+
+  if (settingsForm && saveSettingsBtn && settingsSaveStatus) {
+    const fields = [...settingsForm.querySelectorAll('input, select')];
+    let savedValues = new FormData(settingsForm);
+    let hasUnsavedChanges = false;
+    let isSaving = false;
+
+    const valuesChanged = () => {
+      const currentValues = new FormData(settingsForm);
+      return fields.some(field => currentValues.get(field.name) !== savedValues.get(field.name));
+    };
+
+    const setSaveStatus = (state, message) => {
+      settingsSaveStatus.className = `settings-save-status ${state}`;
+      settingsSaveStatus.textContent = message;
+    };
+
+    const validationMessage = (field) => {
+      const label = field.getAttribute('aria-label') || 'Giá trị';
+      if (field.validity.valueMissing) return `${label} không được để trống.`;
+      if (field.validity.rangeUnderflow) return `${label} phải từ ${field.min} trở lên.`;
+      if (field.validity.rangeOverflow) return `${label} không được vượt quá ${field.max}.`;
+      if (field.validity.stepMismatch) return `${label} không đúng bước giá trị cho phép.`;
+      if (field.validity.badInput) return `${label} phải là một số hợp lệ.`;
+      return '';
+    };
+
+    const validateField = (field) => {
+      const errorElement = document.getElementById(`${field.id}-error`);
+      const message = validationMessage(field);
+      field.setAttribute('aria-invalid', message ? 'true' : 'false');
+      field.closest('.settings-number-field')?.classList.toggle('invalid', Boolean(message));
+      if (errorElement) errorElement.textContent = message;
+      return !message;
+    };
+
+    const updateDirtyState = () => {
+      hasUnsavedChanges = valuesChanged();
+      saveSettingsBtn.disabled = !hasUnsavedChanges || isSaving;
+      if (hasUnsavedChanges) {
+        setSaveStatus('dirty', 'Có thay đổi chưa được lưu.');
+      } else if (!isSaving) {
+        setSaveStatus('', 'Chưa có thay đổi.');
+      }
+    };
+
+    fields.forEach(field => {
+      field.addEventListener('input', () => {
+        validateField(field);
+        updateDirtyState();
+      });
+      field.addEventListener('change', () => {
+        validateField(field);
+        updateDirtyState();
+      });
+    });
+
+    settingsForm.addEventListener('submit', async (event) => {
+      event.preventDefault();
+      const invalidFields = fields.filter(field => !validateField(field));
+
+      if (invalidFields.length > 0) {
+        setSaveStatus('error', 'Không thể lưu. Vui lòng kiểm tra các giá trị được đánh dấu.');
+        invalidFields[0].focus();
+        return;
+      }
+
+      isSaving = true;
+      saveSettingsBtn.disabled = true;
+      saveSettingsBtn.classList.add('is-saving');
+      saveSettingsBtn.textContent = 'Đang lưu...';
+      setSaveStatus('saving', 'Đang lưu cấu hình...');
+
+      try {
+        await new Promise((resolve, reject) => {
+          setTimeout(() => {
+            if (navigator.onLine) resolve();
+            else reject(new Error('offline'));
+          }, 800);
+        });
+
+        savedValues = new FormData(settingsForm);
+        hasUnsavedChanges = false;
+        setSaveStatus('success', 'Đã lưu cấu hình thành công.');
+      } catch (error) {
+        hasUnsavedChanges = true;
+        setSaveStatus('error', 'Lưu thất bại. Kiểm tra kết nối và thử lại.');
+      } finally {
+        isSaving = false;
+        saveSettingsBtn.classList.remove('is-saving');
+        saveSettingsBtn.textContent = 'Lưu cấu hình';
+        saveSettingsBtn.disabled = !hasUnsavedChanges;
+      }
+    });
+
+    window.addEventListener('beforeunload', (event) => {
+      if (!hasUnsavedChanges) return;
+      event.preventDefault();
+      event.returnValue = '';
+    });
+  }
 
   // --- Toggle Buttons in Settings ---
   const toggleBtns = document.querySelectorAll('.toggle-btn');
