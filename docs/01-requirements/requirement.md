@@ -1,7 +1,8 @@
 ## Thông tin chung của dự án
 
 - **Tên dự án**: Hệ thống Cửa Thông minh (Smart Access Control IoT).
-- **Mục tiêu**: Xây dựng nguyên mẫu (sa bàn) hệ thống kiểm soát ra vào bảo mật, tích hợp công nghệ IoT để quản lý, giám sát và điều khiển từ xa qua điện thoại.
+- **Mục tiêu**: Xây dựng hệ thống kiểm soát ra vào IoT tập trung vào quản lý vòng đời thiết bị, cho phép quản lý nhiều cửa, đăng ký cửa và thiết bị mới, giám sát trạng thái và điều khiển từ xa qua điện thoại.
+- **Phạm vi triển khai phần cứng hiện tại**: Nguyên mẫu (sa bàn) chỉ lắp đặt một cửa với hai ESP32. Đây là giới hạn của bản demo phần cứng, không phải giới hạn của mô hình phần mềm; Backend, Mobile App và cơ sở dữ liệu phải luôn sẵn sàng tiếp nhận một cửa mới.
 
 ## Kiến trúc & Tech Stack
 
@@ -26,6 +27,9 @@
 
 ## Tính năng cốt lõi (In Scope)
 
+- **Quản lý nhiều cửa**: Quản trị viên có thể đăng ký, xem và quản lý nhiều cửa. Dữ liệu cấu hình, thiết bị, trạng thái, lệnh điều khiển, cảnh báo và lịch sử truy cập phải xác định được cửa tương ứng.
+- **Đăng ký cửa và thiết bị**: Cho phép tạo một cửa mới, onboarding thiết bị mới và gán thiết bị vào đúng cửa cùng vai trò phần cứng của thiết bị.
+- **Quản lý vòng đời thiết bị**: Theo dõi thiết bị từ khi đăng ký, gán cửa, kích hoạt, nhận heartbeat, xác định online/offline, reconnect, thay thế, vô hiệu hóa đến khi ngừng sử dụng; giữ thông tin cần thiết để truy vết lịch sử.
 - **Xác thực tại chỗ**: Mở cửa bằng thẻ từ RFID và mật khẩu (Mã PIN).
 - **Điều khiển từ xa**: Nút "Mở cửa khẩn cấp" và xem trạng thái đóng/mở trực tiếp trên Mobile App.
 - **Đánh thức thông minh (Wake-up)**: Cảm biến siêu âm phát hiện người đến gần (40-60cm) kích hoạt hệ thống/bật sáng màn hình để tiết kiệm điện.
@@ -33,11 +37,12 @@
   - Nhập sai mật khẩu/thẻ 3 lần: Mặc định khóa bàn phím tạm thời 60 giây, bật còi hú và gửi cảnh báo lên App. Người dùng có quyền cấu hình có thể thay đổi ngưỡng số lần sai và thời gian khóa.
   - Cửa mở quá lâu (ví dụ: 30s) hoặc có lực cạy phá: Bật còi hú.
 - **Báo cháy & An toàn**: Cảm biến nhiệt độ phát hiện > 50°C sẽ hú còi và tự động rút chốt mở cửa để thoát hiểm.
-- **Quản lý vòng đời (Lifecycle)**: Backend theo dõi trạng thái thiết bị, quản lý cấp quyền (Admin/User), cấp phát mã thẻ và lưu trữ 100% lịch sử ra vào (Access Logs).
+- **Quản lý truy cập và truy vết**: Quản lý cấp quyền (Admin/User), cấp phát mã thẻ và lưu trữ 100% lịch sử ra vào (Access Logs) theo từng cửa.
 - **Cơ chế Offline**: Rớt mạng Wi-Fi, hệ thống cửa vẫn hoạt động bình thường với thẻ RFID và Keypad. Tự động kết nối lại khi có mạng.
 
 ## Giới hạn hệ thống (Out of Scope)
 
+- **Không triển khai phần cứng cho nhiều cửa trong bản demo**: Bản demo chỉ có một cửa vật lý và một cặp Node 1/Node 2. Việc mua, lắp ráp và vận hành thêm bộ phần cứng cho cửa thứ hai không thuộc phạm vi hiện tại; khả năng đăng ký cửa và thiết bị mới trong phần mềm vẫn thuộc phạm vi.
 - **Không làm AI/Camera**: Không nhận diện khuôn mặt (Face ID), không chuông cửa màn hình (Video Doorbell). Tránh quá tải vi điều khiển và đảm bảo tiến độ.
 - **Không lắp ráp thực tế**: Chỉ thi công trên mô hình sa bàn, không đục phá/lắp lên cửa gỗ hoặc kính thật.
 - **Không tối ưu pin sâu**: Dùng nguồn Adapter cắm điện trực tiếp (có UPS/Pin sạc dự phòng duy trì 1-2h khi mất điện). Không làm tính năng chạy bằng pin tiểu AA tối ưu năng lượng như khóa thương mại.
@@ -48,7 +53,7 @@ Bốn thành viên chia việc theo cụm tính năng từ dưới lên trên:
 
 - **Tuấn (Kiến trúc & Vòng đời)**:
   - Viết firmware kết nối Wi-Fi/MQTT tự động Reconnect.
-  - Viết Backend API quản lý vòng đời thiết bị (Onboarding mạch mới, kiểm tra trạng thái Online/Offline).
+  - Viết Backend API quản lý cửa và vòng đời thiết bị (đăng ký cửa, onboarding và gán mạch mới, kiểm tra trạng thái Online/Offline, thay thế hoặc vô hiệu hóa thiết bị).
 - **Sơn (Xác thực & Bảo mật)**:
   - Lập trình ESP32 để đọc thẻ RFID, Keypad.
   - Viết Backend API xử lý đăng nhập (JWT) và logic kiểm tra tính hợp lệ của mã thẻ bằng MySQL.
@@ -69,6 +74,11 @@ Bốn thành viên chia việc theo cụm tính năng từ dưới lên trên:
 - **Sprint 5 (Tuần 9-10)**: Đóng băng code (Code Freeze). Làm đẹp sa bàn, test lỗi, viết báo cáo và quay video Demo.
 
 ## Cấu trúc Hardware Nodes
+
+Mỗi cửa được quản lý theo cùng một cấu trúc logic gồm Node 1 và Node 2. Nguyên
+mẫu hiện tại chỉ hiện thực cấu trúc này cho một cửa; khi đăng ký cửa mới, hệ
+thống phần mềm phải có thể tiếp nhận một cặp node mới mà không đồng nhất chúng
+với các node của cửa đang hoạt động.
 
 ### Node 1: Trạm Tương tác & Xác thực
 

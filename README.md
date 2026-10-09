@@ -1,7 +1,13 @@
 # Smart Door System
 
-Monorepo cho hệ thống kiểm soát cửa thông minh, gồm Backend API, Mobile App,
-firmware cho hai ESP32 và hạ tầng Docker.
+Monorepo cho hệ thống kiểm soát cửa thông minh, tập trung vào quản lý vòng đời
+thiết bị và vận hành nhiều cửa. Hệ thống cho phép đăng ký cửa, onboarding thiết
+bị mới, gán thiết bị vào từng cửa và theo dõi trạng thái thiết bị trong suốt quá
+trình sử dụng.
+
+Nguyên mẫu phần cứng hiện tại chỉ triển khai một cửa với hai ESP32. Backend,
+Mobile App và mô hình dữ liệu vẫn được thiết kế theo hướng nhiều cửa để có thể
+đăng ký và đưa một cửa mới vào vận hành mà không phải thay đổi phạm vi hệ thống.
 
 ## Thành phần
 

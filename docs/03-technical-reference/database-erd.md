@@ -4,7 +4,7 @@ type: technical-reference
 version: 1.0
 lang: vi
 tags: [database, erd, mysql]
-updated: 2026-09-29
+updated: 2026-10-07
 ---
 
 # Database ERD
@@ -29,9 +29,11 @@ trong database.
 - Vô hiệu hóa người dùng hoặc thu hồi thẻ không được làm mất lịch sử đã ghi.
 - Trạng thái nhận lệnh mở khóa không đồng nghĩa cửa vật lý đã mở nếu chưa có cảm
   biến xác nhận.
-- Hệ thống chỉ quản lý **một cửa** (`Door`). Hai ESP32 cùng phục vụ cửa này và
-  không được mô hình thành hai cửa riêng.
-- Hệ thống có đúng hai node đang hoạt động với trách nhiệm tách biệt:
+- Hệ thống phần mềm quản lý **nhiều cửa** (`Door`). Mỗi thiết bị phải được gán
+  cho một cửa cụ thể để cấu hình, trạng thái, sự kiện và lịch sử không bị trộn
+  giữa các cửa.
+- Nguyên mẫu phần cứng hiện tại chỉ có một cửa với đúng hai node đang hoạt động.
+  Mỗi cửa được đăng ký theo cùng mô hình hai vai trò tách biệt:
   - **Node 1 — Trạm Tương tác & Xác thực**: đặt ngoài cửa, đọc RFID/PIN, hiển thị
     thông tin và gửi yêu cầu xác thực về Backend; không nối trực tiếp với chốt
     khóa.
@@ -97,11 +99,12 @@ schema hiện tại xóa dây chuyền các thẻ của người đó.
 BAD đề xuất thêm `expires_at` để quản lý hạn sử dụng. Thuộc tính này chưa có
 trong schema.
 
-### 2.3. `doors` — Cửa duy nhất của hệ thống
+### 2.3. `doors` — Các cửa được quản lý
 
-Lưu cửa duy nhất mà hệ thống giám sát và điều khiển. Schema hiện tại vẫn cho
-phép nhiều bản ghi để không làm mất tính tổng quát của cấu trúc SQL, nhưng phạm
-vi triển khai của dự án chỉ sử dụng một bản ghi cửa.
+Lưu các cửa mà hệ thống giám sát và điều khiển. Mỗi bản ghi đại diện cho một cửa
+có thể được cấu hình, gán thiết bị và vận hành độc lập. Bản demo phần cứng hiện
+tại chỉ sử dụng một bản ghi cửa, nhưng hệ thống không được áp đặt giới hạn một
+cửa trong nghiệp vụ hoặc API.
 
 | Cột | Kiểu dữ liệu | Ràng buộc | Ý nghĩa |
 | --- | --- | --- | --- |
@@ -149,7 +152,7 @@ Schema hiện tại cho phép lưu lịch sử PIN bằng cách vô hiệu hóa 
 bản ghi mới. Tuy nhiên, chưa có ràng buộc bảo đảm chỉ một PIN hoạt động và chưa
 xác định PIN thuộc cửa nào.
 
-Với phạm vi một cửa, mô hình mục tiêu có tối đa một PIN chung hiện hành:
+Mô hình mục tiêu có tối đa một PIN chung hiện hành cho mỗi cửa:
 
 - `door_id` vừa là PK vừa là FK tới `doors.id`.
 - `pin_hash` chứa giá trị đã bảo vệ.
@@ -159,7 +162,9 @@ Với phạm vi một cửa, mô hình mục tiêu có tối đa một PIN chung
 
 ### 2.6. `devices` — Thiết bị ESP32
 
-Lưu hai ESP32 phục vụ cửa duy nhất của hệ thống.
+Lưu các ESP32 đã được đăng ký trong hệ thống. Mỗi cửa đang vận hành có thể dùng
+một Node 1 và một Node 2; các thiết bị cũ vẫn được giữ lại để quản lý vòng đời
+và truy vết.
 
 | Cột | Kiểu dữ liệu | Ràng buộc | Ý nghĩa |
 | --- | --- | --- | --- |
@@ -182,11 +187,11 @@ trực tiếp với chốt khóa. Khi Backend chấp nhận yêu cầu, Node 2 n
 kích hoạt relay để mở khóa. Node 2 đồng thời xử lý cảnh báo nhiệt độ và cảnh báo
 xâm nhập.
 
-Schema hiện tại chưa liên kết thiết bị với cửa và cũng chưa bảo đảm chỉ có một
-Node 1 cùng một Node 2 đang hoạt động. Mô hình mục tiêu bổ sung `door_id` làm FK
-tới `doors.id`. Trong phạm vi dự án, cửa duy nhất có đúng hai node hoạt động;
-database vẫn có thể giữ bản ghi node cũ ở trạng thái `INACTIVE` hoặc `DISABLED`
-khi thay thế phần cứng.
+Schema hiện tại chưa liên kết thiết bị với cửa và cũng chưa bảo đảm mỗi cửa chỉ
+có một Node 1 cùng một Node 2 đang hoạt động. Mô hình mục tiêu bổ sung `door_id`
+làm FK tới `doors.id`. Database giữ được thiết bị qua các giai đoạn đăng ký,
+kích hoạt, online/offline, thay thế và vô hiệu hóa; node cũ ở trạng thái
+`INACTIVE` hoặc `DISABLED` không bị xóa để bảo toàn lịch sử.
 
 ### 2.7. `access_logs` — Nhật ký truy cập
 
@@ -230,10 +235,10 @@ Lưu bộ đếm sai và thời điểm hết khóa. Bảng này khác `door_con
 | `locked_until` | `DATETIME(3)` | Có thể NULL | Thời điểm hết khóa. |
 | `updated_at` | `DATETIME(3)` | Bắt buộc, tự cập nhật | Lần cập nhật bộ đếm gần nhất. |
 
-Ràng buộc UNIQUE trên `method` làm trạng thái khóa mang tính toàn hệ thống. BAD
-đề xuất đổi thành khóa chính ghép `(door_id, method)` để cửa duy nhất có bộ đếm
-RFID và PIN riêng. Khi xác thực thành công hoặc hết thời gian khóa, bộ đếm phải
-được xóa theo quy tắc nghiệp vụ đã thống nhất.
+Ràng buộc UNIQUE trên `method` làm trạng thái khóa mang tính toàn hệ thống. Mô
+hình mục tiêu đề xuất đổi thành khóa chính ghép `(door_id, method)` để mỗi cửa
+có bộ đếm RFID và PIN riêng. Khi xác thực thành công hoặc hết thời gian khóa, bộ
+đếm phải được xóa theo quy tắc nghiệp vụ đã thống nhất.
 
 ### 2.9. `alerts` — Cảnh báo
 
@@ -268,7 +273,7 @@ Các bảng còn lại chưa có khóa ngoại trong schema hiện tại.
 | `users` — `rfid_credentials` | 1–N | `rfid_credentials.user_id`. |
 | `doors` — `door_configs` | 1–1 | `door_configs.door_id` là FK có ràng buộc UNIQUE. |
 | `doors` — `system_pins` | 1–1 | `system_pins.door_id` vừa là PK vừa là FK. |
-| `doors` — `devices` | 1–N bản ghi; đúng 2 node hoạt động | `devices.door_id`; gồm một `NODE_1` và một `NODE_2` hoạt động, các node cũ được giữ để truy vết. |
+| `doors` — `devices` | 1–N bản ghi; tối đa 2 vai trò node hoạt động trên mỗi cửa | `devices.door_id`; mỗi cửa đang vận hành gồm tối đa một `NODE_1` và một `NODE_2` hoạt động, các node cũ được giữ để truy vết. |
 | `doors` — `access_logs` | 1–N | `access_logs.door_id`. |
 | `users` — `access_logs` | 1–N, tùy trường hợp | `access_logs.user_id`, cho phép NULL. |
 | `rfid_credentials` — `access_logs` | 1–N, tùy trường hợp | `access_logs.rfid_credential_id`, cho phép NULL. |
@@ -280,12 +285,12 @@ Các bảng còn lại chưa có khóa ngoại trong schema hiện tại.
 
 | Khu vực | Schema hiện tại | Mô hình BAD |
 | --- | --- | --- |
-| Phạm vi PIN | PIN toàn hệ thống, có nhiều bản ghi | Một PIN hiện hành cho cửa duy nhất, có phiên bản đồng bộ |
+| Phạm vi PIN | PIN toàn hệ thống, có nhiều bản ghi | Một PIN hiện hành cho mỗi cửa, có phiên bản đồng bộ |
 | Cấu hình cửa | Đã có FK UNIQUE tới cửa | Quan hệ 1–1 với cửa đã được triển khai |
-| Thiết bị | Không biết thiết bị thuộc cửa nào và chưa giới hạn node hoạt động | Cửa duy nhất có một `NODE_1` xác thực và một `NODE_2` điều khiển/cảnh báo |
+| Thiết bị | Không biết thiết bị thuộc cửa nào và chưa giới hạn node hoạt động | Mỗi cửa có tối đa một `NODE_1` xác thực và một `NODE_2` điều khiển/cảnh báo đang hoạt động; hỗ trợ giữ node cũ theo vòng đời |
 | Nhật ký | Không liên kết cửa/người/thẻ/thiết bị | Có các FK tùy theo nguồn sự kiện |
 | Khóa tạm thời | Một trạng thái cho mỗi phương thức trên toàn hệ thống | Một trạng thái cho mỗi `(door, method)` |
-| Cảnh báo | Không liên kết cửa, không có mức độ | Thuộc cửa duy nhất và có `severity` |
+| Cảnh báo | Không liên kết cửa, không có mức độ | Thuộc một cửa xác định và có `severity` |
 | Trạng thái người dùng | Có `ACTIVE` và `DISABLED` | Backend phải vô hiệu hóa toàn bộ thẻ và vân tay liên quan khi người dùng chuyển sang `DISABLED` |
 | Hạn thẻ RFID | Trạng thái có `EXPIRED` nhưng không có ngày hết hạn | Có `expires_at` |
 
