@@ -1,0 +1,117 @@
+## Thông tin chung của dự án
+
+- **Tên dự án**: Hệ thống Cửa Thông minh (Smart Access Control IoT).
+- **Mục tiêu**: Xây dựng hệ thống kiểm soát ra vào IoT tập trung vào quản lý vòng đời thiết bị, cho phép quản lý nhiều cửa, đăng ký cửa và thiết bị mới, giám sát trạng thái và điều khiển từ xa qua điện thoại.
+- **Phạm vi triển khai phần cứng hiện tại**: Nguyên mẫu (sa bàn) chỉ lắp đặt một cửa với hai ESP32. Đây là giới hạn của bản demo phần cứng, không phải giới hạn của mô hình phần mềm; Backend, Mobile App và cơ sở dữ liệu phải luôn sẵn sàng tiếp nhận một cửa mới.
+
+## Kiến trúc & Tech Stack
+
+Phạm vi sở hữu và quản lý thiết bị tuân theo [năm quyết định đã thống nhất ngày
+13/10/2026](ownership-device-lifecycle-decisions.md). Các quyết định này mô tả
+yêu cầu mục tiêu, không xác nhận chức năng đã được triển khai.
+
+- **Thiết bị IoT (Phần cứng)**: Sử dụng vi điều khiển ESP32 (lập trình C/C++ qua PlatformIO/Arduino).
+  - **Ngoại vi**: Module RFID (RC522), Bàn phím số (Keypad), Cảm biến siêu âm (JSN-SR04T), Cảm biến nhiệt độ (DHT11), Màn hình OLED, Còi báo động (Buzzer), Động cơ (Servo/Solenoid khóa chốt).
+- **Giao thức Mạng**: Kết nối Wi-Fi, giao tiếp thời gian thực qua MQTT (Mosquitto Broker) bằng định dạng JSON. Gửi tín hiệu "Heartbeat" định kỳ để báo trạng thái online/offline.
+- **Backend & Cơ sở dữ liệu**: RESTful API viết bằng Spring Boot (Java). Cơ sở dữ liệu quan hệ MySQL. API bảo mật bằng JWT và mật khẩu băm Bcrypt.
+- **Frontend (Mobile App)**: Sử dụng Flutter cho ứng dụng Android để tối ưu trải nghiệm người dùng, điều khiển từ xa và nhận thông báo đẩy. iOS, Web và Desktop không thuộc phạm vi hiện tại.
+
+## Môi trường triển khai & Docker
+
+### Thành phần bắt buộc dùng Docker
+
+- **MySQL Database**: Sử dụng image MySQL chính thức.
+- **Mosquitto (MQTT Broker)**: Sử dụng image `eclipse-mosquitto`.
+- **Backend API**: Đóng gói mã nguồn Backend thành Docker image. Trong dự án hiện tại, Backend sử dụng Spring Boot; Node.js có thể là phương án thay thế nếu nhóm thay đổi công nghệ. Backend phải chạy cùng MySQL và Mosquitto trong môi trường Docker, ưu tiên điều phối bằng Docker Compose.
+
+### Thành phần không dùng Docker
+
+- **Firmware ESP32**: Viết bằng C/C++ qua PlatformIO/Arduino và nạp trực tiếp vào vi điều khiển bằng cáp USB. Firmware không được đóng gói hoặc chạy bằng Docker.
+- **Mobile App**: Ứng dụng Flutter chạy trên Android Emulator hoặc thiết bị Android thật và không chạy trong Docker.
+
+## Tính năng cốt lõi (In Scope)
+
+- **Quản lý nhiều khách hàng và nhiều cửa**: Mỗi khách hàng có một Account; một Account sở hữu từ 0 đến nhiều Door, mỗi Door đã liên kết có đúng một chủ. Backend kiểm tra sở hữu trước mọi thao tác dữ liệu và điều khiển cửa.
+- **Provision và claim cửa**: Quy trình kỹ thuật đăng ký trước Door và cặp Node 1/Node 2. Khách hàng thêm cửa bằng mã kích hoạt một lần; Backend xác minh và gán chủ nguyên tử, không cho khách hàng tạo Door tùy ý chỉ bằng mã thiết bị.
+- **Quản lý vòng đời thiết bị**: Quản lý đăng ký, gán cửa, kích hoạt, thay thế, vô hiệu hóa và ngừng sử dụng, giữ lịch sử chuyển trạng thái. Online/offline được suy ra từ heartbeat, tách khỏi lifecycle; mất kết nối không tự vô hiệu hóa thiết bị.
+- **Phạm vi từng cửa**: Cấu hình, PIN, RFID, bộ đếm sai, thiết bị, lịch sử và cảnh báo thuộc Door tương ứng. Danh tính thiết bị và MQTT ACL phải khớp Door/Node; lệnh và thông báo không tác động cửa hoặc khách hàng khác.
+- **Xác thực tại chỗ**: Mở cửa bằng thẻ từ RFID và mật khẩu (Mã PIN).
+- **Điều khiển từ xa**: Nút "Mở cửa khẩn cấp" và xem trạng thái đóng/mở trực tiếp trên Mobile App.
+- **Đánh thức thông minh (Wake-up)**: Cảm biến siêu âm phát hiện người đến gần (40-60cm) kích hoạt hệ thống/bật sáng màn hình để tiết kiệm điện.
+- **Bảo mật & Cảnh báo**:
+  - Nhập sai mật khẩu/thẻ 3 lần: Mặc định khóa bàn phím tạm thời 60 giây, bật còi hú và gửi cảnh báo lên App. Người dùng có quyền cấu hình có thể thay đổi ngưỡng số lần sai và thời gian khóa.
+  - Cửa mở quá lâu (ví dụ: 30s) hoặc có lực cạy phá: Bật còi hú.
+- **Báo cháy & An toàn**: Cảm biến nhiệt độ phát hiện > 50°C sẽ hú còi và tự động rút chốt mở cửa để thoát hiểm.
+- **Quản lý truy cập và truy vết**: Account chủ cửa quản lý Cardholder và cấp/thu hồi RFID theo cửa. Cardholder không đăng nhập App; thẻ gắn với Cardholder thuộc cùng khách hàng sở hữu cửa. Giữ lịch sử truy cập theo cửa khi vô hiệu hóa tài khoản, người giữ thẻ hoặc thiết bị.
+- **Cơ chế Offline**: Rớt mạng Wi-Fi, hệ thống cửa vẫn hoạt động bình thường với thẻ RFID và Keypad. Tự động kết nối lại khi có mạng.
+
+## Giới hạn hệ thống (Out of Scope)
+
+- **Không vân tay**: Không có cảm biến, dữ liệu, API, MQTT hoặc màn hình vân tay.
+- **Không Admin nền tảng**: Không xây tài khoản/dashboard Admin nền tảng, chia sẻ cửa giữa các Account hoặc chuyển chủ cửa. Provision thực hiện qua công cụ kỹ thuật nội bộ/CLI.
+
+- **Không triển khai phần cứng cho nhiều cửa trong bản demo**: Bản demo chỉ có một cửa vật lý và một cặp Node 1/Node 2. Việc mua, lắp ráp và vận hành thêm bộ phần cứng cho cửa thứ hai không thuộc phạm vi hiện tại; khả năng đăng ký cửa và thiết bị mới trong phần mềm vẫn thuộc phạm vi.
+- **Không làm AI/Camera**: Không nhận diện khuôn mặt (Face ID), không chuông cửa màn hình (Video Doorbell). Tránh quá tải vi điều khiển và đảm bảo tiến độ.
+- **Không lắp ráp thực tế**: Chỉ thi công trên mô hình sa bàn, không đục phá/lắp lên cửa gỗ hoặc kính thật.
+- **Không tối ưu pin sâu**: Dùng nguồn Adapter cắm điện trực tiếp (có UPS/Pin sạc dự phòng duy trì 1-2h khi mất điện). Không làm tính năng chạy bằng pin tiểu AA tối ưu năng lượng như khóa thương mại.
+
+## Phân công vai trò (Vertical Slicing)
+
+Bốn thành viên chia việc theo cụm tính năng từ dưới lên trên:
+
+- **Tuấn (Kiến trúc & Vòng đời)**:
+  - Viết firmware kết nối Wi-Fi/MQTT tự động Reconnect.
+  - Viết quy trình provision bộ cửa, API claim và quản lý vòng đời thiết bị theo cửa; tách trạng thái sử dụng khỏi Online/Offline, giữ lịch sử thay thế và vô hiệu hóa.
+- **Sơn (Xác thực & Bảo mật)**:
+  - Lập trình ESP32 để đọc thẻ RFID, Keypad.
+  - Viết Backend API đăng nhập Account (JWT), kiểm tra quyền sở hữu cửa và tính hợp lệ của RFID/PIN đúng cửa bằng MySQL; tách Account và Cardholder.
+- **Minh (Điều khiển & Cảnh báo - Kỹ sư phần cứng)**:
+  - Đi dây, làm sa bàn.
+  - Lập trình điều khiển Relay/Khóa, cảm biến nhiệt độ và cảm biến siêu âm.
+  - Viết Backend API lưu Log lịch sử và Rule-engine đếm số lần sai mật khẩu.
+- **Hà (Mobile App UI/UX)**:
+  - Thiết lập màn hình OLED hiển thị thông báo.
+  - Lập trình toàn bộ Mobile App (Flutter) để gọi API, làm giao diện đăng nhập, điều khiển cửa và xem lịch sử.
+
+## Lộ trình triển khai
+
+- **Sprint 1 (Tuần 1-2)**: Chốt Database ERD, JSON Contract MQTT. Hàn mạch, ESP32 kết nối Wi-Fi gửi dữ liệu giả lên MQTT. Khởi tạo Base Project (Backend & Mobile).
+- **Sprint 2 (Tuần 3-4)**: ESP32 đọc thẻ RFID. Backend hoàn thành API Đăng nhập và CRUD Thiết bị. App hoàn thành màn hình đăng nhập.
+- **Sprint 3 (Tuần 5-6) - MVP**: Ghép nối hoàn chỉnh luồng nghiệp vụ (Quẹt thẻ $\rightarrow$ Gửi MQTT $\rightarrow$ Backend kiểm tra $\rightarrow$ Mở khóa $\rightarrow$ App cập nhật lịch sử).
+- **Sprint 4 (Tuần 7-8)**: Hoàn thiện các luồng cảnh báo (sai mật khẩu, báo cháy) và xử lý mượt mà kịch bản rớt mạng (Offline mode).
+- **Sprint 5 (Tuần 9-10)**: Đóng băng code (Code Freeze). Làm đẹp sa bàn, test lỗi, viết báo cáo và quay video Demo.
+
+## Cấu trúc Hardware Nodes
+
+Mỗi cửa được quản lý theo cùng một cấu trúc logic gồm Node 1 và Node 2. Nguyên
+mẫu hiện tại chỉ hiện thực cấu trúc này cho một cửa; khi đăng ký cửa mới, hệ
+thống phần mềm phải có thể tiếp nhận một cặp node mới mà không đồng nhất chúng
+với các node của cửa đang hoạt động.
+
+### Node 1: Trạm Tương tác & Xác thực
+
+Đóng vai trò giao tiếp trực tiếp với người dùng muốn đi vào. Lắp đặt ở mặt ngoài cửa, tuyệt đối không kết nối dây trực tiếp vào chốt khóa cửa để đảm bảo an toàn nếu bị đập phá.
+
+- **Linh kiện kết nối**:
+  - Đầu đọc thẻ từ RFID (RC522)
+  - Bàn phím số (Keypad)
+  - Màn hình OLED
+  - Cảm biến khoảng cách siêu âm (JSN-SR04T)
+- **Nhiệm vụ chính**:
+  - Dùng cảm biến siêu âm quét liên tục. Khi có người đến gần (40-60cm), ESP32 "thức dậy", bật sáng màn hình và bàn phím.
+  - Thu thập mã thẻ RFID hoặc dãy mật khẩu.
+  - Đóng gói dữ liệu thành JSON và gửi MQTT về Backend kiểm tra; topic/payload và danh tính kết nối phải xác định đúng Door/Node theo contract, không dùng topic chung cho tất cả cửa.
+
+### Node 2: Trạm Điều khiển & Cảnh báo an ninh
+
+Lắp đặt an toàn bên trong nhà, làm nhiệm vụ trực tiếp điều khiển đóng/mở cánh cửa.
+
+- **Linh kiện kết nối**:
+  - Mạch Relay (cấp điện đóng/mở Khóa chốt từ Solenoid)
+  - Cảm biến nhiệt độ, độ ẩm (DHT11)
+  - Còi báo động (Buzzer)
+  - Nút nhấn mở cửa cơ học (Exit button)
+- **Nhiệm vụ chính**:
+  - **Lắng nghe lệnh**: Subscribe topic MQTT từ Backend. Khi Backend kiểm tra mã thẻ từ Node 1 hợp lệ, Backend gửi lệnh "Mở khóa", Node 2 kích hoạt Relay rút chốt cửa.
+  - **Báo cháy tự động**: Cảm biến DHT11 đo nhiệt độ phòng liên tục. Nếu vượt 50°C, Node 2 tự động hú còi Buzzer, kích hoạt Relay mở khóa Cửa chính để thoát hiểm, bắn cảnh báo lên MQTT để App nhận thông báo đẩy.
+  - **Báo động xâm nhập**: Nhận lệnh từ Backend để hú còi khi Node 1 đạt ngưỡng xác thực sai đang cấu hình, mặc định là 3 lần.

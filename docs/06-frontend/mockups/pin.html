@@ -1,0 +1,50 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>SmartLock System - PIN</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;600;700&family=Outfit:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="style.css" />
+</head>
+<body>
+  <div class="app-container dashboard-home">
+    <div class="status-bar" style="color: #fff; text-shadow: 0 1px 4px rgba(0,0,0,0.3);">
+      <span>09:41</span>
+      <div class="status-right">
+        <button class="theme-toggle" id="theme-toggle" title="Chuyển giao diện"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 12.79A9 9 0 1111.21 3 7 7 0 0021 12.79z" /></svg></button>
+        <span>●●●</span><span>LTE</span><span>78%</span>
+      </div>
+    </div>
+
+    <div class="screen active" style="background: transparent;">
+      <div class="screen-content">
+        <button class="back-btn" onclick="window.location.href='dashboard.html'" aria-label="Quay lại Dashboard"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M15 18l-6-6 6-6" /></svg></button>
+        <div class="access-page-header"><h1>Mã PIN hệ thống</h1><span class="settings-status active">Đang dùng</span></div>
+
+        <div class="card">
+          <p class="settings-section-label">THAY ĐỔI MÃ PIN</p>
+          <p class="settings-item-subtitle" style="margin-bottom:16px">Mã PIN được thay đổi lần cuối 30 ngày trước.</p>
+          <div class="access-form-group"><label for="current-pin">PIN hiện tại</label><input id="current-pin" type="password" inputmode="numeric" minlength="4" maxlength="8" placeholder="Nhập PIN hiện tại" /></div>
+          <div class="access-form-group"><label for="new-pin">PIN mới</label><input id="new-pin" type="password" inputmode="numeric" minlength="4" maxlength="8" placeholder="Từ 4 đến 8 chữ số" /></div>
+          <div class="access-form-group"><label for="confirm-pin">Xác nhận PIN mới</label><input id="confirm-pin" type="password" inputmode="numeric" minlength="4" maxlength="8" placeholder="Nhập lại PIN mới" /></div>
+          <button class="btn-outline" style="margin-top:4px">Lưu mã PIN mới</button>
+        </div>
+
+        <div class="card settings-card">
+          <p class="settings-section-label">CHÍNH SÁCH KHÓA TẠM</p>
+          <div class="setting-row"><div><p class="settings-item-title">Số lần sai tối đa</p><p class="settings-item-subtitle">Áp dụng cho xác thực bằng PIN</p></div><span class="settings-value">3 lần</span></div>
+          <div class="setting-row"><div><p class="settings-item-title">Thời gian khóa</p><p class="settings-item-subtitle">Sau khi đạt giới hạn</p></div><span class="settings-value">60 giây</span></div>
+          <div class="setting-row"><div><p class="settings-item-title">Trạng thái hiện tại</p><p class="settings-item-subtitle">3 lần nhập sai gần nhất</p></div><span class="settings-status inactive">Đang khóa</span></div>
+          <button class="settings-action-btn" style="width:100%">Mở khóa xác thực PIN</button>
+        </div>
+
+        <div class="access-note">Không hiển thị hoặc lưu mã PIN dạng rõ. Hệ thống chỉ lưu giá trị đã băm.</div>
+      </div>
+    </div>
+  </div>
+  <script src="script.js"></script>
+</body>
+</html>
