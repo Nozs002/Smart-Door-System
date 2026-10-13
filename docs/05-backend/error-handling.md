@@ -16,10 +16,9 @@ Cơ chế xử lý lỗi Backend chuẩn hóa phản hồi lỗi cho REST API, g
 cảm bị trả ra ngoài.
 
 Phạm vi hiện tại gồm lỗi MVC, validation, exception nghiệp vụ, lỗi phân quyền
-được ném trong application/MVC layer và lỗi ngoài dự kiến. Lỗi authentication
-hoặc authorization phát sinh trong Spring Security filter chain cần được nối
-thêm bằng `AuthenticationEntryPoint` và `AccessDeniedHandler` ở giai đoạn cấu
-hình Security.
+và lỗi authentication/authorization phát sinh trong Spring Security filter
+chain. Security entry point và access denied handler ủy quyền vào cùng global
+exception handling để giữ một schema lỗi thống nhất.
 
 ## 2. Vị trí source code
 
@@ -58,6 +57,7 @@ Các mã hiện có:
 | --- | --- | --- |
 | `INVALID_REQUEST` | `400` | `Yêu cầu không hợp lệ` |
 | `VALIDATION_FAILED` | `400` | `Dữ liệu không hợp lệ` |
+| `AUTHENTICATION_REQUIRED` | `401` | `Yêu cầu xác thực` |
 | `RESOURCE_NOT_FOUND` | `404` | `Không tìm thấy tài nguyên` |
 | `CONFLICT` | `409` | `Xung đột dữ liệu` |
 | `ACCESS_DENIED` | `403` | `Truy cập bị từ chối` |
@@ -225,5 +225,6 @@ agent không tự chạy Maven ở các tác vụ tiếp theo nếu người dù
 
 - [Kiến trúc Backend](architecture.md)
 - [Cấu trúc phản hồi REST API](api-response.md)
+- [Nền tảng bảo mật Backend](security-foundation.md)
 - [Kế hoạch triển khai Backend](implementation-plan.md)
 - [Yêu cầu hệ thống](../01-requirements/requirement.md)

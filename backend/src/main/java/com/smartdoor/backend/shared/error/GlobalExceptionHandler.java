@@ -38,7 +38,7 @@ public final class GlobalExceptionHandler extends ResponseEntityExceptionHandler
 
 	@ExceptionHandler(AccessDeniedException.class)
 	ResponseEntity<Object> handleAccessDeniedException(AccessDeniedException exception, WebRequest request) {
-		return response(ErrorCode.ACCESS_DENIED, "You do not have permission to perform this action.", request, null);
+		return response(ErrorCode.ACCESS_DENIED, "Bạn không có quyền thực hiện thao tác này.", request, null);
 	}
 
 	@ExceptionHandler(Exception.class)

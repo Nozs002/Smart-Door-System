@@ -51,6 +51,17 @@ class GlobalExceptionHandlerTests {
 	}
 
 	@Test
+	void returnsUnauthorizedProblemForMissingAuthentication() throws Exception {
+		mockMvc.perform(get("/test/authentication-required")
+				.header(CorrelationIdFilter.HEADER_NAME, "request-auth"))
+				.andExpect(status().isUnauthorized())
+				.andExpect(content().contentType(MediaType.APPLICATION_PROBLEM_JSON))
+				.andExpect(jsonPath("$.errorCode").value("AUTHENTICATION_REQUIRED"))
+				.andExpect(jsonPath("$.title").value("Yêu cầu xác thực"))
+				.andExpect(jsonPath("$.correlationId").value("request-auth"));
+	}
+
+	@Test
 	void returnsFieldErrorsWithoutRejectedValues() throws Exception {
 		mockMvc.perform(post("/test/resources")
 				.contentType(MediaType.APPLICATION_JSON)
@@ -91,6 +102,11 @@ class GlobalExceptionHandlerTests {
 		@GetMapping("/unexpected")
 		void unexpected() {
 			throw new IllegalStateException("database-password");
+		}
+
+		@GetMapping("/authentication-required")
+		void authenticationRequired() {
+			throw new AuthenticationRequiredException();
 		}
 	}
 
