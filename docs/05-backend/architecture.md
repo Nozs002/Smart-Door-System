@@ -4,7 +4,7 @@ type: reference
 version: 1.0
 lang: vi
 tags: [backend, architecture, spring-boot, security, observability]
-updated: 2026-10-03
+updated: 2026-10-13
 ---
 
 # Kiến trúc Backend
@@ -19,8 +19,9 @@ Tài liệu này định nghĩa kiến trúc mục tiêu cho Backend Smart Door 
 - áp dụng bảo mật theo mặc định cho REST API, MQTT, dữ liệu và secrets;
 - kiểm thử được nghiệp vụ độc lập với MySQL, Mosquitto và HTTP.
 
-Trạng thái source hiện tại chỉ là Spring Boot skeleton với Java 21, Spring Boot
-4.1.1, JPA, Flyway, Security, Validation, Actuator, MySQL và H2. Các thành phần
+Source hiện tại có nền tảng Spring Boot với Java 21, Spring Boot 4.1.1, JPA,
+Flyway, Security, Validation, Actuator, MySQL/H2 và entity/repository 12 bảng.
+Service/controller nghiệp vụ chưa triển khai. Các thành phần
 trong tài liệu này là **kiến trúc mục tiêu**, không phải tất cả đã được triển
 khai. REST API và MQTT contract vẫn đang là placeholder nên tài liệu không tự
 định nghĩa endpoint, topic hoặc payload cụ thể.
@@ -29,12 +30,19 @@ khai. REST API và MQTT contract vẫn đang là placeholder nên tài liệu kh
 
 Backend chịu trách nhiệm:
 
-- xác thực tài khoản App, phân quyền `ADMIN` và `USER`;
-- quản lý người dùng, thẻ, PIN, cửa và hai ESP32;
+- xác thực Account khách hàng và kiểm tra quyền sở hữu Door ở mọi use case;
+- tách Account đăng nhập khỏi Cardholder được cấp RFID; không có Admin nền tảng;
+- quản lý thẻ, PIN và cặp ESP32 theo từng Door; vân tay ngoài phạm vi;
+- provision bộ Door/Node qua công cụ kỹ thuật, rồi cho khách hàng claim bằng mã kích hoạt;
+- quản lý vòng đời thiết bị độc lập với kết nối online/offline và giữ lịch sử thay thế;
 - xử lý yêu cầu truy cập và phát lệnh điều khiển qua MQTT;
 - quản lý heartbeat, cảnh báo, trạng thái khóa tạm và lịch sử truy cập;
 - cung cấp REST API cho Mobile App;
 - lưu dữ liệu nghiệp vụ trong MySQL.
+
+Các ràng buộc này tuân theo [quyết định sở hữu cửa và vòng đời thiết bị](../01-requirements/ownership-device-lifecycle-decisions.md).
+Account sở hữu nhiều Door; Door chưa claim có thể chưa có chủ, Door đã liên kết
+có đúng một chủ. Dữ liệu và định tuyến thiết bị phải giữ ngữ cảnh cửa.
 
 Các nguyên tắc bắt buộc:
 
@@ -42,8 +50,9 @@ Các nguyên tắc bắt buộc:
    vụ. Không tách microservice khi chưa có nhu cầu vận hành được chứng minh.
 2. **Feature first**: code của một tính năng nằm gần nhau; không tạo các thư mục
    toàn cục khổng lồ như `controller`, `service`, `repository`.
-3. **Dependency hướng vào trong**: HTTP, MQTT và database phụ thuộc vào use case
-   nghiệp vụ; domain không phụ thuộc framework hoặc transport.
+3. **Ranh giới module rõ ràng**: controller/handler gọi service; service sở hữu
+   nghiệp vụ và transaction. Module khác chỉ dùng service public qua DTO/ID,
+   không truy cập entity/repository nội bộ.
 4. **Contract first**: endpoint và MQTT message chỉ được triển khai sau khi
    contract tương ứng được chốt trong `contracts/`.
 5. **Secure by default**: từ chối khi chưa xác thực hoặc chưa đủ quyền, validate
@@ -75,56 +84,70 @@ Mobile App --HTTPS/JSON--> Backend --JDBC/TLS--> MySQL
 
 ### 4.1. Module nghiệp vụ
 
-| Module | Trách nhiệm chính |
-| --- | --- |
-| `identity` | Đăng nhập, JWT, vai trò và trạng thái tài khoản. |
-| `access` | RFID/PIN, quyết định cho phép, lockout và access log. |
-| `door` | Cấu hình cửa, trạng thái lệnh và điều khiển từ App. |
-| `device` | Onboarding, vòng đời và heartbeat của hai node. |
-| `alert` | Tạo, xác nhận và giải quyết cảnh báo. |
-| `safety` | Luồng báo cháy và quy tắc fail-safe đã được chốt. |
-| `shared` | Kiểu giá trị, error model và tiện ích kỹ thuật dùng chung tối thiểu. |
+| Nhóm việc | Module | Trách nhiệm/bảng sở hữu |
+| --- | --- | --- |
+| Người 1 | `identity` | Account, đăng ký/đăng nhập, mật khẩu và JWT; bảng accounts. |
+| Người 1 | `credentials` | Cardholder, cấp/thu hồi RFID, PIN; cardholders, rfid_credentials, system_pins. |
+| Người 2 | `door` | Ownership, danh sách cửa, claim và mã kích hoạt; doors, door_activation_codes. |
+| Người 2 | `device` | Provision Node, lifecycle, heartbeat, thay thế; devices, device_lifecycle_events. |
+| Người 3 | `access` | Quyết định truy cập, lockout và lịch sử; access_logs, lockout_statuses. |
+| Người 3 | `control` | Lệnh mở cửa, Node 2, ACK và timeout; không tạo bản sao entity Door/Device. |
+| Người 4 | `settings` | Cấu hình ngưỡng, đồng bộ/ACK; door_configs. |
+| Người 4 | `alert` | Cảnh báo, trạng thái xử lý và thông báo; alerts. |
 
-Module chỉ gọi public application API của module khác. Không truy cập trực tiếp
-repository hoặc entity nội bộ của module khác. Giao tiếp nội bộ dùng lời gọi
-đồng bộ hoặc domain event trong cùng process; chỉ dùng event khi giúp tách phụ
-thuộc hoặc cần xử lý sau transaction.
+Mỗi entity/repository có một module sở hữu. Module khác gọi service public với
+DTO/ID, không truy cập repository hoặc sửa entity nội bộ. Ownership thuộc
+door/service; lấy Account hiện tại thuộc shared/security. Phản ứng an toàn
+tại chỗ thuộc firmware Node 2; sự kiện nhiệt độ được tiếp nhận qua alert,
+không tạo module safety riêng trong khung này.
 
-### 4.2. Cấu trúc package đề xuất
+### 4.2. Cấu trúc package hiện hành
+
+Nhóm thống nhất cấu trúc theo module với Controller–Service–Repository,
+một JPA entity cho mỗi bảng. Chưa tách domain model và JPA entity thành hai
+class. Khung package đã tạo bằng package-info.java; 12 entity và repository
+đã thêm theo schema v2, xem [mapping JPA](entity-repository-mapping.md).
+Controller/service nghiệp vụ và endpoint hoạt động chưa triển khai.
 
 ```text
 com.smartdoor.backend
-├── identity
-│   ├── api             # REST DTO/controller và mapping transport
-│   ├── application     # use case, command/query, transaction boundary
-│   ├── domain          # entity/value object/policy thuần Java
-│   └── infrastructure  # JPA, JWT, adapter ngoài
-├── access
-├── door
-├── device
-├── alert
-├── safety
-├── shared
-│   ├── error
-│   ├── security
-│   └── observability
-└── configuration
+├── identity/
+│   ├── controller/
+│   ├── service/
+│   ├── entity/
+│   ├── repository/
+│   └── dto/
+├── credentials/         # Cùng năm thư mục trên
+├── door/
+├── device/              # Thêm mqtt/ cho heartbeat
+├── access/              # Thêm mqtt/ cho yêu cầu RFID/PIN
+├── control/             # Thêm mqtt/ cho ACK/Exit
+├── settings/            # Thêm mqtt/ cho ACK đồng bộ
+├── alert/               # Thêm mqtt/ cho sự kiện cảnh báo
+├── shared/              # api, error, security, observability đang có
+├── infrastructure/
+│   └── mqtt/            # Kết nối/publisher/dispatcher chung
+└── configuration/       # Cấu hình Spring đang có
 ```
 
-Quy tắc phụ thuộc:
+Luồng xử lý:
 
 ```text
-api ───────────────┐
-infrastructure ────┼──> application ──> domain
-configuration ─────┘
+REST controller hoặc MQTT handler → service → repository → database
+                                      ↓
+                                gọi service module khác qua DTO/ID
 ```
 
-- Controller không chứa nghiệp vụ và không trả JPA entity.
-- Application service xác định transaction boundary và điều phối use case.
-- Domain chứa quy tắc nghiệp vụ, không import Spring/JPA nếu không cần thiết.
-- Adapter JPA/MQTT/JWT triển khai interface do application hoặc domain sở hữu.
-- DTO transport, entity persistence và domain model được tách khi vòng đời hoặc
-  yêu cầu bảo mật khác nhau.
+- Controller/handler validate dữ liệu đầu vào, không chứa logic nghiệp vụ.
+- Service kiểm tra quyền, invariant và transaction; không tin Account từ body.
+- Entity dùng JPA, chỉ thuộc một module; liên kết xuyên module ưu tiên ID.
+- Repository chỉ được sử dụng trong module sở hữu.
+- DTO request/response tách khỏi entity; không trả hash/secret ra API.
+- Khung MQTT chưa kết nối Broker hoặc subscribe topic. Chốt contract trước
+  triển khai; không tạo MQTT client riêng mỗi module.
+- Test đặt dưới src/test/java/com/smartdoor/backend/<module>/ theo chức năng.
+- Xem [hướng dẫn tổ chức module](module-structure.md) cho quy tắc dùng chung,
+  giao tiếp và công việc song song.
 
 ## 5. Quản lý cấu hình
 
@@ -148,8 +171,8 @@ trong profile.
 - Response JSON thành công dùng `ApiResponse<T>`; response lỗi dùng Problem
   Details. Không trả HTTP `200` cho lỗi và không bọc endpoint hạ tầng hoặc nội
   dung không phải JSON.
-- Validate DTO tại biên bằng Bean Validation; validate lại invariant trong
-  domain.
+- Validate DTO tại biên bằng Bean Validation; kiểm tra lại invariant trong
+  service và entity của module.
 - Lỗi API dùng `application/problem+json` theo Problem Details, có các trường
   ổn định: `type`, `title`, `status`, `detail`, `instance`, `errorCode`,
   `correlationId`; lỗi validation có danh sách field lỗi an toàn.
@@ -174,6 +197,14 @@ trong profile.
   Mobile App.
 - Account `DISABLED`, credential bị thu hồi hoặc device bị vô hiệu hóa phải bị
   từ chối ở application layer.
+- Account được lấy từ phiên xác thực; mọi truy vấn/cập nhật theo Door phải kiểm
+  tra `owner_account_id`. Biết ID hoặc có token hợp lệ chưa đủ quyền truy cập.
+- Cardholder và Door của một đăng ký RFID phải thuộc cùng Account. UID có phạm
+  vi duy nhất theo cửa; thu hồi ở cửa A không thay đổi cửa B.
+- Claim kiểm tra mã kích hoạt một lần, thời hạn và cửa chưa có chủ trong cùng
+  transaction; chỉ một Account nhận sở hữu khi có request đồng thời.
+- Provision được bảo vệ bằng cơ chế truy cập kỹ thuật nội bộ; không thêm quyền
+  Admin toàn nền tảng vào tài khoản khách hàng.
 
 ### 7.2. Secrets và mã hóa
 
@@ -237,8 +268,15 @@ trong profile.
   tham gia transaction MySQL; lệnh cần bảo đảm giao hàng phải dùng outbox hoặc
   cơ chế retry/idempotency đã được thiết kế rõ.
 - Thời gian lưu UTC trong Backend/database; chuyển múi giờ khi hiển thị.
-- Vô hiệu hóa user và thu hồi credential liên quan phải thực hiện trong một
-  transaction như tài liệu database quy định.
+- Vô hiệu hóa Cardholder và thu hồi RFID liên quan phải thực hiện trong một
+  transaction; giữ lịch sử. Vô hiệu hóa Account là use case riêng; chính sách
+  ảnh hưởng đến credential cục bộ/offline cần được đặc tả trước triển khai.
+- Không xóa dây chuyền lịch sử khi ngừng sử dụng Door hoặc Device. Lifecycle
+  transition ghi actor/quy trình, thời gian và lý do. Schema v2 và transition
+  ở [Database ERD](../03-technical-reference/database-erd.md); Backend còn phải
+  hiện thực use case, không dùng heartbeat ghi đè trạng thái vòng đời.
+- Claim và thay thiết bị phải có kiểm soát đồng thời; một Door có tối đa một
+  thiết bị hoạt động cho mỗi vai trò Node, thiết bị cũ giữ định danh lịch sử.
 
 ## 10. MQTT
 
@@ -253,12 +291,17 @@ trong profile.
   lặp nóng.
 - Lệnh mở khóa cần correlation/command ID, thời hạn và phản hồi xác nhận riêng;
   nhận lệnh không đồng nghĩa cửa đã mở vật lý.
+- Broker và Backend đối chiếu danh tính thiết bị với Door/Node đã provision,
+  không tin riêng ID trong payload. Node 2 chỉ nhận lệnh cho đúng Door của mình.
+- Online/offline/UNKNOWN được suy ra từ heartbeat nhận tại Backend và timeout;
+  mỗi Node có trạng thái riêng. Thiết bị online nhưng bị vô hiệu hóa/ngừng sử
+  dụng vẫn bị từ chối nghiệp vụ.
 
 ## 11. Chiến lược kiểm thử
 
 | Tầng | Mục tiêu |
 | --- | --- |
-| Unit | Domain policy và use case, không khởi động Spring. |
+| Unit | Quy tắc entity và service nghiệp vụ, không khởi động Spring. |
 | Slice | Controller/security mapping và JPA adapter theo phạm vi nhỏ. |
 | Integration | MySQL/Mosquitto thật qua container khi cần kiểm chứng hành vi. |
 | Contract | OpenAPI và MQTT schema tương thích producer/consumer. |
@@ -291,6 +334,8 @@ Các mục sau phải có quyết định kỹ thuật hoặc contract được 
 5. Delivery command: outbox, retry, timeout và acknowledgment cho mở khóa.
 6. Runtime: nơi kết thúc TLS, metrics backend, log collector và secret store.
 7. Test integration: Testcontainers hay dịch vụ CI tương đương.
+8. Device: workflow lifecycle theo schema v2, policy mã kích hoạt, cấp/thu hồi credential
+   và ACL, timeout heartbeat, đồng bộ cấu hình và lịch sử thay thế.
 
 ## 14. Tài liệu liên quan
 

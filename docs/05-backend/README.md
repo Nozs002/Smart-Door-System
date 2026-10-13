@@ -12,6 +12,12 @@ Khu vực lưu tài liệu thiết kế và phát triển Spring Boot Backend, b
 
 ## Tài liệu
 
+- [Mapping JPA và repository](entity-repository-mapping.md) — 12 bảng, khóa ghép,
+  enum, version, truy vấn phạm vi, khóa hàng và cách kiểm thử.
+
+- [Cấu trúc module và làm việc song song](module-structure.md) — tám module,
+  controller/service/entity/repository/dto và quy tắc thư mục dùng chung.
+
 - [Kiến trúc Backend](architecture.md) — kiến trúc mục tiêu, ranh giới module,
   cấu hình, bảo mật, quan sát, dữ liệu, MQTT và kiểm thử.
 - [Kế hoạch triển khai Backend](implementation-plan.md) — lộ trình theo giai
@@ -22,6 +28,10 @@ Khu vực lưu tài liệu thiết kế và phát triển Spring Boot Backend, b
   JSON thành công và Problem Details cho response lỗi.
 - [Cấu hình môi trường Backend](environment-configuration.md) — profiles
   `local`, `test`, `prod`, typed configuration và biến môi trường.
+- [Nền tảng bảo mật Backend](security-foundation.md) — security filter chain,
+  CORS, BCrypt và chuẩn hóa lỗi `401/403`.
+- [Báo cáo cấu hình Backend ngày 13/10/2026](configuration-progress-report-2026-10-13.md)
+  — phạm vi tài liệu mới, nội dung đã làm, xác minh và công việc còn lại.
 
 ## Liên kết
 
