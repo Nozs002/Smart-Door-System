@@ -1,152 +1,190 @@
 SET NAMES utf8mb4;
-SET time_zone = '+07:00';
+SET time_zone = '+00:00';
 
-CREATE TABLE users (
-    id BIGINT UNSIGNED NOT NULL AUTO_INCREMENT,
+CREATE TABLE accounts (
+    id BIGINT UNSIGNED NOT NULL AUTO_INCREMENT PRIMARY KEY,
     display_name VARCHAR(100) NOT NULL,
-    username VARCHAR(100) NULL,
-    password_hash VARCHAR(255) NULL,
+    username VARCHAR(100) NOT NULL,
+    password_hash VARCHAR(255) NOT NULL,
+    status ENUM('ACTIVE','DISABLED') NOT NULL DEFAULT 'ACTIVE',
     created_at DATETIME(3) NOT NULL DEFAULT CURRENT_TIMESTAMP(3),
-    role ENUM('ADMIN', 'USER') NOT NULL DEFAULT 'USER',
-    status ENUM('ACTIVE', 'DISABLED') NOT NULL DEFAULT 'ACTIVE',
-    phone VARCHAR(20) NULL,
-    name VARCHAR(100) NULL,
-    PRIMARY KEY (id),
-    UNIQUE KEY uk_users_username (username),
-    UNIQUE KEY uk_users_phone (phone),
-    KEY idx_users_status (status)
-) ENGINE = InnoDB
-  DEFAULT CHARACTER SET = utf8mb4
-  COLLATE = utf8mb4_unicode_ci;
+    UNIQUE KEY uk_accounts_username (username)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
-CREATE TABLE rfid_credentials (
-    id BIGINT UNSIGNED NOT NULL AUTO_INCREMENT,
-    uid VARCHAR(128) NOT NULL,
-    status ENUM('ACTIVE', 'REVOKED', 'EXPIRED') NOT NULL DEFAULT 'ACTIVE',
-    issued_at DATETIME(3) NULL,
-    revoked_at DATETIME(3) NULL,
-    user_id BIGINT UNSIGNED NOT NULL,
-    PRIMARY KEY (id),
-    UNIQUE KEY uk_rfid_credentials_uid (uid),
-    KEY idx_rfid_credentials_user_id (user_id),
-    CONSTRAINT fk_rfid_credentials_user
-        FOREIGN KEY (user_id) REFERENCES users (id)
-        ON UPDATE CASCADE
-        ON DELETE CASCADE,
-    CONSTRAINT chk_rfid_credentials_revoked_at
-        CHECK (status <> 'REVOKED' OR revoked_at IS NOT NULL)
-) ENGINE = InnoDB
-  DEFAULT CHARACTER SET = utf8mb4
-  COLLATE = utf8mb4_unicode_ci;
+CREATE TABLE cardholders (
+    id BIGINT UNSIGNED NOT NULL AUTO_INCREMENT PRIMARY KEY,
+    account_id BIGINT UNSIGNED NOT NULL,
+    display_name VARCHAR(100) NOT NULL,
+    status ENUM('ACTIVE','DISABLED') NOT NULL DEFAULT 'ACTIVE',
+    created_at DATETIME(3) NOT NULL DEFAULT CURRENT_TIMESTAMP(3),
+    UNIQUE KEY uk_cardholders_account (id, account_id),
+    FOREIGN KEY (account_id) REFERENCES accounts(id) ON DELETE RESTRICT
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
 CREATE TABLE doors (
-    id BIGINT UNSIGNED NOT NULL AUTO_INCREMENT,
+    id BIGINT UNSIGNED NOT NULL AUTO_INCREMENT PRIMARY KEY,
+    owner_account_id BIGINT UNSIGNED NULL,
     name VARCHAR(100) NOT NULL,
-    operating_mode ENUM('AUTOMATIC', 'SECURITY') NOT NULL DEFAULT 'SECURITY',
-    commanded_lock_state ENUM('LOCKED', 'UNLOCKED') NULL DEFAULT NULL,
-    PRIMARY KEY (id)
-) ENGINE = InnoDB
-  DEFAULT CHARACTER SET = utf8mb4
-  COLLATE = utf8mb4_unicode_ci;
+    location VARCHAR(255) NULL,
+    status ENUM('UNCLAIMED','SETUP_PENDING','ACTIVE','DISABLED') NOT NULL DEFAULT 'UNCLAIMED',
+    operating_mode ENUM('AUTOMATIC','SECURITY') NOT NULL DEFAULT 'SECURITY',
+    commanded_lock_state ENUM('LOCKED','UNLOCKED') NULL,
+    created_at DATETIME(3) NOT NULL DEFAULT CURRENT_TIMESTAMP(3),
+    updated_at DATETIME(3) NOT NULL DEFAULT CURRENT_TIMESTAMP(3) ON UPDATE CURRENT_TIMESTAMP(3),
+    version BIGINT UNSIGNED NOT NULL DEFAULT 0,
+    UNIQUE KEY uk_doors_owner (id, owner_account_id),
+    FOREIGN KEY (owner_account_id) REFERENCES accounts(id) ON DELETE RESTRICT,
+    CONSTRAINT chk_doors_owner CHECK (
+        (status = 'UNCLAIMED' AND owner_account_id IS NULL)
+        OR (status <> 'UNCLAIMED' AND owner_account_id IS NOT NULL))
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
 CREATE TABLE door_configs (
-    id BIGINT UNSIGNED NOT NULL AUTO_INCREMENT,
-    door_id BIGINT UNSIGNED NOT NULL,
+    door_id BIGINT UNSIGNED NOT NULL PRIMARY KEY,
     max_failed_attempts INT UNSIGNED NOT NULL DEFAULT 3,
     lockout_seconds INT UNSIGNED NOT NULL DEFAULT 60,
-    temperature_threshold DECIMAL(5, 2) NOT NULL,
+    temperature_threshold DECIMAL(5,2) NOT NULL DEFAULT 50.00,
     open_timeout_seconds INT UNSIGNED NULL,
-    PRIMARY KEY (id),
-    UNIQUE KEY uk_door_configs_door_id (door_id),
-    CONSTRAINT fk_door_configs_door
-        FOREIGN KEY (door_id) REFERENCES doors (id)
-        ON UPDATE CASCADE
-        ON DELETE CASCADE,
-    CONSTRAINT chk_door_configs_max_failed_attempts
-        CHECK (max_failed_attempts > 0),
-    CONSTRAINT chk_door_configs_lockout_seconds
-        CHECK (lockout_seconds > 0),
-    CONSTRAINT chk_door_configs_open_timeout_seconds
-        CHECK (open_timeout_seconds IS NULL OR open_timeout_seconds > 0)
-) ENGINE = InnoDB
-  DEFAULT CHARACTER SET = utf8mb4
-  COLLATE = utf8mb4_unicode_ci;
+    version BIGINT UNSIGNED NOT NULL DEFAULT 1,
+    updated_at DATETIME(3) NOT NULL DEFAULT CURRENT_TIMESTAMP(3) ON UPDATE CURRENT_TIMESTAMP(3),
+    FOREIGN KEY (door_id) REFERENCES doors(id) ON DELETE RESTRICT,
+    CHECK (max_failed_attempts > 0 AND lockout_seconds > 0 AND version > 0),
+    CHECK (open_timeout_seconds IS NULL OR open_timeout_seconds > 0)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
 CREATE TABLE system_pins (
-    id BIGINT UNSIGNED NOT NULL AUTO_INCREMENT,
+    door_id BIGINT UNSIGNED NOT NULL PRIMARY KEY,
     pin_hash VARCHAR(255) NOT NULL,
-    status BOOLEAN NOT NULL DEFAULT TRUE,
+    status ENUM('ACTIVE','DISABLED') NOT NULL DEFAULT 'ACTIVE',
+    version BIGINT UNSIGNED NOT NULL DEFAULT 1,
     changed_at DATETIME(3) NOT NULL DEFAULT CURRENT_TIMESTAMP(3),
-    PRIMARY KEY (id),
-    KEY idx_system_pins_status (status)
-) ENGINE = InnoDB
-  DEFAULT CHARACTER SET = utf8mb4
-  COLLATE = utf8mb4_unicode_ci;
+    FOREIGN KEY (door_id) REFERENCES doors(id) ON DELETE RESTRICT,
+    CHECK (version > 0)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
 CREATE TABLE devices (
-    id BIGINT UNSIGNED NOT NULL AUTO_INCREMENT,
+    id BIGINT UNSIGNED NOT NULL AUTO_INCREMENT PRIMARY KEY,
+    door_id BIGINT UNSIGNED NOT NULL,
     device_code VARCHAR(100) NOT NULL,
-    node_type ENUM('NODE_1', 'NODE_2') NOT NULL,
-    status ENUM('ACTIVE', 'INACTIVE', 'DISABLED') NOT NULL DEFAULT 'INACTIVE',
+    node_type ENUM('NODE_1','NODE_2') NOT NULL,
+    lifecycle_status ENUM('PROVISIONED','ACTIVE','DISABLED','RETIRED') NOT NULL DEFAULT 'PROVISIONED',
+    active_node_type VARCHAR(6) GENERATED ALWAYS AS (
+        CASE WHEN lifecycle_status = 'ACTIVE' THEN node_type ELSE NULL END) STORED,
+    firmware_version VARCHAR(50) NULL,
     last_heartbeat_at DATETIME(3) NULL,
+    applied_config_version BIGINT UNSIGNED NULL,
+    applied_pin_version BIGINT UNSIGNED NULL,
     registered_at DATETIME(3) NOT NULL DEFAULT CURRENT_TIMESTAMP(3),
-    PRIMARY KEY (id),
-    UNIQUE KEY uk_devices_device_code (device_code),
-    KEY idx_devices_status (status),
-    KEY idx_devices_last_heartbeat_at (last_heartbeat_at)
-) ENGINE = InnoDB
-  DEFAULT CHARACTER SET = utf8mb4
-  COLLATE = utf8mb4_unicode_ci;
+    activated_at DATETIME(3) NULL,
+    retired_at DATETIME(3) NULL,
+    version BIGINT UNSIGNED NOT NULL DEFAULT 0,
+    UNIQUE KEY uk_devices_code (device_code),
+    UNIQUE KEY uk_devices_scope (id, door_id),
+    UNIQUE KEY uk_devices_active_slot (door_id, active_node_type),
+    KEY idx_devices_heartbeat (last_heartbeat_at),
+    FOREIGN KEY (door_id) REFERENCES doors(id) ON DELETE RESTRICT,
+    CHECK (lifecycle_status <> 'ACTIVE' OR activated_at IS NOT NULL),
+    CHECK (lifecycle_status <> 'RETIRED' OR retired_at IS NOT NULL)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+CREATE TABLE door_activation_codes (
+    id BIGINT UNSIGNED NOT NULL AUTO_INCREMENT PRIMARY KEY,
+    door_id BIGINT UNSIGNED NOT NULL,
+    code_hash VARCHAR(255) NOT NULL,
+    expires_at DATETIME(3) NOT NULL,
+    created_at DATETIME(3) NOT NULL DEFAULT CURRENT_TIMESTAMP(3),
+    consumed_at DATETIME(3) NULL,
+    consumed_by_account_id BIGINT UNSIGNED NULL,
+    revoked_at DATETIME(3) NULL,
+    FOREIGN KEY (door_id) REFERENCES doors(id) ON DELETE RESTRICT,
+    FOREIGN KEY (consumed_by_account_id) REFERENCES accounts(id) ON DELETE RESTRICT,
+    CHECK (expires_at > created_at),
+    CHECK ((consumed_at IS NULL AND consumed_by_account_id IS NULL)
+        OR (consumed_at IS NOT NULL AND consumed_by_account_id IS NOT NULL))
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+CREATE TABLE device_lifecycle_events (
+    id BIGINT UNSIGNED NOT NULL AUTO_INCREMENT PRIMARY KEY,
+    event_id VARCHAR(100) NOT NULL,
+    device_id BIGINT UNSIGNED NOT NULL,
+    door_id BIGINT UNSIGNED NOT NULL,
+    actor_account_id BIGINT UNSIGNED NULL,
+    event_type ENUM('PROVISIONED','ACTIVATED','DISABLED','REACTIVATED','RETIRED','REPLACED') NOT NULL,
+    from_status ENUM('PROVISIONED','ACTIVE','DISABLED','RETIRED') NULL,
+    to_status ENUM('PROVISIONED','ACTIVE','DISABLED','RETIRED') NOT NULL,
+    replacement_device_id BIGINT UNSIGNED NULL,
+    reason VARCHAR(500) NULL,
+    occurred_at DATETIME(3) NOT NULL DEFAULT CURRENT_TIMESTAMP(3),
+    UNIQUE KEY uk_lifecycle_event (event_id),
+    KEY idx_lifecycle_history (device_id, occurred_at),
+    FOREIGN KEY (device_id, door_id) REFERENCES devices(id, door_id) ON DELETE RESTRICT,
+    FOREIGN KEY (replacement_device_id, door_id) REFERENCES devices(id, door_id) ON DELETE RESTRICT,
+    FOREIGN KEY (door_id, actor_account_id) REFERENCES doors(id, owner_account_id) ON DELETE RESTRICT
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+CREATE TABLE rfid_credentials (
+    id BIGINT UNSIGNED NOT NULL AUTO_INCREMENT PRIMARY KEY,
+    door_id BIGINT UNSIGNED NOT NULL,
+    account_id BIGINT UNSIGNED NOT NULL,
+    cardholder_id BIGINT UNSIGNED NOT NULL,
+    uid_lookup_value VARCHAR(128) NOT NULL,
+    status ENUM('ACTIVE','REVOKED','EXPIRED') NOT NULL DEFAULT 'ACTIVE',
+    issued_at DATETIME(3) NOT NULL DEFAULT CURRENT_TIMESTAMP(3),
+    revoked_at DATETIME(3) NULL,
+    expires_at DATETIME(3) NULL,
+    UNIQUE KEY uk_rfid_door_uid (door_id, uid_lookup_value),
+    UNIQUE KEY uk_rfid_scope (id, door_id),
+    FOREIGN KEY (door_id, account_id) REFERENCES doors(id, owner_account_id) ON DELETE RESTRICT,
+    FOREIGN KEY (cardholder_id, account_id) REFERENCES cardholders(id, account_id) ON DELETE RESTRICT,
+    CHECK (status <> 'REVOKED' OR revoked_at IS NOT NULL)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
 CREATE TABLE access_logs (
-    id BIGINT UNSIGNED NOT NULL AUTO_INCREMENT,
+    id BIGINT UNSIGNED NOT NULL AUTO_INCREMENT PRIMARY KEY,
     event_id VARCHAR(100) NOT NULL,
-    method ENUM(
-        'RFID',
-        'PIN',
-        'APP',
-        'AUTO_PROXIMITY',
-        'FIRE_EMERGENCY'
-    ) NOT NULL,
-    result ENUM('GRANTED', 'DENIED', 'FAILED') NOT NULL,
+    correlation_id VARCHAR(100) NULL,
+    door_id BIGINT UNSIGNED NOT NULL,
+    actor_account_id BIGINT UNSIGNED NULL,
+    rfid_credential_id BIGINT UNSIGNED NULL,
+    source_device_id BIGINT UNSIGNED NULL,
+    method ENUM('RFID','PIN','APP','EXIT_BUTTON','AUTO_PROXIMITY','FIRE_EMERGENCY') NOT NULL,
+    result ENUM('GRANTED','DENIED','EXECUTED','FAILED','UNKNOWN') NOT NULL,
     reason VARCHAR(500) NULL,
-    occurred_at DATETIME(3) NOT NULL,
-    PRIMARY KEY (id),
-    UNIQUE KEY uk_access_logs_event_id (event_id),
-    KEY idx_access_logs_occurred_at (occurred_at),
-    KEY idx_access_logs_method_result (method, result)
-) ENGINE = InnoDB
-  DEFAULT CHARACTER SET = utf8mb4
-  COLLATE = utf8mb4_unicode_ci;
+    occurred_at DATETIME(3) NULL,
+    received_at DATETIME(3) NOT NULL DEFAULT CURRENT_TIMESTAMP(3),
+    UNIQUE KEY uk_access_event (event_id),
+    KEY idx_access_door_time (door_id, received_at),
+    KEY idx_access_correlation (correlation_id),
+    FOREIGN KEY (door_id) REFERENCES doors(id) ON DELETE RESTRICT,
+    FOREIGN KEY (door_id, actor_account_id) REFERENCES doors(id, owner_account_id) ON DELETE RESTRICT,
+    FOREIGN KEY (rfid_credential_id, door_id) REFERENCES rfid_credentials(id, door_id) ON DELETE RESTRICT,
+    FOREIGN KEY (source_device_id, door_id) REFERENCES devices(id, door_id) ON DELETE RESTRICT,
+    CHECK (method <> 'APP' OR actor_account_id IS NOT NULL),
+    CHECK (method = 'APP' OR actor_account_id IS NULL)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
 CREATE TABLE lockout_statuses (
-    id BIGINT UNSIGNED NOT NULL AUTO_INCREMENT,
-    method ENUM('RFID', 'PIN') NOT NULL,
+    door_id BIGINT UNSIGNED NOT NULL,
+    method ENUM('RFID','PIN') NOT NULL,
     failed_count INT UNSIGNED NOT NULL DEFAULT 0,
     locked_until DATETIME(3) NULL,
-    updated_at DATETIME(3) NOT NULL DEFAULT CURRENT_TIMESTAMP(3)
-        ON UPDATE CURRENT_TIMESTAMP(3),
-    PRIMARY KEY (id),
-    UNIQUE KEY uk_lockout_statuses_method (method),
-    KEY idx_lockout_statuses_locked_until (locked_until)
-) ENGINE = InnoDB
-  DEFAULT CHARACTER SET = utf8mb4
-  COLLATE = utf8mb4_unicode_ci;
+    updated_at DATETIME(3) NOT NULL DEFAULT CURRENT_TIMESTAMP(3) ON UPDATE CURRENT_TIMESTAMP(3),
+    PRIMARY KEY (door_id, method),
+    FOREIGN KEY (door_id) REFERENCES doors(id) ON DELETE RESTRICT
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
 CREATE TABLE alerts (
-    id BIGINT UNSIGNED NOT NULL AUTO_INCREMENT,
-    type ENUM(
-        'TOO_MANY_FAILURES',
-        'HIGH_TEMPERATURE',
-        'DOOR_OPEN_TOO_LONG'
-    ) NOT NULL,
-    status ENUM('NEW', 'ACKNOWLEDGED', 'RESOLVED') NOT NULL DEFAULT 'NEW',
+    id BIGINT UNSIGNED NOT NULL AUTO_INCREMENT PRIMARY KEY,
+    door_id BIGINT UNSIGNED NOT NULL,
+    source_device_id BIGINT UNSIGNED NULL,
+    type ENUM('TOO_MANY_FAILURES','HIGH_TEMPERATURE','DOOR_OPEN_TOO_LONG') NOT NULL,
+    severity ENUM('WARNING','CRITICAL') NOT NULL,
+    status ENUM('ACTIVE','ACKNOWLEDGED','RESOLVED') NOT NULL DEFAULT 'ACTIVE',
+    observed_temperature DECIMAL(5,2) NULL,
     triggered_at DATETIME(3) NOT NULL DEFAULT CURRENT_TIMESTAMP(3),
     resolved_at DATETIME(3) NULL,
-    PRIMARY KEY (id),
-    KEY idx_alerts_status_triggered_at (status, triggered_at),
-    CONSTRAINT chk_alerts_resolved_at
-        CHECK (status <> 'RESOLVED' OR resolved_at IS NOT NULL)
-) ENGINE = InnoDB
-  DEFAULT CHARACTER SET = utf8mb4
-  COLLATE = utf8mb4_unicode_ci;
+    KEY idx_alerts_door_status (door_id, status, triggered_at),
+    FOREIGN KEY (door_id) REFERENCES doors(id) ON DELETE RESTRICT,
+    FOREIGN KEY (source_device_id, door_id) REFERENCES devices(id, door_id) ON DELETE RESTRICT,
+    CHECK (status <> 'RESOLVED' OR resolved_at IS NOT NULL)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;

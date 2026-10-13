@@ -3,7 +3,13 @@
 Monorepo cho hệ thống kiểm soát cửa thông minh, tập trung vào quản lý vòng đời
 thiết bị và vận hành nhiều cửa. Hệ thống cho phép đăng ký cửa, onboarding thiết
 bị mới, gán thiết bị vào từng cửa và theo dõi trạng thái thiết bị trong suốt quá
-trình sử dụng.
+trình sử dụng. Mỗi khách hàng có một Account sở hữu nhiều cửa; mỗi cửa đã liên
+kết có một chủ. Khách hàng thêm cửa bằng mã kích hoạt của bộ thiết bị đã được
+provision. Account đăng nhập tách khỏi Cardholder được cấp RFID; vân tay nằm
+ngoài phạm vi.
+
+Xem [quyết định sở hữu cửa và vòng đời thiết bị](docs/01-requirements/ownership-device-lifecycle-decisions.md)
+để triển khai phân quyền theo cửa và tách lifecycle khỏi online/offline.
 
 Nguyên mẫu phần cứng hiện tại chỉ triển khai một cửa với hai ESP32. Backend,
 Mobile App và mô hình dữ liệu vẫn được thiết kế theo hướng nhiều cửa để có thể
@@ -26,6 +32,12 @@ Thành viên mới xem checklist thiết lập môi trường tại [`docs/00-ge
 Xem toàn bộ tài liệu tại [`docs/00-INDEX.md`](docs/00-INDEX.md). Quy trình CI/CD và phát hành backend được mô tả tại [`docs/08-process/ci-cd.md`](docs/08-process/ci-cd.md).
 
 ## Giao diện quản lý MySQL
+
+Schema mới tách Account/Cardholder, ownership theo Door và lifecycle thiết bị.
+Xem [giải thích bảng](docs/03-technical-reference/database-erd.md) và
+[hướng dẫn khởi tạo/chuyển đổi](docs/03-technical-reference/database-setup.md).
+File init chỉ chạy khi MySQL có data directory rỗng; volume cũ không tự nâng
+cấp. Dữ liệu mẫu chỉ dành cho local/demo, không dùng cho production.
 
 Sau khi tạo file `.env` từ `.env.example`, khởi động các dịch vụ:
 

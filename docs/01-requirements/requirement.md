@@ -6,6 +6,10 @@
 
 ## Kiến trúc & Tech Stack
 
+Phạm vi sở hữu và quản lý thiết bị tuân theo [năm quyết định đã thống nhất ngày
+13/10/2026](ownership-device-lifecycle-decisions.md). Các quyết định này mô tả
+yêu cầu mục tiêu, không xác nhận chức năng đã được triển khai.
+
 - **Thiết bị IoT (Phần cứng)**: Sử dụng vi điều khiển ESP32 (lập trình C/C++ qua PlatformIO/Arduino).
   - **Ngoại vi**: Module RFID (RC522), Bàn phím số (Keypad), Cảm biến siêu âm (JSN-SR04T), Cảm biến nhiệt độ (DHT11), Màn hình OLED, Còi báo động (Buzzer), Động cơ (Servo/Solenoid khóa chốt).
 - **Giao thức Mạng**: Kết nối Wi-Fi, giao tiếp thời gian thực qua MQTT (Mosquitto Broker) bằng định dạng JSON. Gửi tín hiệu "Heartbeat" định kỳ để báo trạng thái online/offline.
@@ -27,9 +31,10 @@
 
 ## Tính năng cốt lõi (In Scope)
 
-- **Quản lý nhiều cửa**: Quản trị viên có thể đăng ký, xem và quản lý nhiều cửa. Dữ liệu cấu hình, thiết bị, trạng thái, lệnh điều khiển, cảnh báo và lịch sử truy cập phải xác định được cửa tương ứng.
-- **Đăng ký cửa và thiết bị**: Cho phép tạo một cửa mới, onboarding thiết bị mới và gán thiết bị vào đúng cửa cùng vai trò phần cứng của thiết bị.
-- **Quản lý vòng đời thiết bị**: Theo dõi thiết bị từ khi đăng ký, gán cửa, kích hoạt, nhận heartbeat, xác định online/offline, reconnect, thay thế, vô hiệu hóa đến khi ngừng sử dụng; giữ thông tin cần thiết để truy vết lịch sử.
+- **Quản lý nhiều khách hàng và nhiều cửa**: Mỗi khách hàng có một Account; một Account sở hữu từ 0 đến nhiều Door, mỗi Door đã liên kết có đúng một chủ. Backend kiểm tra sở hữu trước mọi thao tác dữ liệu và điều khiển cửa.
+- **Provision và claim cửa**: Quy trình kỹ thuật đăng ký trước Door và cặp Node 1/Node 2. Khách hàng thêm cửa bằng mã kích hoạt một lần; Backend xác minh và gán chủ nguyên tử, không cho khách hàng tạo Door tùy ý chỉ bằng mã thiết bị.
+- **Quản lý vòng đời thiết bị**: Quản lý đăng ký, gán cửa, kích hoạt, thay thế, vô hiệu hóa và ngừng sử dụng, giữ lịch sử chuyển trạng thái. Online/offline được suy ra từ heartbeat, tách khỏi lifecycle; mất kết nối không tự vô hiệu hóa thiết bị.
+- **Phạm vi từng cửa**: Cấu hình, PIN, RFID, bộ đếm sai, thiết bị, lịch sử và cảnh báo thuộc Door tương ứng. Danh tính thiết bị và MQTT ACL phải khớp Door/Node; lệnh và thông báo không tác động cửa hoặc khách hàng khác.
 - **Xác thực tại chỗ**: Mở cửa bằng thẻ từ RFID và mật khẩu (Mã PIN).
 - **Điều khiển từ xa**: Nút "Mở cửa khẩn cấp" và xem trạng thái đóng/mở trực tiếp trên Mobile App.
 - **Đánh thức thông minh (Wake-up)**: Cảm biến siêu âm phát hiện người đến gần (40-60cm) kích hoạt hệ thống/bật sáng màn hình để tiết kiệm điện.
@@ -37,10 +42,13 @@
   - Nhập sai mật khẩu/thẻ 3 lần: Mặc định khóa bàn phím tạm thời 60 giây, bật còi hú và gửi cảnh báo lên App. Người dùng có quyền cấu hình có thể thay đổi ngưỡng số lần sai và thời gian khóa.
   - Cửa mở quá lâu (ví dụ: 30s) hoặc có lực cạy phá: Bật còi hú.
 - **Báo cháy & An toàn**: Cảm biến nhiệt độ phát hiện > 50°C sẽ hú còi và tự động rút chốt mở cửa để thoát hiểm.
-- **Quản lý truy cập và truy vết**: Quản lý cấp quyền (Admin/User), cấp phát mã thẻ và lưu trữ 100% lịch sử ra vào (Access Logs) theo từng cửa.
+- **Quản lý truy cập và truy vết**: Account chủ cửa quản lý Cardholder và cấp/thu hồi RFID theo cửa. Cardholder không đăng nhập App; thẻ gắn với Cardholder thuộc cùng khách hàng sở hữu cửa. Giữ lịch sử truy cập theo cửa khi vô hiệu hóa tài khoản, người giữ thẻ hoặc thiết bị.
 - **Cơ chế Offline**: Rớt mạng Wi-Fi, hệ thống cửa vẫn hoạt động bình thường với thẻ RFID và Keypad. Tự động kết nối lại khi có mạng.
 
 ## Giới hạn hệ thống (Out of Scope)
+
+- **Không vân tay**: Không có cảm biến, dữ liệu, API, MQTT hoặc màn hình vân tay.
+- **Không Admin nền tảng**: Không xây tài khoản/dashboard Admin nền tảng, chia sẻ cửa giữa các Account hoặc chuyển chủ cửa. Provision thực hiện qua công cụ kỹ thuật nội bộ/CLI.
 
 - **Không triển khai phần cứng cho nhiều cửa trong bản demo**: Bản demo chỉ có một cửa vật lý và một cặp Node 1/Node 2. Việc mua, lắp ráp và vận hành thêm bộ phần cứng cho cửa thứ hai không thuộc phạm vi hiện tại; khả năng đăng ký cửa và thiết bị mới trong phần mềm vẫn thuộc phạm vi.
 - **Không làm AI/Camera**: Không nhận diện khuôn mặt (Face ID), không chuông cửa màn hình (Video Doorbell). Tránh quá tải vi điều khiển và đảm bảo tiến độ.
@@ -53,10 +61,10 @@ Bốn thành viên chia việc theo cụm tính năng từ dưới lên trên:
 
 - **Tuấn (Kiến trúc & Vòng đời)**:
   - Viết firmware kết nối Wi-Fi/MQTT tự động Reconnect.
-  - Viết Backend API quản lý cửa và vòng đời thiết bị (đăng ký cửa, onboarding và gán mạch mới, kiểm tra trạng thái Online/Offline, thay thế hoặc vô hiệu hóa thiết bị).
+  - Viết quy trình provision bộ cửa, API claim và quản lý vòng đời thiết bị theo cửa; tách trạng thái sử dụng khỏi Online/Offline, giữ lịch sử thay thế và vô hiệu hóa.
 - **Sơn (Xác thực & Bảo mật)**:
   - Lập trình ESP32 để đọc thẻ RFID, Keypad.
-  - Viết Backend API xử lý đăng nhập (JWT) và logic kiểm tra tính hợp lệ của mã thẻ bằng MySQL.
+  - Viết Backend API đăng nhập Account (JWT), kiểm tra quyền sở hữu cửa và tính hợp lệ của RFID/PIN đúng cửa bằng MySQL; tách Account và Cardholder.
 - **Minh (Điều khiển & Cảnh báo - Kỹ sư phần cứng)**:
   - Đi dây, làm sa bàn.
   - Lập trình điều khiển Relay/Khóa, cảm biến nhiệt độ và cảm biến siêu âm.
@@ -92,7 +100,7 @@ với các node của cửa đang hoạt động.
 - **Nhiệm vụ chính**:
   - Dùng cảm biến siêu âm quét liên tục. Khi có người đến gần (40-60cm), ESP32 "thức dậy", bật sáng màn hình và bàn phím.
   - Thu thập mã thẻ RFID hoặc dãy mật khẩu.
-  - Đóng gói dữ liệu thành JSON và đẩy lên topic MQTT (Ví dụ: `door/node1/auth`) về Backend kiểm tra.
+  - Đóng gói dữ liệu thành JSON và gửi MQTT về Backend kiểm tra; topic/payload và danh tính kết nối phải xác định đúng Door/Node theo contract, không dùng topic chung cho tất cả cửa.
 
 ### Node 2: Trạm Điều khiển & Cảnh báo an ninh
 
