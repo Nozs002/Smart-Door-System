@@ -14,6 +14,7 @@ Khu vực tập trung kiến trúc hiện tại và các tài liệu kỹ thuậ
 
 - [Kiến trúc hệ thống](architecture.md)
 - [Database ERD](database-erd.md)
+- [Khởi tạo và chuyển đổi database](database-setup.md)
 - [Kết nối phần cứng](hardware-wiring.md)
 - [Luồng MQTT](mqtt-flow.md)
 - [Kịch bản kiểm thử](test-scenarios.md)

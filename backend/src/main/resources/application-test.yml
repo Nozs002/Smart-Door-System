@@ -1,0 +1,36 @@
+spring:
+  config:
+    activate:
+      on-profile: test
+  datasource:
+    url: jdbc:h2:mem:smart_door_test;MODE=MySQL;DATABASE_TO_LOWER=TRUE;DB_CLOSE_DELAY=-1
+    username: sa
+    password: ""
+    driver-class-name: org.h2.Driver
+  flyway:
+    enabled: false
+  jpa:
+    hibernate:
+      ddl-auto: create-drop
+    show-sql: false
+
+app:
+  jwt:
+    issuer: smart-door-test
+    audience: smart-door-test-client
+    secret: test-only-secret-for-automated-tests-1234567890
+    access-token-ttl: 5m
+  mqtt:
+    host: localhost
+    port: 1883
+    username: test
+    password: test-only-password
+    connection-timeout: 1s
+  cors:
+    allowed-origins:
+      - http://localhost
+
+logging:
+  level:
+    root: WARN
+    com.smartdoor.backend: INFO

@@ -1,313 +1,329 @@
 ---
 title: Database ERD
 type: technical-reference
-version: 1.0
+version: 2.0
 lang: vi
-tags: [database, erd, mysql]
-updated: 2026-09-29
+tags: [database, erd, mysql, ownership, device-lifecycle]
+updated: 2026-10-13
 ---
 
 # Database ERD
 
-Tài liệu này giải thích các bảng dữ liệu của Smart Door System và đối chiếu giữa:
+Schema khởi tạo mới cho MySQL 8.4 ở [init.sql](../../infrastructure/mysql/init/init.sql).
+[Dữ liệu mẫu](../../infrastructure/mysql/init/mockdata.sql) chỉ dành cho local/demo.
+Thiết kế áp dụng [năm quyết định đã chốt](../01-requirements/ownership-device-lifecycle-decisions.md).
+Không có bảng users gộp, vai trò ADMIN/USER hoặc bảng vân tay.
 
-- **Schema hiện tại**: cấu trúc đang được khởi tạo bởi
-  [`infrastructure/mysql/init/init.sql`](../../infrastructure/mysql/init/init.sql).
-- **Mô hình mục tiêu**: thiết kế nghiệp vụ trong Business Analysis Document (BAD),
-  dùng làm định hướng hoàn thiện ERD và schema.
+Đây là cấu trúc SQL trong repository, chưa xác nhận database đang chạy đã được
+nâng cấp. Thay file init không cập nhật volume MySQL cũ. Xem [hướng dẫn database](database-setup.md).
+Đã có [JPA entity/repository](../05-backend/entity-repository-mapping.md) cho 12
+bảng; chưa có service/API nghiệp vụ, MQTT credential provisioning hoặc Flyway
+migration. FK không thay thế authorization ở Backend.
 
-Khi hai nguồn khác nhau, `init.sql` được xem là cấu trúc đang triển khai. Những
-thuộc tính chỉ có trong BAD được ghi rõ là đề xuất, không được xem là đã tồn tại
-trong database.
+## 1. Nguyên tắc
 
-## 1. Nguyên tắc dữ liệu
+- Account có 0..N Door; Door chưa claim không có chủ, sau claim có đúng một chủ.
+- Account và Cardholder tách biệt. RFID thuộc Door và Cardholder cùng khách hàng.
+- Cấu hình, PIN, lockout, thiết bị, log và cảnh báo có phạm vi Door.
+- Tất cả FK dùng RESTRICT khi xóa để giữ lịch sử; dùng status thay thao tác xóa.
+- Thời gian lưu UTC. Online/offline không lưu như lifecycle status.
+- PROVISIONED nghĩa là Node đã ghép vào bộ cửa nhưng chưa vận hành.
+  Kích hoạt khi đã có chủ và điều kiện cấu hình/credential phù hợp.
+- Không có chuyển quyền sở hữu hoặc chuyển Device sang cửa khác trong phạm vi này.
+- Giữ operating_mode/AUTO_PROXIMITY và loại cảnh báo cửa mở lâu từ mô hình cũ:
+  năm quyết định chưa chốt loại bỏ chúng. Có enum không có nghĩa tính năng hoặc
+  cảm biến đã triển khai.
 
-- PIN mở cửa và mật khẩu đăng nhập App không được lưu dạng rõ.
-- Mọi lần thử truy cập phải có thể ghi nhận cả kết quả chấp nhận và từ chối.
-- `event_id` phải ổn định để thiết bị gửi lại sự kiện offline mà không tạo log
-  trùng.
-- Vô hiệu hóa người dùng hoặc thu hồi thẻ không được làm mất lịch sử đã ghi.
-- Trạng thái nhận lệnh mở khóa không đồng nghĩa cửa vật lý đã mở nếu chưa có cảm
-  biến xác nhận.
-- Hệ thống chỉ quản lý **một cửa** (`Door`). Hai ESP32 cùng phục vụ cửa này và
-  không được mô hình thành hai cửa riêng.
-- Hệ thống có đúng hai node đang hoạt động với trách nhiệm tách biệt:
-  - **Node 1 — Trạm Tương tác & Xác thực**: đặt ngoài cửa, đọc RFID/PIN, hiển thị
-    thông tin và gửi yêu cầu xác thực về Backend; không nối trực tiếp với chốt
-    khóa.
-  - **Node 2 — Trạm Điều khiển & Cảnh báo an ninh**: đặt trong nhà, điều khiển
-    relay khóa cửa, nút Exit, cảm biến nhiệt độ và còi cảnh báo.
+## 2. Giải thích các bảng
 
-## 2. Các bảng trong schema hiện tại
+### 2.1. `accounts` — Account khách hàng
 
-Kiểu dữ liệu dưới đây được lấy trực tiếp từ `init.sql`. Trong MySQL,
-`BOOLEAN` là bí danh của `TINYINT(1)`, còn `DATETIME(3)` lưu thời gian với độ
-chính xác đến mili giây.
+Tài khoản đăng nhập App; không có role Admin nền tảng.
 
-### 2.1. `users` — Người dùng
+id: định danh; display_name: tên hiển thị; username: tên đăng nhập unique; password_hash: mật khẩu băm; status: ACTIVE/DISABLED; created_at: lúc tạo.
 
-Lưu quản trị viên, người dùng App và người được cấp thẻ RFID. Người chỉ được cấp
-thẻ có thể không có tài khoản đăng nhập App.
+Các cột trong SQL:
 
-| Cột | Kiểu dữ liệu | Ràng buộc | Ý nghĩa |
-| --- | --- | --- | --- |
-| `id` | `BIGINT UNSIGNED` | PK, tự tăng | Định danh người dùng. |
-| `display_name` | `VARCHAR(100)` | Bắt buộc | Tên hiển thị khi cấp thẻ hoặc xem thông tin. |
-| `username` | `VARCHAR(100)` | UNIQUE, có thể NULL | Tên đăng nhập App. |
-| `password_hash` | `VARCHAR(255)` | Có thể NULL | Mật khẩu App đã băm; không phải PIN mở cửa. |
-| `created_at` | `DATETIME(3)` | Bắt buộc, mặc định thời điểm hiện tại | Thời điểm tạo. |
-| `role` | `ENUM('ADMIN', 'USER')` | Bắt buộc, mặc định `USER` | Vai trò trong ứng dụng. |
-| `status` | `ENUM('ACTIVE', 'DISABLED')` | Bắt buộc, mặc định `ACTIVE` | Trạng thái sử dụng tài khoản và thông tin xác thực của người dùng. |
-| `phone` | `VARCHAR(20)` | UNIQUE, có thể NULL | Số điện thoại. |
-| `name` | `VARCHAR(100)` | Có thể NULL | Họ tên đầy đủ. |
+```sql
+id BIGINT UNSIGNED NOT NULL AUTO_INCREMENT PRIMARY KEY
+display_name VARCHAR(100) NOT NULL
+username VARCHAR(100) NOT NULL
+password_hash VARCHAR(255) NOT NULL
+status ENUM('ACTIVE','DISABLED') NOT NULL DEFAULT 'ACTIVE'
+created_at DATETIME(3) NOT NULL DEFAULT CURRENT_TIMESTAMP(3)
+```
 
-`status` cho phép vô hiệu hóa người dùng mà không xóa bản ghi hoặc lịch sử. Khi
-chuyển người dùng sang `DISABLED`, Backend phải thực hiện trong cùng một giao
-dịch:
+### 2.2. `cardholders` — Người giữ thẻ
 
-1. Từ chối đăng nhập mới và mọi yêu cầu mở cửa gắn với người dùng đó.
-2. Chuyển toàn bộ thẻ trong `rfid_credentials` của người dùng sang `REVOKED` và
-   ghi `revoked_at` nếu chưa có.
-3. Vô hiệu hóa toàn bộ thông tin vân tay của người dùng khi bảng quản lý vân tay
-   được bổ sung vào schema.
-4. Giữ nguyên người dùng, thẻ, vân tay và nhật ký cũ để phục vụ truy vết.
+Hồ sơ người được cấp RFID, không đăng nhập App.
 
-Việc đổi `users.status` không tự kích hoạt `ON DELETE CASCADE`, vì không có thao
-tác xóa. Quy tắc vô hiệu hóa liên quan phải được Backend thực hiện bằng một giao
-dịch nguyên tử. Khi chuyển người dùng trở lại `ACTIVE`, hệ thống không tự khôi
-phục thẻ hoặc vân tay đã bị thu hồi; quản trị viên phải cấp lại rõ ràng.
+id: định danh; account_id: khách hàng quản lý; display_name: tên; status: ACTIVE/DISABLED; created_at: lúc tạo.
 
-### 2.2. `rfid_credentials` — Thẻ RFID đã cấp
+Các cột trong SQL:
 
-Lưu các thẻ RFID đã đăng ký. Thẻ lạ không cần có bản ghi trong bảng này; lần
-quẹt thẻ lạ được ghi vào nhật ký truy cập.
+```sql
+id BIGINT UNSIGNED NOT NULL AUTO_INCREMENT PRIMARY KEY
+account_id BIGINT UNSIGNED NOT NULL
+display_name VARCHAR(100) NOT NULL
+status ENUM('ACTIVE','DISABLED') NOT NULL DEFAULT 'ACTIVE'
+created_at DATETIME(3) NOT NULL DEFAULT CURRENT_TIMESTAMP(3)
+```
 
-| Cột | Kiểu dữ liệu | Ràng buộc | Ý nghĩa |
-| --- | --- | --- | --- |
-| `id` | `BIGINT UNSIGNED` | PK, tự tăng | Định danh bản ghi thẻ. |
-| `uid` | `VARCHAR(128)` | UNIQUE, bắt buộc | Giá trị dùng để đối chiếu UID thẻ. |
-| `status` | `ENUM('ACTIVE', 'REVOKED', 'EXPIRED')` | Bắt buộc, mặc định `ACTIVE` | Trạng thái vòng đời của thẻ. |
-| `issued_at` | `DATETIME(3)` | Có thể NULL | Thời điểm cấp thẻ. |
-| `revoked_at` | `DATETIME(3)` | Có thể NULL | Thời điểm thu hồi. Bắt buộc khi trạng thái là `REVOKED`. |
-| `user_id` | `BIGINT UNSIGNED` | Bắt buộc, FK → `users.id` | Người được cấp thẻ. |
+### 2.3. `doors` — Cửa và chủ sở hữu
 
-Quan hệ hiện tại là một người dùng có thể có nhiều thẻ. Khi xóa người dùng,
-schema hiện tại xóa dây chuyền các thẻ của người đó.
+Một Account sở hữu nhiều cửa. Cửa chưa claim không có chủ.
 
-BAD đề xuất thêm `expires_at` để quản lý hạn sử dụng. Thuộc tính này chưa có
-trong schema.
+id: định danh; owner_account_id: FK chủ cửa, NULL trước claim; name/location: tên và vị trí; status: UNCLAIMED/SETUP_PENDING/ACTIVE/DISABLED; operating_mode: chế độ cũ giữ lại vì chưa chốt bỏ khoảng cách/AUTOMATIC; commanded_lock_state: lệnh khóa gần nhất, không phải trạng thái vật lý; created_at/updated_at: thời gian; version: khóa lạc quan.
 
-### 2.3. `doors` — Cửa duy nhất của hệ thống
+Các cột trong SQL:
 
-Lưu cửa duy nhất mà hệ thống giám sát và điều khiển. Schema hiện tại vẫn cho
-phép nhiều bản ghi để không làm mất tính tổng quát của cấu trúc SQL, nhưng phạm
-vi triển khai của dự án chỉ sử dụng một bản ghi cửa.
-
-| Cột | Kiểu dữ liệu | Ràng buộc | Ý nghĩa |
-| --- | --- | --- | --- |
-| `id` | `BIGINT UNSIGNED` | PK, tự tăng | Định danh cửa. |
-| `name` | `VARCHAR(100)` | Bắt buộc | Tên hiển thị của cửa. |
-| `operating_mode` | `ENUM('AUTOMATIC', 'SECURITY')` | Bắt buộc, mặc định `SECURITY` | Chế độ vận hành. |
-| `commanded_lock_state` | `ENUM('LOCKED', 'UNLOCKED')` | Có thể NULL, mặc định NULL | Trạng thái chốt theo lệnh điều khiển gần nhất. |
-
-`commanded_lock_state` chỉ phản ánh lệnh điều khiển gần nhất mà hệ thống đã ghi
-nhận, không khẳng định trạng thái vật lý của cửa. `LOCKED` biểu thị lệnh khóa gần
-nhất, `UNLOCKED` biểu thị lệnh mở khóa gần nhất và `NULL` nghĩa là chưa ghi nhận
-lệnh điều khiển nào. Muốn xác định trạng thái vật lý cần có cảm biến phản hồi và
-một trường dữ liệu riêng.
+```sql
+id BIGINT UNSIGNED NOT NULL AUTO_INCREMENT PRIMARY KEY
+owner_account_id BIGINT UNSIGNED NULL
+name VARCHAR(100) NOT NULL
+location VARCHAR(255) NULL
+status ENUM('UNCLAIMED','SETUP_PENDING','ACTIVE','DISABLED') NOT NULL DEFAULT 'UNCLAIMED'
+operating_mode ENUM('AUTOMATIC','SECURITY') NOT NULL DEFAULT 'SECURITY'
+commanded_lock_state ENUM('LOCKED','UNLOCKED') NULL
+created_at DATETIME(3) NOT NULL DEFAULT CURRENT_TIMESTAMP(3)
+updated_at DATETIME(3) NOT NULL DEFAULT CURRENT_TIMESTAMP(3) ON UPDATE CURRENT_TIMESTAMP(3)
+version BIGINT UNSIGNED NOT NULL DEFAULT 0
+```
 
 ### 2.4. `door_configs` — Cấu hình cửa
 
-Lưu các quy tắc và ngưỡng vận hành.
+Tối đa một cấu hình mỗi cửa; Backend provision phải tạo đủ cấu hình.
 
-| Cột | Kiểu dữ liệu | Ràng buộc | Ý nghĩa |
-| --- | --- | --- | --- |
-| `id` | `BIGINT UNSIGNED` | PK, tự tăng | Định danh cấu hình. |
-| `door_id` | `BIGINT UNSIGNED` | Bắt buộc, UNIQUE, FK → `doors.id` | Cửa sử dụng cấu hình này. |
-| `max_failed_attempts` | `INT UNSIGNED` | Bắt buộc, số dương, mặc định 3 | Số lần sai dẫn đến khóa tạm thời; có thể cấu hình. |
-| `lockout_seconds` | `INT UNSIGNED` | Bắt buộc, số dương, mặc định 60 | Thời gian khóa tính bằng giây; có thể cấu hình. |
-| `temperature_threshold` | `DECIMAL(5,2)` | Bắt buộc | Ngưỡng nhiệt độ cảnh báo. |
-| `open_timeout_seconds` | `INT UNSIGNED` | Số dương hoặc NULL | Thời gian cửa được phép mở trước khi cảnh báo. |
+door_id: PK/FK; max_failed_attempts: mặc định 3; lockout_seconds: mặc định 60; temperature_threshold: mặc định 50°C, cảnh báo khi vượt ngưỡng; open_timeout_seconds: NULL nếu chưa đo được cửa mở; version: phiên bản dương; updated_at: lần cập nhật.
 
-`door_id` tạo quan hệ 1–1 giữa cửa và cấu hình nhờ ràng buộc `UNIQUE`. Khi mã cửa
-thay đổi, khóa ngoại được cập nhật theo; khi cửa bị xóa, cấu hình tương ứng cũng
-bị xóa. Schema vẫn giữ `id` làm khóa chính độc lập. BAD còn đề xuất bổ sung
-`updated_at`, nhưng cột này chưa có trong schema hiện tại.
+Các cột trong SQL:
 
-### 2.5. `system_pins` — PIN chung mở cửa
+```sql
+door_id BIGINT UNSIGNED NOT NULL PRIMARY KEY
+max_failed_attempts INT UNSIGNED NOT NULL DEFAULT 3
+lockout_seconds INT UNSIGNED NOT NULL DEFAULT 60
+temperature_threshold DECIMAL(5,2) NOT NULL DEFAULT 50.00
+open_timeout_seconds INT UNSIGNED NULL
+version BIGINT UNSIGNED NOT NULL DEFAULT 1
+updated_at DATETIME(3) NOT NULL DEFAULT CURRENT_TIMESTAMP(3) ON UPDATE CURRENT_TIMESTAMP(3)
+```
 
-Lưu PIN dùng chung để mở cửa. Đây là dữ liệu khác với mật khẩu đăng nhập App.
+### 2.5. `system_pins` — PIN chung theo cửa
 
-| Cột | Kiểu dữ liệu | Ràng buộc | Ý nghĩa |
-| --- | --- | --- | --- |
-| `id` | `BIGINT UNSIGNED` | PK, tự tăng | Định danh bản ghi PIN. |
-| `pin_hash` | `VARCHAR(255)` | Bắt buộc | PIN đã băm; không lưu PIN thuần. |
-| `status` | `BOOLEAN` | Bắt buộc, mặc định `TRUE` | PIN có đang hiệu lực hay không. |
-| `changed_at` | `DATETIME(3)` | Bắt buộc, mặc định thời điểm hiện tại | Thời điểm thay đổi PIN. |
+Tối đa một PIN hiện hành mỗi cửa; mật khẩu Account khác PIN.
 
-Schema hiện tại cho phép lưu lịch sử PIN bằng cách vô hiệu hóa bản ghi cũ và tạo
-bản ghi mới. Tuy nhiên, chưa có ràng buộc bảo đảm chỉ một PIN hoạt động và chưa
-xác định PIN thuộc cửa nào.
+door_id: PK/FK; pin_hash: PIN đã băm; status: ACTIVE/DISABLED; version: phiên bản dương, tăng khi đổi; changed_at: lần đổi. Chưa có trường lưu PIN rõ hoặc lịch sử hash cũ.
 
-Với phạm vi một cửa, mô hình mục tiêu có tối đa một PIN chung hiện hành:
+Các cột trong SQL:
 
-- `door_id` vừa là PK vừa là FK tới `doors.id`.
-- `pin_hash` chứa giá trị đã bảo vệ.
-- `status` thể hiện hiệu lực.
-- `version` hỗ trợ theo dõi đồng bộ PIN xuống thiết bị.
-- `changed_at` lưu lần đổi gần nhất.
+```sql
+door_id BIGINT UNSIGNED NOT NULL PRIMARY KEY
+pin_hash VARCHAR(255) NOT NULL
+status ENUM('ACTIVE','DISABLED') NOT NULL DEFAULT 'ACTIVE'
+version BIGINT UNSIGNED NOT NULL DEFAULT 1
+changed_at DATETIME(3) NOT NULL DEFAULT CURRENT_TIMESTAMP(3)
+```
 
-### 2.6. `devices` — Thiết bị ESP32
+### 2.6. `devices` — ESP32 và vòng đời
 
-Lưu hai ESP32 phục vụ cửa duy nhất của hệ thống.
+Thiết bị được provision vào một bộ cửa; thay Node tạo bản ghi mới, giữ bản cũ. Trong phiên bản này không chuyển thiết bị sang Door khác.
 
-| Cột | Kiểu dữ liệu | Ràng buộc | Ý nghĩa |
-| --- | --- | --- | --- |
-| `id` | `BIGINT UNSIGNED` | PK, tự tăng | Định danh thiết bị trong database. |
-| `device_code` | `VARCHAR(100)` | UNIQUE, bắt buộc | Mã thiết bị khi đăng ký và trao đổi dữ liệu. |
-| `node_type` | `ENUM('NODE_1', 'NODE_2')` | Bắt buộc | Vai trò phần cứng của node. |
-| `status` | `ENUM('ACTIVE', 'INACTIVE', 'DISABLED')` | Bắt buộc, mặc định `INACTIVE` | Trạng thái sử dụng. |
-| `last_heartbeat_at` | `DATETIME(3)` | Có thể NULL | Lần gần nhất Backend nhận heartbeat. |
-| `registered_at` | `DATETIME(3)` | Bắt buộc, mặc định thời điểm hiện tại | Thời điểm đăng ký. |
+id/device_code: định danh nội bộ/công khai unique; door_id: cửa; node_type: NODE_1/NODE_2; lifecycle_status: PROVISIONED/ACTIVE/DISABLED/RETIRED; active_node_type: cột sinh, không ghi trực tiếp; firmware_version: phiên bản; last_heartbeat_at: thời điểm Backend nhận; applied_config_version/applied_pin_version: ACK phiên bản đã áp dụng, NULL nếu chưa biết; registered_at/activated_at/retired_at: mốc vòng đời; version: khóa lạc quan.
 
-Ý nghĩa của `node_type`:
+Các cột trong SQL:
 
-| Giá trị | Vai trò | Thiết bị chính |
+```sql
+id BIGINT UNSIGNED NOT NULL AUTO_INCREMENT PRIMARY KEY
+door_id BIGINT UNSIGNED NOT NULL
+device_code VARCHAR(100) NOT NULL
+node_type ENUM('NODE_1','NODE_2') NOT NULL
+lifecycle_status ENUM('PROVISIONED','ACTIVE','DISABLED','RETIRED') NOT NULL DEFAULT 'PROVISIONED'
+active_node_type VARCHAR(6) GENERATED ALWAYS AS (CASE WHEN lifecycle_status = 'ACTIVE' THEN node_type ELSE NULL END) STORED
+firmware_version VARCHAR(50) NULL
+last_heartbeat_at DATETIME(3) NULL
+applied_config_version BIGINT UNSIGNED NULL
+applied_pin_version BIGINT UNSIGNED NULL
+registered_at DATETIME(3) NOT NULL DEFAULT CURRENT_TIMESTAMP(3)
+activated_at DATETIME(3) NULL
+retired_at DATETIME(3) NULL
+version BIGINT UNSIGNED NOT NULL DEFAULT 0
+```
+
+### 2.7. `door_activation_codes` — Mã claim bộ cửa
+
+Bằng chứng kích hoạt dùng một lần; device_code không phải bí mật.
+
+id/door_id: định danh và bộ cửa; code_hash: hash bí mật; created_at/expires_at: phát hành/hết hạn; consumed_at/consumed_by_account_id: dấu vết sử dụng, cùng NULL hoặc cùng có giá trị; revoked_at: thu hồi. Không seed mã thật; Backend còn phải cấp mã và rate limit.
+
+Các cột trong SQL:
+
+```sql
+id BIGINT UNSIGNED NOT NULL AUTO_INCREMENT PRIMARY KEY
+door_id BIGINT UNSIGNED NOT NULL
+code_hash VARCHAR(255) NOT NULL
+expires_at DATETIME(3) NOT NULL
+created_at DATETIME(3) NOT NULL DEFAULT CURRENT_TIMESTAMP(3)
+consumed_at DATETIME(3) NULL
+consumed_by_account_id BIGINT UNSIGNED NULL
+revoked_at DATETIME(3) NULL
+```
+
+### 2.8. `device_lifecycle_events` — Lịch sử vòng đời thiết bị
+
+Audit nghiệp vụ, tách khỏi access log và application log.
+
+id/event_id: định danh, event_id unique chống trùng; device_id/door_id: thiết bị đúng cửa; actor_account_id: chủ thực hiện, NULL cho quy trình kỹ thuật; event_type: PROVISIONED/ACTIVATED/DISABLED/REACTIVATED/RETIRED/REPLACED; from_status/to_status: trước/sau; replacement_device_id: thiết bị mới cùng cửa; reason: lý do; occurred_at: thời điểm Backend ghi. Backend ghi cùng transaction với thay đổi Device.
+
+Các cột trong SQL:
+
+```sql
+id BIGINT UNSIGNED NOT NULL AUTO_INCREMENT PRIMARY KEY
+event_id VARCHAR(100) NOT NULL
+device_id BIGINT UNSIGNED NOT NULL
+door_id BIGINT UNSIGNED NOT NULL
+actor_account_id BIGINT UNSIGNED NULL
+event_type ENUM('PROVISIONED','ACTIVATED','DISABLED','REACTIVATED','RETIRED','REPLACED') NOT NULL
+from_status ENUM('PROVISIONED','ACTIVE','DISABLED','RETIRED') NULL
+to_status ENUM('PROVISIONED','ACTIVE','DISABLED','RETIRED') NOT NULL
+replacement_device_id BIGINT UNSIGNED NULL
+reason VARCHAR(500) NULL
+occurred_at DATETIME(3) NOT NULL DEFAULT CURRENT_TIMESTAMP(3)
+```
+
+### 2.9. `rfid_credentials` — RFID theo cửa và người giữ
+
+Cùng UID được đăng ký độc lập tại nhiều cửa.
+
+id: định danh; door_id: cửa; account_id: phạm vi khách hàng, có chủ đích lặp để FK ghép bảo vệ ownership; cardholder_id: người giữ cùng khách hàng; uid_lookup_value: giá trị tra cứu unique theo cửa; status: ACTIVE/REVOKED/EXPIRED; issued_at/revoked_at/expires_at: cấp/thu hồi/hết hạn. Cách bảo vệ UID cần chốt, seed chỉ dùng giá trị giả.
+
+Các cột trong SQL:
+
+```sql
+id BIGINT UNSIGNED NOT NULL AUTO_INCREMENT PRIMARY KEY
+door_id BIGINT UNSIGNED NOT NULL
+account_id BIGINT UNSIGNED NOT NULL
+cardholder_id BIGINT UNSIGNED NOT NULL
+uid_lookup_value VARCHAR(128) NOT NULL
+status ENUM('ACTIVE','REVOKED','EXPIRED') NOT NULL DEFAULT 'ACTIVE'
+issued_at DATETIME(3) NOT NULL DEFAULT CURRENT_TIMESTAMP(3)
+revoked_at DATETIME(3) NULL
+expires_at DATETIME(3) NULL
+```
+
+### 2.10. `access_logs` — Lịch sử truy cập và thực thi
+
+Một lần thử có thể có nhiều sự kiện: quyết định xác thực và phản hồi thực thi.
+
+id/event_id: định danh, event_id unique; correlation_id: ghép sự kiện cùng lượt, không unique; door_id: cửa; actor_account_id: chủ yêu cầu từ App, NULL cho RFID/PIN/Exit/nhiệt độ; rfid_credential_id/source_device_id: nguồn nhận diện, đúng cửa, có thể NULL; method: RFID/PIN/APP/EXIT_BUTTON/AUTO_PROXIMITY/FIRE_EMERGENCY; result: GRANTED/DENIED/EXECUTED/FAILED/UNKNOWN; reason: lý do không chứa bí mật; occurred_at: giờ nguồn có thể NULL; received_at: giờ Backend nhận. GRANTED không chứng minh cửa đã mở.
+
+Các cột trong SQL:
+
+```sql
+id BIGINT UNSIGNED NOT NULL AUTO_INCREMENT PRIMARY KEY
+event_id VARCHAR(100) NOT NULL
+correlation_id VARCHAR(100) NULL
+door_id BIGINT UNSIGNED NOT NULL
+actor_account_id BIGINT UNSIGNED NULL
+rfid_credential_id BIGINT UNSIGNED NULL
+source_device_id BIGINT UNSIGNED NULL
+method ENUM('RFID','PIN','APP','EXIT_BUTTON','AUTO_PROXIMITY','FIRE_EMERGENCY') NOT NULL
+result ENUM('GRANTED','DENIED','EXECUTED','FAILED','UNKNOWN') NOT NULL
+reason VARCHAR(500) NULL
+occurred_at DATETIME(3) NULL
+received_at DATETIME(3) NOT NULL DEFAULT CURRENT_TIMESTAMP(3)
+```
+
+### 2.11. `lockout_statuses` — Bộ đếm sai
+
+Mỗi cửa có bộ đếm RFID và PIN độc lập.
+
+door_id/method: PK ghép; failed_count: số lần sai không âm; locked_until: hạn khóa hoặc NULL; updated_at: lần cập nhật. Provision tạo hai dòng; Backend quản lý nguồn có thẩm quyền và cập nhật nguyên tử.
+
+Các cột trong SQL:
+
+```sql
+door_id BIGINT UNSIGNED NOT NULL
+method ENUM('RFID','PIN') NOT NULL
+failed_count INT UNSIGNED NOT NULL DEFAULT 0
+locked_until DATETIME(3) NULL
+updated_at DATETIME(3) NOT NULL DEFAULT CURRENT_TIMESTAMP(3) ON UPDATE CURRENT_TIMESTAMP(3)
+```
+
+### 2.12. `alerts` — Cảnh báo theo cửa
+
+Chỉ chủ cửa được xem và nhận thông báo.
+
+id/door_id: định danh và cửa; source_device_id: Node cùng cửa hoặc NULL; type: TOO_MANY_FAILURES/HIGH_TEMPERATURE/DOOR_OPEN_TOO_LONG; severity: WARNING/CRITICAL; status: ACTIVE/ACKNOWLEDGED/RESOLVED; observed_temperature: nhiệt độ tại cảnh báo, không lưu mọi mẫu; triggered_at/resolved_at: phát sinh/kết thúc. ACKNOWLEDGED không đồng nghĩa đã an toàn.
+
+Các cột trong SQL:
+
+```sql
+id BIGINT UNSIGNED NOT NULL AUTO_INCREMENT PRIMARY KEY
+door_id BIGINT UNSIGNED NOT NULL
+source_device_id BIGINT UNSIGNED NULL
+type ENUM('TOO_MANY_FAILURES','HIGH_TEMPERATURE','DOOR_OPEN_TOO_LONG') NOT NULL
+severity ENUM('WARNING','CRITICAL') NOT NULL
+status ENUM('ACTIVE','ACKNOWLEDGED','RESOLVED') NOT NULL DEFAULT 'ACTIVE'
+observed_temperature DECIMAL(5,2) NULL
+triggered_at DATETIME(3) NOT NULL DEFAULT CURRENT_TIMESTAMP(3)
+resolved_at DATETIME(3) NULL
+```
+
+## 3. Quan hệ và ràng buộc
+
+| Quan hệ | Bội số | Bảo vệ trong SQL |
 | --- | --- | --- |
-| `NODE_1` | Trạm Tương tác & Xác thực ngoài cửa | RFID RC522, keypad, OLED |
-| `NODE_2` | Trạm Điều khiển & Cảnh báo trong nhà | Relay khóa, nút Exit, DHT11, buzzer |
+| Account–Door | 1–N; Door trước claim có 0 chủ | owner_account_id FK; CHECK trạng thái/chủ |
+| Account–Cardholder | 1–N | account_id FK |
+| Door–RFID–Cardholder | Mỗi RFID một Door/một Cardholder | Hai FK ghép cùng account_id |
+| Door–Config/PIN | 1–0..1 tại SQL | door_id PK/FK; Backend tạo đủ trước vận hành |
+| Door–Device | 1–N gồm Node đã thay | FK; unique (door_id, active_node_type) |
+| Device–Lifecycle event | 1–N | FK ghép Device/Door, replacement cùng Door |
+| Door–Activation code | 1–N lịch sử phát hành | FK, thời hạn, cặp trường consumed |
+| Door–Access log/Alert | 1–N | FK Door; Node/credential đúng Door qua FK ghép |
+| Door–Lockout | Tối đa hai dòng | PK (door_id, method) |
 
-Node 1 chỉ thu nhận RFID/PIN và gửi yêu cầu xác thực; node này không được nối
-trực tiếp với chốt khóa. Khi Backend chấp nhận yêu cầu, Node 2 nhận lệnh MQTT và
-kích hoạt relay để mở khóa. Node 2 đồng thời xử lý cảnh báo nhiệt độ và cảnh báo
-xâm nhập.
+active_node_type chỉ có giá trị khi Device ACTIVE. MySQL cho phép nhiều NULL
+trong UNIQUE nên giữ được nhiều Node cũ PROVISIONED/DISABLED/RETIRED nhưng không
+cho hai Node ACTIVE cùng vai trò trên cùng cửa.
 
-Schema hiện tại chưa liên kết thiết bị với cửa và cũng chưa bảo đảm chỉ có một
-Node 1 cùng một Node 2 đang hoạt động. Mô hình mục tiêu bổ sung `door_id` làm FK
-tới `doors.id`. Trong phạm vi dự án, cửa duy nhất có đúng hai node hoạt động;
-database vẫn có thể giữ bản ghi node cũ ở trạng thái `INACTIVE` hoặc `DISABLED`
-khi thay thế phần cứng.
+## 4. Quy tắc Backend còn phải thực hiện
 
-### 2.7. `access_logs` — Nhật ký truy cập
+1. Claim khóa hàng Door và mã kích hoạt trong transaction, kiểm tra hash,
+   hết hạn/thu hồi/đã dùng; ghi chủ và consumed đồng thời. Retry cùng Account
+   trả kết quả nhất quán. Không nhận sở hữu bằng device_code.
+2. Khi chuyển Door ACTIVE, kiểm tra có chủ, cấu hình, PIN và đúng hai Node hợp
+   lệ. FK/CHECK không tự bảo đảm đủ hai Node hoặc ACK cấu hình.
+3. Lifecycle: PROVISIONED → ACTIVE; ACTIVE → DISABLED hoặc RETIRED;
+   DISABLED → ACTIVE hoặc RETIRED. RETIRED kết thúc. Reactivate phải kiểm tra
+   slot và điều kiện an toàn. Claim không tự đổi lifecycle hay mở khóa.
+4. Thay Node: retire Node cũ, activate Node mới cùng cửa/vai trò và ghi event
+   trong transaction; cấp/thu hồi Broker credential cần workflow retry riêng.
+   Database commit không tự thu hồi quyền MQTT.
+5. Giữ device_code, Door và node_type ổn định; lịch sử và credential đã có log
+   không đổi Cardholder để tránh viết lại danh tính lịch sử.
+6. Mọi request xác định Account từ JWT và kiểm tra owner. NULL actor cho quy
+   trình kỹ thuật không phải đường bỏ qua kiểm tra quyền ở API.
+7. Cardholder DISABLED phải bị từ chối, thu hồi RFID cùng transaction; kích
+   hoạt lại không tự khôi phục thẻ. Policy Account DISABLED/offline còn cần
+   đặc tả, không suy ra từ Cardholder.
+8. Online nếu heartbeat chưa quá timeout; offline nếu quá hạn; UNKNOWN nếu
+   chưa nhận. Timeout cần chốt theo firmware. Dùng thời gian Backend nhận.
+9. applied_*_version chỉ cập nhật khi nhận ACK đáng tin cậy; lưu thành công
+   server chưa chứng minh Node đã áp dụng. Đồng bộ RFID chưa có bảng version
+   riêng và phải được thiết kế cùng contract.
+10. Không ghi password/PIN/mã kích hoạt/credential MQTT vào log.
+    event_id ổn định để retry không tạo log/event trùng.
 
-Lưu các lần thử mở cửa, mở thành công, bị từ chối hoặc thất bại khi điều khiển.
+## 5. Dữ liệu mẫu và kiểm chứng
 
-| Cột | Kiểu dữ liệu | Ràng buộc | Ý nghĩa |
-| --- | --- | --- | --- |
-| `id` | `BIGINT UNSIGNED` | PK, tự tăng | Định danh dòng log. |
-| `event_id` | `VARCHAR(100)` | UNIQUE, bắt buộc | Chống ghi trùng khi gửi bù dữ liệu offline. |
-| `method` | `ENUM('RFID', 'PIN', 'APP', 'AUTO_PROXIMITY', 'FIRE_EMERGENCY')` | Bắt buộc | Phương thức truy cập hoặc mở khẩn cấp. |
-| `result` | `ENUM('GRANTED', 'DENIED', 'FAILED')` | Bắt buộc | Kết quả xử lý sự kiện. |
-| `reason` | `VARCHAR(500)` | Có thể NULL | Lý do từ chối, thất bại hoặc mở khẩn cấp. |
-| `occurred_at` | `DATETIME(3)` | Bắt buộc | Thời điểm sự kiện xảy ra tại nguồn. |
+Seed có ba Account (một Account chưa có cửa), bốn Door (A có hai, B có một,
+một bộ chưa claim), Cardholder riêng khách hàng, cùng UID tại nhiều cửa, Node
+ACTIVE/mất heartbeat/chưa từng liên lạc và Node RETIRED đã thay.
+Các ID và hash là fixture demo; không đại diện tài khoản, credential hoặc kết
+nối phần cứng thật. Không seed mã kích hoạt/MQTT secret. Trạng thái heartbeat
+chỉ là snapshot tại thời điểm seed.
 
-Schema hiện tại chưa cho biết sự kiện thuộc cửa, người dùng, thẻ hay thiết bị
-nào. BAD đề xuất bổ sung:
-
-- `door_id` — FK bắt buộc tới cửa phát sinh sự kiện.
-- `user_id` — FK có thể NULL khi không xác định được người dùng.
-- `rfid_credential_id` — FK có thể NULL khi không có thẻ đã nhận diện.
-- `source_device_id` — FK có thể NULL khi không xác định được Node nguồn.
-- `received_at` — thời điểm Backend nhận và lưu sự kiện.
-- Cho phép `occurred_at` là NULL nếu Node không có đồng hồ đáng tin cậy.
-
-Các trường hợp điển hình:
-
-- Mở bằng PIN chung: `user_id` và `rfid_credential_id` là NULL.
-- Quẹt thẻ lạ: `user_id` và `rfid_credential_id` là NULL.
-- Mở từ App: thường có `user_id`, không có `rfid_credential_id`.
-
-### 2.8. `lockout_statuses` — Trạng thái khóa tạm thời
-
-Lưu bộ đếm sai và thời điểm hết khóa. Bảng này khác `door_configs`:
-`door_configs` giữ quy tắc, còn `lockout_statuses` giữ trạng thái đang diễn ra.
-
-| Cột | Kiểu dữ liệu | Ràng buộc | Ý nghĩa |
-| --- | --- | --- | --- |
-| `id` | `BIGINT UNSIGNED` | PK, tự tăng | Định danh trạng thái. |
-| `method` | `ENUM('RFID', 'PIN')` | UNIQUE, bắt buộc | Phương thức đang được theo dõi. |
-| `failed_count` | `INT UNSIGNED` | Bắt buộc, mặc định 0 | Số lần sai liên tiếp. |
-| `locked_until` | `DATETIME(3)` | Có thể NULL | Thời điểm hết khóa. |
-| `updated_at` | `DATETIME(3)` | Bắt buộc, tự cập nhật | Lần cập nhật bộ đếm gần nhất. |
-
-Ràng buộc UNIQUE trên `method` làm trạng thái khóa mang tính toàn hệ thống. BAD
-đề xuất đổi thành khóa chính ghép `(door_id, method)` để cửa duy nhất có bộ đếm
-RFID và PIN riêng. Khi xác thực thành công hoặc hết thời gian khóa, bộ đếm phải
-được xóa theo quy tắc nghiệp vụ đã thống nhất.
-
-### 2.9. `alerts` — Cảnh báo
-
-Lưu các cảnh báo phát sinh trong hệ thống.
-
-| Cột | Kiểu dữ liệu | Ràng buộc | Ý nghĩa |
-| --- | --- | --- | --- |
-| `id` | `BIGINT UNSIGNED` | PK, tự tăng | Định danh cảnh báo. |
-| `type` | `ENUM('TOO_MANY_FAILURES', 'HIGH_TEMPERATURE', 'DOOR_OPEN_TOO_LONG')` | Bắt buộc | Loại cảnh báo. |
-| `status` | `ENUM('NEW', 'ACKNOWLEDGED', 'RESOLVED')` | Bắt buộc, mặc định `NEW` | Trạng thái xử lý. |
-| `triggered_at` | `DATETIME(3)` | Bắt buộc, mặc định thời điểm hiện tại | Thời điểm phát sinh. |
-| `resolved_at` | `DATETIME(3)` | Có thể NULL | Thời điểm kết thúc; bắt buộc khi đã `RESOLVED`. |
-
-Schema hiện tại chưa xác định cảnh báo thuộc cửa nào và chưa biểu diễn mức độ.
-BAD đề xuất thêm `door_id` làm FK tới `doors.id` và thêm `severity`.
-
-## 3. Quan hệ dữ liệu
-
-### 3.1. Quan hệ đã triển khai
-
-| Quan hệ | Bội số | Cách triển khai |
-| --- | --- | --- |
-| `users` — `rfid_credentials` | 1–N | `rfid_credentials.user_id` → `users.id`. |
-| `doors` — `door_configs` | 1–1 | `door_configs.door_id` → `doors.id`, có ràng buộc UNIQUE. |
-
-Các bảng còn lại chưa có khóa ngoại trong schema hiện tại.
-
-### 3.2. Quan hệ mục tiêu theo BAD
-
-| Quan hệ | Bội số | Khóa ngoại hoặc khóa chính đề xuất |
-| --- | --- | --- |
-| `users` — `rfid_credentials` | 1–N | `rfid_credentials.user_id`. |
-| `doors` — `door_configs` | 1–1 | `door_configs.door_id` là FK có ràng buộc UNIQUE. |
-| `doors` — `system_pins` | 1–1 | `system_pins.door_id` vừa là PK vừa là FK. |
-| `doors` — `devices` | 1–N bản ghi; đúng 2 node hoạt động | `devices.door_id`; gồm một `NODE_1` và một `NODE_2` hoạt động, các node cũ được giữ để truy vết. |
-| `doors` — `access_logs` | 1–N | `access_logs.door_id`. |
-| `users` — `access_logs` | 1–N, tùy trường hợp | `access_logs.user_id`, cho phép NULL. |
-| `rfid_credentials` — `access_logs` | 1–N, tùy trường hợp | `access_logs.rfid_credential_id`, cho phép NULL. |
-| `devices` — `access_logs` | 1–N, tùy trường hợp | `access_logs.source_device_id`, cho phép NULL. |
-| `doors` — `lockout_statuses` | 1–N | PK ghép `(door_id, method)`. |
-| `doors` — `alerts` | 1–N | `alerts.door_id`. |
-
-## 4. Chênh lệch cần xử lý
-
-| Khu vực | Schema hiện tại | Mô hình BAD |
-| --- | --- | --- |
-| Phạm vi PIN | PIN toàn hệ thống, có nhiều bản ghi | Một PIN hiện hành cho cửa duy nhất, có phiên bản đồng bộ |
-| Cấu hình cửa | Đã có FK UNIQUE tới cửa | Quan hệ 1–1 với cửa đã được triển khai |
-| Thiết bị | Không biết thiết bị thuộc cửa nào và chưa giới hạn node hoạt động | Cửa duy nhất có một `NODE_1` xác thực và một `NODE_2` điều khiển/cảnh báo |
-| Nhật ký | Không liên kết cửa/người/thẻ/thiết bị | Có các FK tùy theo nguồn sự kiện |
-| Khóa tạm thời | Một trạng thái cho mỗi phương thức trên toàn hệ thống | Một trạng thái cho mỗi `(door, method)` |
-| Cảnh báo | Không liên kết cửa, không có mức độ | Thuộc cửa duy nhất và có `severity` |
-| Trạng thái người dùng | Có `ACTIVE` và `DISABLED` | Backend phải vô hiệu hóa toàn bộ thẻ và vân tay liên quan khi người dùng chuyển sang `DISABLED` |
-| Hạn thẻ RFID | Trạng thái có `EXPIRED` nhưng không có ngày hết hạn | Có `expires_at` |
-
-Các thay đổi ở mục này là đề xuất thiết kế. Cần cập nhật migration, mock data,
-Backend entity/repository, API contract, firmware sync và kiểm thử cùng nhau khi
-nhóm quyết định triển khai.
-
-## 5. Quy tắc PIN và khóa tạm thời
-
-Hệ thống dùng PIN chung cho cửa. Chính sách mặc định là khóa tạm sau `N = 3`
-lần xác thực sai liên tiếp trong `T = 60` giây. Hai giá trị này được lưu trong
-`door_configs.max_failed_attempts` và `door_configs.lockout_seconds`; người dùng
-có quyền cấu hình có thể thay đổi chúng. Backend, firmware và giao diện phải đọc
-cấu hình hiện hành thay vì mã hóa cứng giá trị mặc định.
-
-Không được ghi PIN thuần vào `access_logs`, cảnh báo, tài liệu mẫu hoặc log ứng
-dụng. Nhật ký chỉ lưu phương thức, kết quả và lý do tổng quát.
-
-## 6. Nguồn tham chiếu
-
-- [Schema MySQL hiện tại](../../infrastructure/mysql/init/init.sql)
-- [Dữ liệu mẫu MySQL](../../infrastructure/mysql/init/mockdata.sql)
-- [Yêu cầu hệ thống](../01-requirements/requirement.md)
-- Business Analysis Document Smart Access Control IoT, phiên bản 1.0.1,
-  ngày 23/09/2026 (tệp người dùng cung cấp).
+[verify.sql](../../infrastructure/mysql/verify.sql) kiểm tra dữ liệu mẫu, từ chối
+RFID chéo khách hàng, Node ACTIVE trùng slot, log nguồn sai cửa, claim sai
+trạng thái và event trùng. Chỉ chạy trên database thử nghiệm.

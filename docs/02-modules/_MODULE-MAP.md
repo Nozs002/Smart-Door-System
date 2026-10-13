@@ -3,7 +3,7 @@ title: Module Map — Smart Door System
 type: moc
 lang: vi
 tags: [modules, roadmap]
-updated: 2026-09-23
+updated: 2026-10-13
 ---
 
 # Module Map
@@ -14,9 +14,9 @@ Bảng này định nghĩa các module nghiệp vụ cốt lõi và phạm vi k�
 
 | # | Module | Phạm vi chính | Thành phần liên quan | Trạng thái tài liệu |
 | --- | --- | --- | --- | --- |
-| 01 | Authentication & Authorization | Đăng nhập, JWT, vai trò Admin/User và kiểm soát quyền truy cập. | Mobile, Backend, MySQL | Chưa tạo |
-| 02 | Device Management | Onboarding, cấu hình và quản lý thiết bị cửa. | Mobile, Backend, MySQL | Chưa tạo |
-| 03 | Device Lifecycle | Heartbeat, trạng thái online/offline và khả năng reconnect. | Backend, MQTT, ESP32 | Chưa tạo |
+| 01 | Authentication & Authorization | Account khách hàng, JWT, trạng thái tài khoản và kiểm tra sở hữu Door; không Admin nền tảng. | Mobile, Backend, MySQL | Chưa tạo |
+| 02 | Device Management | Provision Door/cặp Node qua công cụ kỹ thuật; khách hàng claim bằng mã kích hoạt, quản lý cấu hình đúng cửa. | Mobile, Backend, MySQL | Chưa tạo |
+| 03 | Device Lifecycle | Đăng ký, kích hoạt, thay thế, vô hiệu hóa, ngừng sử dụng và lịch sử; heartbeat/online/offline tách khỏi lifecycle. | Backend, MQTT, ESP32, MySQL | Chưa tạo |
 | 04 | Local Access Authentication | Xác thực RFID/PIN và xử lý khi mất kết nối mạng. | ESP32 Auth, Backend, MQTT, MySQL | Chưa tạo |
 | 05 | Door Control | Mở/đóng khóa tại chỗ hoặc từ xa và theo dõi trạng thái cửa. | Mobile, Backend, MQTT, ESP32 Control | Chưa tạo |
 | 06 | Access Logs | Ghi nhận và truy vấn lịch sử ra vào. | Mobile, Backend, MySQL | Chưa tạo |
@@ -50,6 +50,11 @@ Sử dụng một trong các giá trị:
 - `Cần cập nhật`: tài liệu không còn đồng bộ với source code hoặc yêu cầu.
 
 ## Quy tắc cập nhật
+
+- Tuân theo [quyết định sở hữu cửa và vòng đời thiết bị](../01-requirements/ownership-device-lifecycle-decisions.md). Account đăng nhập tách khỏi Cardholder; vân tay ngoài phạm vi.
+
+- Phần mềm quản lý nhiều cửa, nhưng nguyên mẫu phần cứng hiện tại chỉ triển khai một cửa với một cặp Node 1/Node 2.
+- Mọi module xử lý thiết bị, điều khiển, nhật ký hoặc cảnh báo phải giữ được ngữ cảnh cửa tương ứng để sẵn sàng đăng ký cửa mới.
 
 - Thêm module mới ở cuối danh sách và sử dụng số thứ tự tiếp theo.
 - Chỉ tách module khi có phạm vi nghiệp vụ và trách nhiệm rõ ràng.

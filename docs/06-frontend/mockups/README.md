@@ -15,8 +15,8 @@ vào ứng dụng trong `mobile/` và không phải là một Flutter Web projec
 | --- | --- |
 | `index.html` | Đăng nhập và điểm bắt đầu của prototype. |
 | `dashboard.html` | Tổng quan, quản lý truy cập và điều khiển cửa. |
-| `users.html` | Quản lý trạng thái hoạt động của người dùng. |
-| `fingerprints.html` | Mockup vân tay chưa khả dụng do chưa có schema và API. |
+| `users.html` | Mockup mô hình người dùng cũ; cần chuyển thành quản lý Cardholder. |
+| `fingerprints.html` | Mockup cũ ngoài phạm vi; không triển khai vân tay. |
 | `rfid.html` | Cấp phát và quản lý thẻ RFID. |
 | `pin.html` | Thay đổi mã PIN và xem chính sách khóa tạm. |
 | `alerts.html` | Cảnh báo và lịch sử hoạt động. |
@@ -49,6 +49,13 @@ liệu mô phỏng; prototype không kết nối Backend, MQTT hoặc thiết b�
   contract của dự án.
 
 ## Vấn đề đã biết
+
+- Theo [quyết định ngày 13/10/2026](../../01-requirements/ownership-device-lifecycle-decisions.md),
+  cần tách Account đăng nhập và Cardholder, thêm danh sách cửa thuộc sở hữu cùng
+  luồng claim bằng mã kích hoạt, hiển thị lifecycle và kết nối riêng từng Node.
+- Nội dung `ADMIN/USER`, vân tay và thu hồi vân tay còn trong HTML/JavaScript
+  là mô hình cũ. Chúng không phải yêu cầu triển khai; màn hình vân tay và các
+  liên kết liên quan cần loại khỏi bản thiết kế giao diện tiếp theo.
 
 - Font và avatar phụ thuộc tài nguyên bên ngoài nên có thể không hiển thị khi
   offline.
