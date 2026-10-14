@@ -14,6 +14,7 @@ vào ứng dụng trong `mobile/` và không phải là một Flutter Web projec
 | File | Nội dung |
 | --- | --- |
 | `index.html` | Đăng nhập và điểm bắt đầu của prototype. |
+| `register.html` | Đăng ký Account: tên hiển thị, username, mật khẩu và xác nhận; chỉ mô phỏng. |
 | `dashboard.html` | Tổng quan, quản lý truy cập và điều khiển cửa. |
 | `users.html` | Mockup mô hình người dùng cũ; cần chuyển thành quản lý Cardholder. |
 | `fingerprints.html` | Mockup cũ ngoài phạm vi; không triển khai vân tay. |
@@ -26,6 +27,7 @@ Tài nguyên dùng chung:
 
 - `style.css`: theme, layout và component styles.
 - `script.js`: chuyển theme, điều hướng và tương tác mô phỏng.
+- `register.js`: kiểm tra form đăng ký, hiện/ẩn mật khẩu và trạng thái gửi; không lưu hoặc gửi mật khẩu.
 - `house_bg.jpg`, `OIP.webp`: hình ảnh minh họa cục bộ.
 
 ## Xem prototype
