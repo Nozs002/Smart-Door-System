@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
 
+import 'features/authentication/login_screen.dart';
+
 void main() {
   runApp(const SmartDoorApp());
 }
@@ -16,7 +18,7 @@ class SmartDoorApp extends StatelessWidget {
         colorScheme: ColorScheme.fromSeed(seedColor: Colors.indigo),
         useMaterial3: true,
       ),
-      home: const Scaffold(body: Center(child: Text('Smart Door'))),
+      home: const LoginScreen(),
     );
   }
 }
