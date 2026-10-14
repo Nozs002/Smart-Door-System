@@ -4,7 +4,7 @@ type: reference
 version: 1.0
 lang: vi
 tags: [backend, error-handling, validation, observability]
-updated: 2026-10-03
+updated: 2026-10-14
 ---
 
 # Cấu trúc xử lý lỗi Backend
@@ -26,14 +26,18 @@ exception handling để giữ một schema lỗi thống nhất.
 backend/src/main/java/com/smartdoor/backend/shared/
 ├── error/
 │   ├── ApplicationException.java
+│   ├── AuthenticationRequiredException.java
 │   ├── BadRequestException.java
 │   ├── ConflictException.java
 │   ├── ErrorCode.java
 │   ├── FieldViolation.java
 │   ├── GlobalExceptionHandler.java
 │   └── ResourceNotFoundException.java
-└── observability/
-    └── CorrelationIdFilter.java
+├── observability/
+│   └── CorrelationIdFilter.java
+└── security/
+    ├── RestAuthenticationEntryPoint.java
+    └── RestAccessDeniedHandler.java
 ```
 
 Kiểm thử nằm tại:
@@ -58,6 +62,8 @@ Các mã hiện có:
 | `INVALID_REQUEST` | `400` | `Yêu cầu không hợp lệ` |
 | `VALIDATION_FAILED` | `400` | `Dữ liệu không hợp lệ` |
 | `AUTHENTICATION_REQUIRED` | `401` | `Yêu cầu xác thực` |
+| `INVALID_CREDENTIALS` | `401` | `Thông tin đăng nhập không hợp lệ` |
+| `LOGIN_RATE_LIMITED` | `429` | `Quá nhiều lần đăng nhập` |
 | `RESOURCE_NOT_FOUND` | `404` | `Không tìm thấy tài nguyên` |
 | `CONFLICT` | `409` | `Xung đột dữ liệu` |
 | `ACCESS_DENIED` | `403` | `Truy cập bị từ chối` |
@@ -73,6 +79,8 @@ Các lớp chuyên biệt hiện có:
 - `BadRequestException` cho request sai quy tắc ngoài Bean Validation;
 - `ResourceNotFoundException` khi tài nguyên không tồn tại;
 - `ConflictException` khi dữ liệu hoặc trạng thái hiện tại gây xung đột.
+- `AuthenticationRequiredException` khi request chưa được xác thực, dùng mã
+  `AUTHENTICATION_REQUIRED` và HTTP `401`.
 
 Chỉ tạo exception chuyên biệt mới khi lỗi có ý nghĩa dùng lại hoặc cần mapping
 khác. Không tạo một lớp exception cho từng câu thông báo.
@@ -85,6 +93,8 @@ khác. Không tạo một lớp exception cho từng câu thông báo.
 - `MethodArgumentNotValidException` trả danh sách field lỗi;
 - `HttpMessageNotReadableException` trả lỗi body thiếu hoặc sai cú pháp;
 - `AccessDeniedException` trả `403` khi exception đi qua MVC layer;
+- security entry point và access denied handler ủy quyền qua
+  `HandlerExceptionResolver` để cùng cơ chế tạo response `401/403`;
 - exception không xác định được log ở server và trả lỗi `500` tổng quát.
 
 Handler không trả stack trace, class name, câu SQL, rejected value hoặc nội dung
@@ -226,5 +236,4 @@ agent không tự chạy Maven ở các tác vụ tiếp theo nếu người dù
 - [Kiến trúc Backend](architecture.md)
 - [Cấu trúc phản hồi REST API](api-response.md)
 - [Nền tảng bảo mật Backend](security-foundation.md)
-- [Kế hoạch triển khai Backend](implementation-plan.md)
 - [Yêu cầu hệ thống](../01-requirements/requirement.md)

@@ -4,16 +4,17 @@ type: reference
 version: 1.0
 lang: vi
 tags: [backend, security, spring-security, cors, bcrypt]
-updated: 2026-10-13
+updated: 2026-10-14
 ---
 
 # Nền tảng bảo mật Backend
 
 ## 1. Phạm vi đã triển khai
 
-Backend đã có lớp bảo mật nền để mọi API nghiệp vụ bị từ chối mặc định cho đến
-khi cơ chế JWT được chốt và triển khai. Phần này không phát hành hoặc xác minh
-JWT và chưa triển khai kiểm tra quyền sở hữu Door.
+Backend có lớp bảo mật nền và đã bổ sung phát hành/xác minh JWT cho đăng nhập.
+Chỉ API đăng nhập được public thêm; API khác yêu cầu xác thực. Chưa triển khai
+kiểm tra quyền sở hữu Door. Source đăng nhập đã qua Maven verify ngày 14/10/2026;
+xem [triển khai đăng nhập](account-login.md).
 
 Các thành phần đã cấu hình:
 
@@ -50,6 +51,7 @@ security filter.
 | Endpoint/request | Chính sách |
 | --- | --- |
 | `OPTIONS /**` | Public để xử lý CORS preflight. |
+| `POST /api/v1/auth/login` | Public; validate credential và rate limit. |
 | `/actuator/health` | Public, không hiển thị chi tiết. |
 | `/actuator/health/liveness` | Public. |
 | `/actuator/health/readiness` | Public. |
@@ -91,14 +93,20 @@ kiểm tra thêm:
 Không nhận Account ID trong request body làm nguồn quyền. Account phải lấy từ
 security context sau khi JWT được xác minh.
 
-## 7. Nội dung chưa triển khai
+## 7. Persistence Account và nội dung chưa triển khai
 
-- thuật toán và khóa ký JWT;
-- access/refresh token lifecycle, revoke và rotation;
-- JWT authentication filter/converter;
-- Account repository và trạng thái Account;
+Đã có `identity/entity/Account` với trạng thái `ACTIVE/DISABLED` và
+`AccountRepository` với truy vấn theo username. Đây là mapping persistence;
+đã có service đăng nhập và kiểm tra trạng thái Account khi xác thực JWT.
+Xem [mapping JPA và repository](entity-repository-mapping.md).
+
+Các nội dung chưa triển khai:
+
+- refresh token, revoke phiên và rotation nhiều khóa (JWT hiện dùng HS256,
+  access token 15 phút, hết hạn đăng nhập lại);
 - ownership authorization service;
-- rate limit, replay protection và audit security;
+- rate limit chia sẻ nhiều instance, replay protection và audit security
+  (đã có limiter in-memory cho đăng nhập);
 - MQTT identity/ACL;
 - TLS termination và production secret store.
 

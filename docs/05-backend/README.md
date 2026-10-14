@@ -3,7 +3,7 @@ title: Tài liệu Backend
 type: moc
 lang: vi
 tags: [backend, spring-boot]
-updated: 2026-10-03
+updated: 2026-10-14
 ---
 
 # Tài liệu Backend
@@ -11,6 +11,8 @@ updated: 2026-10-03
 Khu vực lưu tài liệu thiết kế và phát triển Spring Boot Backend, bao gồm API, bảo mật, dữ liệu, MQTT integration và migration.
 
 ## Tài liệu
+
+- [Đăng nhập Backend](account-login.md) — contract, JWT, rate limit và xác minh.
 
 - [Mapping JPA và repository](entity-repository-mapping.md) — 12 bảng, khóa ghép,
   enum, version, truy vấn phạm vi, khóa hàng và cách kiểm thử.
@@ -20,8 +22,6 @@ Khu vực lưu tài liệu thiết kế và phát triển Spring Boot Backend, b
 
 - [Kiến trúc Backend](architecture.md) — kiến trúc mục tiêu, ranh giới module,
   cấu hình, bảo mật, quan sát, dữ liệu, MQTT và kiểm thử.
-- [Kế hoạch triển khai Backend](implementation-plan.md) — lộ trình theo giai
-  đoạn, quality gate, quy ước kiểm thử Maven, thứ tự Pull Request và rủi ro.
 - [Cấu trúc xử lý lỗi Backend](error-handling.md) — error code, exception,
   Problem Details, correlation ID, quy tắc title tiếng Việt và cách kiểm thử.
 - [Cấu trúc phản hồi REST API](api-response.md) — `ApiResponse<T>` cho response
@@ -30,8 +30,18 @@ Khu vực lưu tài liệu thiết kế và phát triển Spring Boot Backend, b
   `local`, `test`, `prod`, typed configuration và biến môi trường.
 - [Nền tảng bảo mật Backend](security-foundation.md) — security filter chain,
   CORS, BCrypt và chuẩn hóa lỗi `401/403`.
-- [Báo cáo cấu hình Backend ngày 13/10/2026](configuration-progress-report-2026-10-13.md)
-  — phạm vi tài liệu mới, nội dung đã làm, xác minh và công việc còn lại.
+
+## Hiện trạng
+
+Đã có nền tảng cấu hình, bảo mật, response/lỗi và mapping 12 entity/repository.
+Đã bổ sung controller/service/DTO đăng nhập và JWT; Maven verify ngày 14/10/2026
+đạt 25 test và build JAR thành công. Xem bằng chứng tại tài liệu đăng nhập.
+Các nghiệp vụ khác, ownership service, MQTT client và Flyway migration
+chưa triển khai. Local/prod cần schema v2 đã khởi tạo để Hibernate
+validate; cấu hình Flyway hiện có chưa thay thế quy trình khởi tạo schema.
+
+Theo quy ước dự án, người dùng chạy Maven; agent chỉ chạy khi được yêu cầu
+rõ ràng. Có source test không đồng nghĩa đã có kết quả kiểm thử mới.
 
 ## Liên kết
 

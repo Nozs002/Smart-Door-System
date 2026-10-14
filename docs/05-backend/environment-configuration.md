@@ -4,7 +4,7 @@ type: reference
 version: 1.0
 lang: vi
 tags: [backend, configuration, profiles, security]
-updated: 2026-10-03
+updated: 2026-10-14
 ---
 
 # Cấu hình môi trường Backend
@@ -90,6 +90,13 @@ Test phải khai báo `@ActiveProfiles("test")`. Profile này:
 - dùng TTL và timeout ngắn phục vụ test;
 - không yêu cầu Mosquitto đang chạy chỉ để load application context.
 
+Local/prod dùng Hibernate `validate` với 12 entity/repository theo schema v2.
+Backend chưa có Flyway migration; `baseline-on-migrate: true` trong cấu hình
+chung không tạo các bảng nghiệp vụ. Cần khởi tạo schema theo
+[hướng dẫn database](../03-technical-reference/database-setup.md) trước khi
+chạy local/prod. Quy trình baseline/nâng cấp bằng Flyway còn phải triển khai
+và kiểm chứng.
+
 H2 chỉ phù hợp cho context/unit/slice test. Query và migration quan trọng vẫn
 phải được kiểm tra bằng MySQL tương thích production khi Flyway được triển khai.
 
@@ -162,7 +169,9 @@ Không đưa các lệnh có secret thật vào tài liệu, shell history hoặ
 5. CORS production chỉ chứa origin tin cậy, không dùng wildcard với credential.
 6. MQTT production dự kiến dùng TLS ở port `8883`; trust store và hostname
    verification phải được bổ sung khi triển khai MQTT adapter.
-7. Việc có `JWT_SECRET` trong cấu hình chưa đồng nghĩa JWT đã được triển khai.
+7. JWT đăng nhập đã bổ sung HS256; secret phải có ít nhất 32 byte UTF-8 và TTL
+   phải ít nhất một giây. Source đã qua Maven verify ngày 14/10/2026. Xem
+   [đăng nhập Backend](account-login.md) cho cấu hình limiter.
 
 ## 9. Kiểm thử
 
@@ -180,6 +189,5 @@ cd backend
 ## 10. Tài liệu liên quan
 
 - [Kiến trúc Backend](architecture.md)
-- [Kế hoạch triển khai Backend](implementation-plan.md)
 - [Cấu trúc phản hồi REST API](api-response.md)
 - [Quy trình CI/CD](../08-process/ci-cd.md)
