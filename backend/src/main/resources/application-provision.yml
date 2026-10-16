@@ -6,5 +6,5 @@ spring:
 
 logging:
   level:
-    org.hibernate.SQL: WARN
-    org.hibernate.orm.jdbc.bind: WARN
+    "[org.hibernate.SQL]": WARN
+    "[org.hibernate.orm.jdbc.bind]": WARN
