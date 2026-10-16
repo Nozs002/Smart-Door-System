@@ -14,6 +14,8 @@ import org.springframework.http.MediaType;
 import org.springframework.http.ProblemDetail;
 import org.springframework.http.ResponseEntity;
 import org.springframework.http.converter.HttpMessageNotReadableException;
+import org.springframework.dao.DataIntegrityViolationException;
+import org.springframework.dao.OptimisticLockingFailureException;
 import org.springframework.security.access.AccessDeniedException;
 import org.springframework.web.bind.MethodArgumentNotValidException;
 import org.springframework.web.bind.annotation.ExceptionHandler;
@@ -46,6 +48,11 @@ public final class GlobalExceptionHandler extends ResponseEntityExceptionHandler
 		String correlationId = correlationId(request);
 		log.error("Unhandled exception; correlationId={}", correlationId, exception);
 		return response(ErrorCode.INTERNAL_ERROR, INTERNAL_ERROR_DETAIL, request, null);
+	}
+
+	@ExceptionHandler({DataIntegrityViolationException.class, OptimisticLockingFailureException.class})
+	ResponseEntity<Object> handlePersistenceConflict(Exception exception, WebRequest request) {
+		return response(ErrorCode.CONFLICT, "Dữ liệu đã thay đổi hoặc trùng định danh. Vui lòng tải lại và thử lại.", request, null);
 	}
 
 	@Override

@@ -10,6 +10,8 @@ public interface DeviceLifecycleEventRepository extends JpaRepository<DeviceLife
 
 	boolean existsByEventId(String eventId);
 
+	Page<DeviceLifecycleEvent> findAllByDoorIdOrderByOccurredAtDescIdDesc(Long doorId, Pageable pageable);
+
 	Page<DeviceLifecycleEvent> findAllByDeviceIdAndDoorIdOrderByOccurredAtDescIdDesc(
 			Long deviceId, Long doorId, Pageable pageable);
 

@@ -12,6 +12,16 @@ import org.springframework.data.repository.query.Param;
 
 /** Chỉ service của module sở hữu sử dụng; truy vấn không thay thế authorization. */
 public interface DoorActivationCodeRepository extends JpaRepository<DoorActivationCode, Long> {
+	Optional<DoorActivationCode> findByCodeHash(String codeHash);
+	boolean existsByCodeHash(String codeHash);
+
+	/** Chỉ đọc scalar trước khi khóa Door: tránh cache entity mã cũ khi hai claim đồng thời. */
+	@Query("select c.doorId from DoorActivationCode c where c.codeHash = :hash")
+	Optional<Long> findDoorIdByCodeHash(@Param("hash") String hash);
+
+	@Lock(LockModeType.PESSIMISTIC_WRITE)
+	@Query("select c from DoorActivationCode c where c.codeHash = :hash and c.doorId = :doorId")
+	Optional<DoorActivationCode> findByHashAndDoorIdForUpdate(@Param("hash") String hash, @Param("doorId") Long doorId);
 
 	List<DoorActivationCode> findAllByDoorIdAndConsumedAtIsNullAndRevokedAtIsNullAndExpiresAtAfter(
 			Long doorId, LocalDateTime now);
