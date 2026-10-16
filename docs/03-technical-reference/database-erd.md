@@ -4,7 +4,7 @@ type: technical-reference
 version: 2.0
 lang: vi
 tags: [database, erd, mysql, ownership, device-lifecycle]
-updated: 2026-10-13
+updated: 2026-10-16
 ---
 
 # Database ERD
@@ -17,8 +17,10 @@ Không có bảng users gộp, vai trò ADMIN/USER hoặc bảng vân tay.
 Đây là cấu trúc SQL trong repository, chưa xác nhận database đang chạy đã được
 nâng cấp. Thay file init không cập nhật volume MySQL cũ. Xem [hướng dẫn database](database-setup.md).
 Đã có [JPA entity/repository](../05-backend/entity-repository-mapping.md) cho 12
-bảng; chưa có service/API nghiệp vụ, MQTT credential provisioning hoặc Flyway
-migration. FK không thay thế authorization ở Backend.
+bảng. Phần Người 2 đã bổ sung service/API/CLI quản lý Door/Device và Flyway V1/V2;
+xem [bàn giao](../05-backend/door-device-handoff.md) cho phạm vi và kiểm thử.
+Các module khác và MQTT credential provisioning chưa vì thế được xem là hoàn
+thành. FK không thay thế authorization ở Backend.
 
 ## 1. Nguyên tắc
 
@@ -153,7 +155,7 @@ version BIGINT UNSIGNED NOT NULL DEFAULT 0
 
 Bằng chứng kích hoạt dùng một lần; device_code không phải bí mật.
 
-id/door_id: định danh và bộ cửa; code_hash: hash bí mật; created_at/expires_at: phát hành/hết hạn; consumed_at/consumed_by_account_id: dấu vết sử dụng, cùng NULL hoặc cùng có giá trị; revoked_at: thu hồi. Không seed mã thật; Backend còn phải cấp mã và rate limit.
+id/door_id: định danh và bộ cửa; code_hash: hash bí mật; created_at/expires_at: phát hành/hết hạn; consumed_at/consumed_by_account_id: dấu vết sử dụng, cùng NULL hoặc cùng có giá trị; revoked_at: thu hồi. Không seed mã thật; CLI Người 2 cấp mã mới, API claim có rate limit Account/IP.
 
 Các cột trong SQL:
 
@@ -287,7 +289,11 @@ active_node_type chỉ có giá trị khi Device ACTIVE. MySQL cho phép nhiều
 trong UNIQUE nên giữ được nhiều Node cũ PROVISIONED/DISABLED/RETIRED nhưng không
 cho hai Node ACTIVE cùng vai trò trên cùng cửa.
 
-## 4. Quy tắc Backend còn phải thực hiện
+## 4. Quy tắc nghiệp vụ Backend
+
+Phần Door/Device đã có source triển khai các quy tắc tương ứng; các đầu nối
+JWT, ACK và credential/ACL còn cần tích hợp. Xem [bàn giao Người 2](../05-backend/door-device-handoff.md)
+để biết trạng thái xác minh, không suy ra tất cả module đã hoàn thành từ danh sách này.
 
 1. Claim khóa hàng Door và mã kích hoạt trong transaction, kiểm tra hash,
    hết hạn/thu hồi/đã dùng; ghi chủ và consumed đồng thời. Retry cùng Account

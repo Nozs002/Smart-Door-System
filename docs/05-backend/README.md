@@ -12,6 +12,9 @@ Khu vực lưu tài liệu thiết kế và phát triển Spring Boot Backend, b
 
 ## Tài liệu
 
+- [Bàn giao backend Người 2](door-device-handoff.md) — phạm vi đã triển khai,
+  provision/claim, lifecycle, lệnh chạy, checklist kiểm thử và đầu nối Người 1/4.
+
 - [Mapping JPA và repository](entity-repository-mapping.md) — 12 bảng, khóa ghép,
   enum, version, truy vấn phạm vi, khóa hàng và cách kiểm thử.
 
