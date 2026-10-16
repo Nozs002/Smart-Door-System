@@ -6,16 +6,12 @@ import jakarta.persistence.Column;
 import jakarta.persistence.Embeddable;
 import jakarta.persistence.EnumType;
 import jakarta.persistence.Enumerated;
-import lombok.AllArgsConstructor;
 import lombok.EqualsAndHashCode;
 import lombok.Getter;
-import lombok.NoArgsConstructor;
 
 /** Khóa ghép của lockout_statuses; tạo khóa mới thay vì sửa khóa đã persist. */
 @Embeddable
 @Getter
-@NoArgsConstructor
-@AllArgsConstructor
 @EqualsAndHashCode
 public class LockoutStatusId implements Serializable {
 
@@ -27,6 +23,14 @@ public class LockoutStatusId implements Serializable {
 	@Enumerated(EnumType.STRING)
 	@Column(name = "method", nullable = false, columnDefinition = "ENUM('RFID','PIN')")
 	private Method method;
+
+	public LockoutStatusId() {
+	}
+
+	public LockoutStatusId(Long doorId, Method method) {
+		this.doorId = doorId;
+		this.method = method;
+	}
 
 	public enum Method {
 		RFID, PIN
