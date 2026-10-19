@@ -16,6 +16,9 @@ Khu vực lưu tài liệu thiết kế và phát triển Spring Boot Backend, b
 
 - [Đăng nhập Backend](account-login.md) — contract, JWT, rate limit và xác minh.
 
+- [Bàn giao backend Người 2](door-device-handoff.md) — phạm vi đã triển khai,
+  provision/claim, lifecycle, lệnh chạy, checklist kiểm thử và đầu nối Người 1/4.
+
 - [Mapping JPA và repository](entity-repository-mapping.md) — 12 bảng, khóa ghép,
   enum, version, truy vấn phạm vi, khóa hàng và cách kiểm thử.
 
@@ -35,12 +38,12 @@ Khu vực lưu tài liệu thiết kế và phát triển Spring Boot Backend, b
 
 ## Hiện trạng
 
-Đã có nền tảng cấu hình, bảo mật, response/lỗi và mapping 12 entity/repository.
-Đã bổ sung controller/service/DTO đăng nhập và JWT; Maven verify ngày 14/10/2026
-đạt 25 test và build JAR thành công. Xem bằng chứng tại tài liệu đăng nhập.
-Các nghiệp vụ khác, ownership service, MQTT client và Flyway migration
-chưa triển khai. Local/prod cần schema v2 đã khởi tạo để Hibernate
-validate; cấu hình Flyway hiện có chưa thay thế quy trình khởi tạo schema.
+Đã có nền tảng cấu hình, bảo mật, response/lỗi, mapping entity/repository,
+đăng nhập JWT, đăng ký/hồ sơ Account, ownership Door và lifecycle thiết bị.
+Xem bằng chứng và giới hạn triển khai tại các tài liệu tương ứng bên trên.
+MQTT client và Flyway migration chưa triển khai. Local/prod cần schema v2 đã
+khởi tạo để Hibernate validate; cấu hình Flyway hiện có chưa thay thế quy trình
+khởi tạo schema.
 
 Đã bổ sung đăng ký và xem hồ sơ Account cùng tích hợp Flutter; thay đổi này
 chưa chạy Maven, không thuộc bằng chứng 25 test đăng nhập trước đó.

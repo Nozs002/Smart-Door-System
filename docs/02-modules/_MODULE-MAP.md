@@ -3,7 +3,7 @@ title: Module Map — Smart Door System
 type: moc
 lang: vi
 tags: [modules, roadmap]
-updated: 2026-10-13
+updated: 2026-10-16
 ---
 
 # Module Map
@@ -12,16 +12,16 @@ Bảng này định nghĩa các module nghiệp vụ cốt lõi và phạm vi k�
 
 ## Danh sách module
 
-| # | Module | Phạm vi chính | Thành phần liên quan | Trạng thái tài liệu |
-| --- | --- | --- | --- | --- |
-| 01 | Authentication & Authorization | Account khách hàng, JWT, trạng thái tài khoản và kiểm tra sở hữu Door; không Admin nền tảng. | Mobile, Backend, MySQL | Chưa tạo |
-| 02 | Device Management | Provision Door/cặp Node qua công cụ kỹ thuật; khách hàng claim bằng mã kích hoạt, quản lý cấu hình đúng cửa. | Mobile, Backend, MySQL | Chưa tạo |
-| 03 | Device Lifecycle | Đăng ký, kích hoạt, thay thế, vô hiệu hóa, ngừng sử dụng và lịch sử; heartbeat/online/offline tách khỏi lifecycle. | Backend, MQTT, ESP32, MySQL | Chưa tạo |
-| 04 | Local Access Authentication | Xác thực RFID/PIN và xử lý khi mất kết nối mạng. | ESP32 Auth, Backend, MQTT, MySQL | Chưa tạo |
-| 05 | Door Control | Mở/đóng khóa tại chỗ hoặc từ xa và theo dõi trạng thái cửa. | Mobile, Backend, MQTT, ESP32 Control | Chưa tạo |
-| 06 | Access Logs | Ghi nhận và truy vấn lịch sử ra vào. | Mobile, Backend, MySQL | Chưa tạo |
-| 07 | Alerts & Security Rules | Sai thông tin xác thực nhiều lần, cửa mở lâu và cảnh báo xâm nhập. | Mobile, Backend, MQTT, ESP32 | Chưa tạo |
-| 08 | Fire Safety | Phát hiện nhiệt độ cao, kích hoạt còi và tự động mở khóa Cửa chính để thoát hiểm. | ESP32 Control, MQTT, Backend, Mobile | Chưa tạo |
+| #   | Module                         | Phạm vi chính                                                                                                      | Thành phần liên quan                 | Trạng thái tài liệu |
+| --- | ------------------------------ | ------------------------------------------------------------------------------------------------------------------ | ------------------------------------ | ------------------- |
+| 01  | Authentication & Authorization | Account khách hàng, JWT, trạng thái tài khoản và kiểm tra sở hữu Door; không Admin nền tảng.                       | Mobile, Backend, MySQL               | Chưa tạo            |
+| 02  | [Device Management](02-device-management/README.md) | Provision Door/cặp Node qua công cụ kỹ thuật; khách hàng claim bằng mã kích hoạt, quản lý cấu hình đúng cửa.       | Mobile, Backend, MySQL               | Đang soạn           |
+| 03  | [Device Lifecycle](03-device-lifecycle/README.md) | Đăng ký, kích hoạt, thay thế, vô hiệu hóa, ngừng sử dụng và lịch sử; heartbeat/online/offline tách khỏi lifecycle. | Backend, MQTT, ESP32, MySQL          | Đang soạn           |
+| 04  | Local Access Authentication    | Xác thực RFID/PIN và xử lý khi mất kết nối mạng.                                                                   | ESP32 Auth, Backend, MQTT, MySQL     | Chưa tạo            |
+| 05  | Door Control                   | Mở/đóng khóa tại chỗ hoặc từ xa và theo dõi trạng thái cửa.                                                        | Mobile, Backend, MQTT, ESP32 Control | Chưa tạo            |
+| 06  | Access Logs                    | Ghi nhận và truy vấn lịch sử ra vào.                                                                               | Mobile, Backend, MySQL               | Chưa tạo            |
+| 07  | Alerts & Security Rules        | Sai thông tin xác thực nhiều lần, cửa mở lâu và cảnh báo xâm nhập.                                                 | Mobile, Backend, MQTT, ESP32         | Chưa tạo            |
+| 08  | Fire Safety                    | Phát hiện nhiệt độ cao, kích hoạt còi và tự động mở khóa Cửa chính để thoát hiểm.                                  | ESP32 Control, MQTT, Backend, Mobile | Chưa tạo            |
 
 ## Tên thư mục chuẩn
 

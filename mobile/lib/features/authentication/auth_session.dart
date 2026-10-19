@@ -3,12 +3,13 @@ import 'dart:convert';
 
 import 'package:flutter/foundation.dart';
 
+import '../../core/access_token_provider.dart';
 import '../../core/network/api_exception.dart';
 import '../../core/storage/session_store.dart';
 import 'account_models.dart';
 import 'auth_api.dart';
 
-class AuthSession extends ChangeNotifier {
+class AuthSession extends ChangeNotifier implements AccessTokenProvider {
   AuthSession({required this.api, required this.store});
   final AuthApi api;
   final SessionStore store;
@@ -18,6 +19,17 @@ class AuthSession extends ChangeNotifier {
   bool restoring = true;
   String? notice;
   bool get signedIn => _session != null;
+
+  @override
+  Future<String?> accessToken() async {
+    final current = _session;
+    if (current == null) return null;
+    if (!current.expiresAt.isAfter(DateTime.now())) {
+      await expire();
+      return null;
+    }
+    return current.token;
+  }
 
   void _notify() {
     if (!_disposed) notifyListeners();

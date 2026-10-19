@@ -1,12 +1,15 @@
 import 'package:flutter/material.dart';
 
+import '../../features/doors/data/door_repository.dart';
+import '../../features/doors/presentation/door_list_screen.dart';
 import 'account_models.dart';
 import 'auth_session.dart';
 import 'auth_widgets.dart';
 
 class ProfileScreen extends StatefulWidget {
-  const ProfileScreen({super.key, required this.session});
+  const ProfileScreen({super.key, required this.session, this.doorRepository});
   final AuthSession session;
+  final DoorRepository? doorRepository;
   @override
   State<ProfileScreen> createState() => _ProfileScreenState();
 }
@@ -87,6 +90,21 @@ class _ProfileScreenState extends State<ProfileScreen> {
           _row('Ngày tạo tài khoản', date(profile!.createdAt)),
         ],
         AuthError(message: error),
+        if (widget.doorRepository != null) ...[
+          const SizedBox(height: 12),
+          OutlinedButton.icon(
+            onPressed: () => Navigator.of(context).push<void>(
+              MaterialPageRoute(
+                builder: (_) => DoorListScreen(
+                  repository: widget.doorRepository!,
+                  onSignInRequested: () => widget.session.expire(),
+                ),
+              ),
+            ),
+            icon: const Icon(Icons.door_front_door_outlined),
+            label: const Text('Quản lý cửa'),
+          ),
+        ],
         const SizedBox(height: 12),
         OutlinedButton.icon(
           onPressed: loading || leaving ? null : load,

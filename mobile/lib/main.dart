@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
 
+import 'core/api_client.dart';
+import 'features/doors/data/door_repository.dart';
 import 'features/authentication/login_screen.dart';
 import 'core/storage/session_store.dart';
 import 'features/authentication/auth_api.dart';
@@ -20,18 +22,24 @@ class SmartDoorApp extends StatefulWidget {
 
 class _SmartDoorAppState extends State<SmartDoorApp> {
   late final AuthSession session;
+  ApiClient? _doorClient;
+  late final DoorRepository doorRepository;
   @override
   void initState() {
     super.initState();
     session =
         widget.session ??
         AuthSession(api: HttpAuthApi(), store: SecureSessionStore());
+    doorRepository = RestDoorRepository(
+      _doorClient = ApiClient(tokenProvider: session),
+    );
     session.restore();
   }
 
   @override
   void dispose() {
     if (widget.session == null) session.dispose();
+    _doorClient?.close();
     super.dispose();
   }
 
@@ -52,7 +60,12 @@ class _SmartDoorAppState extends State<SmartDoorApp> {
               body: Center(child: CircularProgressIndicator()),
             );
           }
-          if (session.signedIn) return ProfileScreen(session: session);
+          if (session.signedIn) {
+            return ProfileScreen(
+              session: session,
+              doorRepository: doorRepository,
+            );
+          }
           return LoginScreen(
             onSubmit: session.login,
             onRegister: session.register,
