@@ -1,3 +1,5 @@
+import 'dart:convert';
+
 import 'package:flutter/material.dart';
 
 import 'auth_widgets.dart';
@@ -124,9 +126,18 @@ class _RegisterScreenState extends State<RegisterScreen> {
                 password: true,
                 enabled: !loading,
                 autofillHints: const [AutofillHints.newPassword],
-                validator: (value) => value == null || value.isEmpty
-                    ? 'Vui lòng nhập mật khẩu.'
-                    : null,
+                validator: (value) {
+                  if (value == null || value.isEmpty) {
+                    return 'Vui lòng nhập mật khẩu.';
+                  }
+                  if (value.runes.length < 8) {
+                    return 'Mật khẩu cần ít nhất 8 ký tự.';
+                  }
+                  if (utf8.encode(value).length > 72) {
+                    return 'Mật khẩu tối đa 72 byte UTF-8.';
+                  }
+                  return null;
+                },
               ),
               AuthField(
                 label: 'Xác nhận mật khẩu',

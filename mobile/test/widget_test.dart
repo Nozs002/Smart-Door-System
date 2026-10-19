@@ -7,11 +7,16 @@ import 'package:smart_door_mobile/features/authentication/auth_widgets.dart';
 import 'package:smart_door_mobile/features/authentication/login_screen.dart';
 import 'package:smart_door_mobile/features/authentication/register_screen.dart';
 
+import 'auth_fakes.dart';
+
 void main() {
   testWidgets('opens registration and returns to login with glass cards', (
     tester,
   ) async {
-    await tester.pumpWidget(const SmartDoorApp());
+    final session = testSession();
+    addTearDown(session.dispose);
+    await tester.pumpWidget(SmartDoorApp(session: session));
+    await tester.pumpAndSettle();
     expect(find.text('SmartLock'), findsOneWidget);
     expect(find.byType(BackdropFilter), findsNWidgets(2));
     await tester.ensureVisible(find.widgetWithText(TextButton, 'Đăng ký'));

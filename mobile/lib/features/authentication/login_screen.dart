@@ -8,9 +8,10 @@ import 'register_screen.dart';
 typedef LoginSubmit = Future<void> Function(String username, String password);
 
 class LoginScreen extends StatefulWidget {
-  const LoginScreen({super.key, this.onSubmit, this.onRegister});
+  const LoginScreen({super.key, this.onSubmit, this.onRegister, this.notice});
   final LoginSubmit? onSubmit;
   final RegisterSubmit? onRegister;
+  final String? notice;
   @override
   State<LoginScreen> createState() => _LoginScreenState();
 }
@@ -119,7 +120,7 @@ class _LoginScreenState extends State<LoginScreen> {
                 return null;
               },
             ),
-            AuthError(message: error),
+            AuthError(message: error ?? widget.notice),
             AuthButton(label: 'Đăng nhập', loading: loading, onPressed: submit),
             const SizedBox(height: 16),
             Wrap(
@@ -143,7 +144,7 @@ class _LoginScreenState extends State<LoginScreen> {
                                   ),
                                 ),
                               );
-                          if (mounted && registered == true) {
+                          if (context.mounted && registered == true) {
                             ScaffoldMessenger.of(context).showSnackBar(
                               const SnackBar(
                                 content: Text(

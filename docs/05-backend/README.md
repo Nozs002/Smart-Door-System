@@ -12,6 +12,8 @@ Khu vực lưu tài liệu thiết kế và phát triển Spring Boot Backend, b
 
 ## Tài liệu
 
+- [Đăng ký và hồ sơ Account](account-registration-profile.md) — API, persistence và tích hợp Mobile.
+
 - [Đăng nhập Backend](account-login.md) — contract, JWT, rate limit và xác minh.
 
 - [Mapping JPA và repository](entity-repository-mapping.md) — 12 bảng, khóa ghép,
@@ -39,6 +41,9 @@ Khu vực lưu tài liệu thiết kế và phát triển Spring Boot Backend, b
 Các nghiệp vụ khác, ownership service, MQTT client và Flyway migration
 chưa triển khai. Local/prod cần schema v2 đã khởi tạo để Hibernate
 validate; cấu hình Flyway hiện có chưa thay thế quy trình khởi tạo schema.
+
+Đã bổ sung đăng ký và xem hồ sơ Account cùng tích hợp Flutter; thay đổi này
+chưa chạy Maven, không thuộc bằng chứng 25 test đăng nhập trước đó.
 
 Theo quy ước dự án, người dùng chạy Maven; agent chỉ chạy khi được yêu cầu
 rõ ràng. Có source test không đồng nghĩa đã có kết quả kiểm thử mới.

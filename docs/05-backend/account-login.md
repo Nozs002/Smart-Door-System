@@ -51,8 +51,9 @@ security với filter chain thật. JAR executable đã được tạo. Chạy b
 ## Gọi API
 
 Khởi động Backend profile local với database schema v2 đã khởi tạo. Dùng
-Account ACTIVE có password_hash BCrypt hợp lệ; đăng ký Account chưa thuộc
-phạm vi lần này. Không đưa thông tin thật vào ví dụ hoặc Git.
+Account ACTIVE có password_hash BCrypt hợp lệ; có thể tạo Account qua
+[API đăng ký mới](account-registration-profile.md). Không đưa thông tin thật
+vào ví dụ hoặc Git. Bằng chứng verify đăng nhập ở trên có trước thay đổi đăng ký.
 
 ```http
 POST /api/v1/auth/login

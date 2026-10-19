@@ -12,7 +12,8 @@ theo tám module trong [kiến trúc Backend](architecture.md). Mỗi module có
 controller, service, entity, repository, dto. package-info.java mô tả trách
 nhiệm và giữ thư mục trong Git. Đã thêm entity/repository cho 12 bảng;
 đã bổ sung service/controller/DTO đăng nhập và JWT trong identity, đã qua
-Maven verify ngày 14/10/2026. Các nghiệp vụ khác chưa triển khai. Xem
+Maven verify ngày 14/10/2026. Đã bổ sung đăng ký/hồ sơ nhưng chưa chạy Maven
+cho thay đổi mới; các nghiệp vụ khác chưa triển khai. Xem
 [mapping JPA](entity-repository-mapping.md) và [đăng nhập](account-login.md).
 
 ## Ví dụ triển khai một chức năng
@@ -85,7 +86,7 @@ MQTT handler nghiệp vụ thuộc <module>/mqtt và gọi service sau validatio
 ## Xác minh
 
 Entity/repository đã mapping database nhưng chưa có endpoint/service nghiệp
-vụ ngoài đăng nhập. Local/prod cần schema v2 để Hibernate validate thành công. Theo quy ước
+vụ ngoài đăng nhập/đăng ký/hồ sơ Account. Local/prod cần schema v2 để Hibernate validate thành công. Theo quy ước
 kiểm thử đã thống nhất, Maven do người dùng chạy:
 
 ```powershell

@@ -39,5 +39,7 @@ Tài liệu của dự án Smart Door System được tổ chức theo các nhó
 - [Cấu hình môi trường Backend](05-backend/environment-configuration.md)
 - [Nền tảng bảo mật Backend](05-backend/security-foundation.md)
 - [Triển khai đăng nhập Backend](05-backend/account-login.md)
+- [Đăng ký và hồ sơ Account Backend](05-backend/account-registration-profile.md)
+- [Đăng ký và hồ sơ Flutter Android](06-frontend/account-registration-profile.md)
 - [Thiết lập và phát triển Flutter Android](06-frontend/android-development.md)
 - [Quy trình CI/CD](08-process/ci-cd.md)

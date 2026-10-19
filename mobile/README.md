@@ -46,6 +46,11 @@ flutter devices
 
 ## Chạy ứng dụng
 
+Đã nối đăng ký, đăng nhập và hồ sơ với Backend. JWT lưu bằng secure storage;
+hết hạn yêu cầu đăng nhập lại. Mặc định debug dùng `http://10.0.2.2:8080`.
+Xem [hướng dẫn tích hợp Account](../docs/06-frontend/account-registration-profile.md)
+để đổi API URL, chạy trên thiết bị thật và kiểm tra luồng.
+
 ```powershell
 flutter pub get
 flutter run -d <device-id>

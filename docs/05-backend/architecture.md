@@ -22,6 +22,7 @@ Tài liệu này định nghĩa kiến trúc mục tiêu cho Backend Smart Door 
 Source hiện tại có nền tảng Spring Boot với Java 21, Spring Boot 4.1.1, JPA,
 Flyway, Security, Validation, Actuator, MySQL/H2 và entity/repository 12 bảng.
 Đã bổ sung service/controller đăng nhập và JWT, đã qua Maven verify ngày 14/10/2026;
+đã bổ sung đăng ký/hồ sơ Account nhưng thay đổi mới chưa chạy Maven;
 các nghiệp vụ khác chưa triển khai. Các thành phần
 trong tài liệu này là **kiến trúc mục tiêu**, không phải tất cả đã được triển
 khai. REST API và MQTT contract vẫn đang là placeholder nên tài liệu không tự
@@ -108,8 +109,9 @@ Nhóm thống nhất cấu trúc theo module với Controller–Service–Reposi
 một JPA entity cho mỗi bảng. Chưa tách domain model và JPA entity thành hai
 class. Khung package đã tạo bằng package-info.java; 12 entity và repository
 đã thêm theo schema v2, xem [mapping JPA](entity-repository-mapping.md).
-Đã bổ sung controller/service/DTO đăng nhập trong identity; các module nghiệp
-vụ khác còn là khung. Xem [đăng nhập Backend](account-login.md).
+Đã bổ sung controller/service/DTO đăng nhập, đăng ký và hồ sơ trong identity;
+các module nghiệp vụ khác còn là khung. Xem [đăng nhập Backend](account-login.md)
+và [đăng ký/hồ sơ](account-registration-profile.md).
 
 ```text
 com.smartdoor.backend
@@ -332,8 +334,9 @@ database quan trọng phải chạy với MySQL tương thích production.
 
 Các mục sau phải có quyết định kỹ thuật hoặc contract được review trước khi code:
 
-1. OpenAPI tổng thể, endpoint ngoài đăng nhập, pagination và error code;
-   đăng nhập đã chốt tại [contract v1](../../contracts/api/login.md).
+1. OpenAPI tổng thể, endpoint ngoài identity, pagination và error code;
+   đã chốt [đăng nhập](../../contracts/api/login.md) và
+   [đăng ký/hồ sơ](../../contracts/api/accounts.md).
 2. MQTT: topic, ACL, QoS, retained flag, payload và versioning.
 3. JWT mở rộng: refresh/revoke và rotation nhiều khóa. Bước đăng nhập đã chốt
    HS256, issuer/audience từ cấu hình, access token 15 phút, không refresh.

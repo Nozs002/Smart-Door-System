@@ -52,6 +52,8 @@ security filter.
 | --- | --- |
 | `OPTIONS /**` | Public để xử lý CORS preflight. |
 | `POST /api/v1/auth/login` | Public; validate credential và rate limit. |
+| `POST /api/v1/auth/register` | Public; validate đăng ký, lưu BCrypt và kiểm tra UNIQUE username. |
+| `GET /api/v1/accounts/me` | JWT hợp lệ, Account ACTIVE; chỉ trả hồ sơ của chính mình. |
 | `/actuator/health` | Public, không hiển thị chi tiết. |
 | `/actuator/health/liveness` | Public. |
 | `/actuator/health/readiness` | Public. |

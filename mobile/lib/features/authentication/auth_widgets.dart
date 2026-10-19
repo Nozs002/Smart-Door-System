@@ -2,11 +2,7 @@ import 'dart:ui';
 
 import 'package:flutter/material.dart';
 
-/// Safe, user-facing error supplied by the future authentication adapter.
-class AuthFormException implements Exception {
-  const AuthFormException(this.message);
-  final String message;
-}
+export '../../core/network/api_exception.dart' show AuthFormException;
 
 class AuthLayout extends StatelessWidget {
   const AuthLayout({super.key, required this.child, this.canGoBack = false});
