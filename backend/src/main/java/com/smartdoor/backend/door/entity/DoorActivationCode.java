@@ -7,6 +7,7 @@ import jakarta.persistence.GenerationType;
 import jakarta.persistence.Id;
 import jakarta.persistence.PrePersist;
 import jakarta.persistence.Table;
+import jakarta.persistence.UniqueConstraint;
 import java.time.LocalDateTime;
 import java.time.ZoneOffset;
 import java.time.temporal.ChronoUnit;
@@ -16,7 +17,9 @@ import lombok.Setter;
 
 /** Mapping bảng door_activation_codes; quyền truy cập và workflow được kiểm tra tại service. */
 @Entity
-@Table(name = "door_activation_codes")
+@Table(name = "door_activation_codes", uniqueConstraints = {
+		@UniqueConstraint(name = "uk_activation_code_hash", columnNames = "code_hash")
+})
 @Getter
 @Setter
 @NoArgsConstructor

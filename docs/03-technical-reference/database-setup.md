@@ -2,7 +2,7 @@
 title: Khởi tạo và chuyển đổi database
 type: technical-reference
 lang: vi
-updated: 2026-10-13
+updated: 2026-10-16
 ---
 
 # Khởi tạo và chuyển đổi database
@@ -15,14 +15,17 @@ Thời gian SQL, Backend và session phải dùng UTC; chuyển múi giờ khi h
 - [init.sql](../../infrastructure/mysql/init/init.sql): schema v2 cho database rỗng.
 - [mockdata.sql](../../infrastructure/mysql/init/mockdata.sql): dữ liệu local/demo,
   nạp sau schema; không chạy production.
+- [z_test_account.sql](../../infrastructure/mysql/init/z_test_account.sql): tài khoản test / 123456789 và dữ liệu riêng; xem [cách nạp](../../infrastructure/mysql/README.md).
 - [verify.sql](../../infrastructure/mysql/verify.sql): kiểm tra ràng buộc với seed
-  trên database thử nghiệm; có INSERT/UPDATE trong transaction rồi rollback,
+  trên database thử nghiệm chỉ nạp init.sql + mockdata.sql (không nạp z_test_account.sql vì kiểm tra số lượng fixture); có INSERT/UPDATE trong transaction rồi rollback,
   tạo và xóa một stored procedure kiểm thử.
 
 Docker Compose hiện mount toàn bộ thư mục init. MySQL chạy SQL theo tên khi
-data directory rỗng: init.sql trước mockdata.sql. Đây là bootstrap development,
-chưa phải hệ thống migration production. Backend chưa có Flyway migration.
-Không bật baseline rồi giả định database cũ đã chuyển sang schema mới.
+data directory rỗng: init.sql trước mockdata.sql, sau cùng z_test_account.sql. Đây là bootstrap development.
+Backend hiện có [Flyway V1/V2](../../backend/src/main/resources/db/migration):
+V1 tạo schema trên database rỗng, V2 thêm unique hash cho mã claim.
+Database đã bootstrap v2 có thể baseline ở version 1 rồi chạy V2; baseline
+không chuyển mô hình dữ liệu cũ sang v2. Xem [bàn giao Người 2](../05-backend/door-device-handoff.md).
 
 ## Kiểm thử độc lập bằng Docker
 
@@ -69,7 +72,8 @@ database hiện có hoặc xóa volume để “nâng cấp”. Trước khi chu
    không thay thế migration.
 
 Nếu chỉ cần phát triển App có thể khởi tạo một database mới riêng để dùng seed.
-Account/PIN mẫu dùng hash fixture công khai; không có thông tin đăng nhập được
-cam kết hoạt động. Đặt password/PIN mới qua service trước kiểm thử xác thực.
-Chưa seed mã claim hoặc MQTT credential; công cụ provision tương lai phải cấp
-bí mật mới. Seed nhiều cửa không chứng minh đã kết nối firmware nhiều cửa.
+Các account demo/PIN cũ dùng hash fixture công khai. Tài khoản test có BCrypt
+cho mật khẩu demo 123456789, dùng để kiểm thử đăng nhập qua backend thật.
+Không seed mã claim hoặc MQTT credential. [CLI provision](../05-backend/door-device-handoff.md)
+hiện cấp mã claim mới; credential/ACL MQTT vẫn cần tích hợp riêng. Seed nhiều
+cửa không chứng minh đã kết nối firmware nhiều cửa.

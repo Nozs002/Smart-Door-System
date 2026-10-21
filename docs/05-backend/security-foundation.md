@@ -1,19 +1,20 @@
 ---
 title: Nền tảng bảo mật Backend
 type: reference
-version: 1.0
+version: 1.1
 lang: vi
 tags: [backend, security, spring-security, cors, bcrypt]
-updated: 2026-10-13
+updated: 2026-10-14
 ---
 
 # Nền tảng bảo mật Backend
 
 ## 1. Phạm vi đã triển khai
 
-Backend đã có lớp bảo mật nền để mọi API nghiệp vụ bị từ chối mặc định cho đến
-khi cơ chế JWT được chốt và triển khai. Phần này không phát hành hoặc xác minh
-JWT và chưa triển khai kiểm tra quyền sở hữu Door.
+Backend có lớp bảo mật nền và đã bổ sung phát hành/xác minh JWT cho đăng nhập.
+Các endpoint identity được public theo contract; API nghiệp vụ yêu cầu xác thực.
+Door/Device kiểm tra ownership dựa trên Account principal. Xem
+[triển khai đăng nhập](account-login.md) và [bàn giao Door/Device](door-device-handoff.md).
 
 Các thành phần đã cấu hình:
 
@@ -26,6 +27,10 @@ Các thành phần đã cấu hình:
 - bật method security để use case có thể bổ sung kiểm tra quyền;
 - cung cấp BCrypt `PasswordEncoder`;
 - chuẩn hóa lỗi Security `401/403` qua cùng Problem Details của API.
+
+Profile kỹ thuật `provision` tắt web application và không khởi tạo filter
+chain/REST security handler. Đây là CLI có quyền truy cập môi trường/database,
+không phải endpoint công khai hoặc một role Admin của Account.
 
 ## 2. Luồng request
 
@@ -50,6 +55,9 @@ security filter.
 | Endpoint/request | Chính sách |
 | --- | --- |
 | `OPTIONS /**` | Public để xử lý CORS preflight. |
+| `POST /api/v1/auth/login` | Public; validate credential và rate limit. |
+| `POST /api/v1/auth/register` | Public; validate đăng ký, lưu BCrypt và kiểm tra UNIQUE username. |
+| `GET /api/v1/accounts/me` | JWT hợp lệ, Account ACTIVE; chỉ trả hồ sơ của chính mình. |
 | `/actuator/health` | Public, không hiển thị chi tiết. |
 | `/actuator/health/liveness` | Public. |
 | `/actuator/health/readiness` | Public. |
@@ -70,12 +78,21 @@ cấu hình wildcard vì credential được cho phép.
 
 ## 5. Mật khẩu, PIN và mã kích hoạt
 
-Bean `PasswordEncoder` dùng BCrypt. Application service phù hợp phải dùng bean
-này; controller không tự băm dữ liệu.
+Bean `PasswordEncoder` dùng BCrypt cho mật khẩu/PIN theo module phụ trách;
+controller không tự băm dữ liệu. Mã claim ngẫu nhiên dùng SHA-256 chuẩn hóa để
+lookup duy nhất, không dùng cùng cách tra cứu với mật khẩu người dùng.
 
-Không log, trả response hoặc lưu dạng rõ mật khẩu Account, PIN cửa, activation
-code, JWT hoặc khóa ký. Activation code cũng cần lưu hash, nhưng policy độ dài,
-TTL và số lần thử vẫn phải được chốt riêng.
+Không log hoặc trả REST response chứa bí mật như mật khẩu, PIN, mã claim,
+JWT hoặc khóa ký. Không lưu mật khẩu/PIN/mã claim dạng rõ trong database.
+Ngoại lệ có chủ đích là CLI in mã claim gốc đúng một lần khi cấp thành công để
+kỹ thuật viên bàn giao; không ghi mã này vào log ứng dụng hoặc DTO của App.
+JWT được truyền qua Authorization ở module xác thực; phần Người 2 không tự
+phát hành token.
+
+Policy mã claim đã chốt: 8 ký tự chữ/số, loại `0/O/1/I/L`, trình bày
+`XXXX-XXXX`, TTL 7 ngày, một lần; cấp lại chỉ cho cửa chưa claim và thu hồi mã
+cũ. Claim giới hạn 5 request/phút trên Account và IP transport. Limiter hiện
+trong bộ nhớ một instance có giới hạn, chưa phải giải pháp phân tán.
 
 ## 6. Ownership theo tài liệu mới
 
@@ -91,14 +108,30 @@ kiểm tra thêm:
 Không nhận Account ID trong request body làm nguồn quyền. Account phải lấy từ
 security context sau khi JWT được xác minh.
 
-## 7. Nội dung chưa triển khai
+## 7. Persistence Account và nội dung chưa triển khai
 
-- thuật toán và khóa ký JWT;
-- access/refresh token lifecycle, revoke và rotation;
-- JWT authentication filter/converter;
-- Account repository và trạng thái Account;
-- ownership authorization service;
-- rate limit, replay protection và audit security;
+Đã có `identity/entity/Account` với trạng thái `ACTIVE/DISABLED` và
+`AccountRepository` với truy vấn theo username. Đây là mapping persistence;
+đã có service đăng nhập và kiểm tra trạng thái Account khi xác thực JWT.
+Xem [mapping JPA và repository](entity-repository-mapping.md).
+
+`CurrentAccountProvider.requireAccountId()` yêu cầu `Authentication` đã xác
+thực, principal triển khai `AccountPrincipal` với `Long accountId()` và Account
+còn ACTIVE trong database. Không suy ID từ username, header hoặc principal bất kỳ.
+
+`DoorOwnershipService` bảo vệ đọc/ghi Door, Device và lịch sử; tài nguyên không
+thuộc Account trả 404. Thao tác ghi khóa Door trước Device/mã trong cùng transaction.
+
+Heartbeat không thay thế quyền lifecycle. MQTT adapter tương lai phải xác minh
+credential/ACL trước khi gọi service. Chưa có readiness/ACK đáng tin cậy thì
+activate/reactivate/replace bị từ chối mặc định.
+
+Các nội dung chưa triển khai:
+
+- refresh token, revoke phiên và rotation nhiều khóa (JWT hiện dùng HS256,
+  access token 15 phút, hết hạn đăng nhập lại);
+- rate limit chia sẻ nhiều instance, replay protection và audit security
+  (đã có limiter in-memory cho đăng nhập);
 - MQTT identity/ACL;
 - TLS termination và production secret store.
 
@@ -114,9 +147,14 @@ cd backend
 .\mvnw.cmd test
 ```
 
+Các test mới cho principal/ownership, claim limiter và lifecycle được liệt kê
+ở [bàn giao Người 2](door-device-handoff.md). Chúng cần được chạy và nghiệm thu;
+không coi việc thêm test vào source là kết quả pass.
+
 ## 9. Tài liệu liên quan
 
 - [Quyết định sở hữu cửa và vòng đời thiết bị](../01-requirements/ownership-device-lifecycle-decisions.md)
 - [Cấu trúc xử lý lỗi Backend](error-handling.md)
 - [Cấu hình môi trường Backend](environment-configuration.md)
 - [Kiến trúc Backend](architecture.md)
+- [Bàn giao backend Người 2](door-device-handoff.md)

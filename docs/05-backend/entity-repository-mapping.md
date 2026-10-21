@@ -9,7 +9,8 @@ updated: 2026-10-13
 
 Đã tạo 12 JPA entity và 12 Spring Data repository theo
 [schema v2](../../infrastructure/mysql/init/init.sql). Mỗi bảng có một module
-sở hữu; chưa có service/controller nghiệp vụ hoặc Flyway migration.
+sở hữu; đã bổ sung service/controller đăng nhập/đăng ký/hồ sơ Account, các nghiệp vụ khác và Flyway
+migration chưa triển khai.
 Local/prod dùng Hibernate validate, cần schema v2 trước khi khởi động.
 
 ## Bảng và module sở hữu

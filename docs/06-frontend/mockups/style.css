@@ -1494,3 +1494,144 @@ body {
 .square-card-subtitle {
   color: inherit;
 }
+
+/* Dashboard door selection */
+.dashboard-home .door-picker {
+  padding: 16px 18px;
+  border-radius: 22px;
+  background: rgba(255, 255, 255, 0.7);
+  backdrop-filter: blur(15px);
+  -webkit-backdrop-filter: blur(15px);
+  border: 1px solid rgba(255, 255, 255, 0.5);
+  box-shadow: 0 8px 25px rgba(0, 0, 0, 0.05);
+  color: var(--text);
+}
+[data-theme="dark"] .dashboard-home .door-picker {
+  background: rgba(0, 0, 0, 0.5);
+  border-color: rgba(255, 255, 255, 0.1);
+}
+.door-picker-heading {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 6px 12px;
+  margin-bottom: 10px;
+}
+.door-picker-heading label { font-size: 13px; font-weight: 600; }
+.door-picker-heading span, .door-picker p { font-size: 11px; color: var(--muted); }
+.door-picker select {
+  width: 100%;
+  min-height: 48px;
+  padding: 10px 12px;
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  background: transparent;
+  color: var(--text);
+  font: inherit;
+  font-size: 16px;
+  font-weight: 600;
+  cursor: pointer;
+}
+.door-picker select:focus-visible { outline: 2px solid var(--cyan); outline-offset: 3px; }
+.door-picker p { margin-top: 10px; line-height: 1.5; }
+
+.door-picker select option { background: var(--surface); color: var(--text); }
+
+/* Account profile mockup */
+.profile-avatar-link { display: inline-flex; border-radius: 50%; flex-shrink: 0; }
+.profile-avatar-link img { border-radius: 50%; border: 2px solid #fff; object-fit: cover; }
+.profile-avatar-link:focus-visible, .profile-page a:focus-visible,
+.profile-page button:focus-visible { outline: 3px solid var(--cyan); outline-offset: 4px; }
+.profile-page .status-bar { color: #fff; text-shadow: 0 1px 4px rgba(0,0,0,0.3); }
+.profile-page .screen { background: transparent; padding-bottom: 32px; }
+.profile-page .back-btn { margin-bottom: 0; text-decoration: none; }
+.profile-page-heading p { color: #fff; margin-top: 6px; font-size: 14px; text-shadow: 0 2px 8px rgba(0,0,0,0.6); }
+.profile-panel {
+  padding: 24px;
+  border-radius: 28px;
+  background: rgba(255,255,255,0.7);
+  backdrop-filter: blur(15px);
+  -webkit-backdrop-filter: blur(15px);
+  border: 1px solid rgba(255,255,255,0.5);
+  box-shadow: 0 8px 25px rgba(0,0,0,0.05);
+}
+[data-theme="dark"] .profile-panel {
+  background: rgba(0,0,0,0.5);
+  border-color: rgba(255,255,255,0.1);
+}
+.profile-summary { display: flex; flex-direction: column; align-items: center; text-align: center; gap: 10px; }
+.profile-photo { border-radius: 50%; border: 3px solid rgba(255,255,255,0.8); object-fit: cover; }
+.profile-demo-label { color: var(--text); opacity: 0.7; font-size: 11px; }
+.profile-summary h2 { font-size: 24px; font-weight: 600; overflow-wrap: anywhere; }
+.profile-username { font-size: 14px; overflow-wrap: anywhere; }
+.profile-account-status { display: inline-flex; gap: 6px; align-items: center; border-radius: 20px; padding: 7px 12px; background: rgba(5,150,105,0.12); color: #047857; font-size: 12px; font-weight: 600; }
+[data-theme="dark"] .profile-account-status { color: #6ee7b7; background: rgba(16,185,129,0.15); }
+.profile-section-title { font-size: 16px; font-weight: 600; margin-bottom: 6px; }
+.profile-details > div { display: grid; gap: 6px; padding: 16px 0; border-bottom: 1px solid var(--border); }
+.profile-details > div:last-child { border-bottom: 0; padding-bottom: 0; }
+.profile-details dt { font-size: 12px; color: var(--text); opacity: 0.7; }
+.profile-details dd { font-size: 15px; font-weight: 500; overflow-wrap: anywhere; }
+.profile-account-id { font-family: 'JetBrains Mono', monospace; }
+.profile-doors-link { display: flex; align-items: center; gap: 14px; color: var(--text); text-decoration: none; }
+.profile-doors-icon { width: 44px; height: 44px; border-radius: 14px; background: rgba(0,153,204,0.12); color: var(--cyan); display: flex; align-items: center; justify-content: center; flex-shrink: 0; }
+.profile-doors-link strong { display: block; font-size: 15px; font-weight: 600; }
+.profile-doors-link span > span { display: block; font-size: 12px; margin-top: 5px; opacity: 0.75; }
+.profile-link-arrow { margin-left: auto; flex-shrink: 0; }
+
+/* Selected door configuration and quick switches */
+.door-config-heading { display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 10px; }
+.door-context-badge { border: 1px solid rgba(255,255,255,0.4); border-radius: 20px; padding: 6px 10px; color: #fff; background: rgba(0,0,0,0.3); font-size: 12px; }
+.door-config-panel, #settings-form .settings-card, .settings-card:has(#settings-node-auth) {
+  background: rgba(255,255,255,0.7);
+  backdrop-filter: blur(15px);
+  -webkit-backdrop-filter: blur(15px);
+  border: 1px solid rgba(255,255,255,0.5);
+  box-shadow: 0 8px 25px rgba(0,0,0,0.05);
+}
+.door-config-panel { border-radius: 24px; padding: 20px; }
+[data-theme="dark"] .door-config-panel,
+[data-theme="dark"] #settings-form .settings-card,
+[data-theme="dark"] .settings-card:has(#settings-node-auth) { background: rgba(0,0,0,0.5); border-color: rgba(255,255,255,0.1); }
+.door-quick-row { display: flex; align-items: center; gap: 12px; padding: 16px 0; }
+.door-quick-row:first-child { padding-top: 0; }
+.door-quick-row + .door-quick-row { border-top: 1px solid var(--border); }
+.door-config-symbol { width: 40px; height: 40px; border-radius: 13px; display: flex; align-items: center; justify-content: center; background: rgba(0,153,204,0.12); color: var(--cyan); flex-shrink: 0; }
+.door-quick-copy { flex: 1; min-width: 0; }
+.door-quick-copy h3 { font-size: 15px; font-weight: 600; }
+.door-quick-copy p { font-size: 12px; line-height: 1.5; opacity: 0.75; margin-top: 4px; }
+.door-quick-row .toggle-btn { border-radius: 999px; }
+.door-config-values > div { display: flex; flex-wrap: wrap; justify-content: space-between; gap: 6px 12px; padding: 12px 0; border-top: 1px solid var(--border); }
+.door-config-values dt { font-size: 13px; }
+.door-config-values dd { font-size: 13px; font-weight: 600; }
+.door-config-link { display: flex; align-items: center; justify-content: space-between; gap: 12px; min-height: 48px; border-radius: 14px; background: var(--text); color: var(--surface); padding: 12px 16px; margin-top: 12px; text-decoration: none; font-size: 14px; font-weight: 600; }
+.door-config-link:focus-visible, .door-quick-row .toggle-btn:focus-visible { outline: 3px solid var(--cyan); outline-offset: 3px; }
+.door-config-note { font-size: 11px; line-height: 1.5; opacity: 0.75; margin-top: 12px; }
+#settings-back { text-decoration: none; }
+@media (max-width: 360px) {
+  .door-config-panel { padding: 16px; }
+  .door-config-symbol { display: none; }
+}
+
+/* Native, keyboard-accessible alert switches */
+.settings-alert-switch-row { display: flex; align-items: center; justify-content: space-between; gap: 16px; margin-bottom: 18px; }
+.settings-alert-switch-row label { font-size: 14px; font-weight: 600; cursor: pointer; }
+.settings-alert-switch {
+  appearance: none;
+  -webkit-appearance: none;
+  width: 48px;
+  height: 26px;
+  border: 0;
+  border-radius: 999px;
+  background: var(--border);
+  position: relative;
+  flex-shrink: 0;
+  cursor: pointer;
+  transition: background 0.3s;
+}
+.settings-alert-switch::before { content: ''; position: absolute; width: 20px; height: 20px; top: 3px; left: 3px; border-radius: 50%; background: #fff; box-shadow: 0 2px 4px rgba(0,0,0,0.3); transition: transform 0.3s; }
+.settings-alert-switch:checked { background: var(--cyan); }
+.settings-alert-switch:checked::before { transform: translateX(22px); }
+.settings-alert-switch:focus-visible { outline: 3px solid var(--cyan); outline-offset: 4px; }
+.settings-number-field:has(input:disabled) { opacity: 0.5; }
+.settings-number-field input:disabled { cursor: not-allowed; }

@@ -18,6 +18,10 @@ public interface DeviceRepository extends JpaRepository<Device, Long> {
 
 	List<Device> findAllByDoorId(Long doorId);
 
+	List<Device> findAllByDoorIdOrderByNodeTypeAscRegisteredAtDescIdDesc(Long doorId);
+
+	boolean existsByDeviceCode(String deviceCode);
+
 	List<Device> findAllByDoorIdAndNodeTypeAndLifecycleStatus(
 			Long doorId, Device.NodeType nodeType, Device.LifecycleStatus lifecycleStatus);
 

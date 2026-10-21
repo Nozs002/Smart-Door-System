@@ -4,7 +4,7 @@ type: reference
 version: 1.0
 lang: vi
 tags: [backend, api, response, error-handling]
-updated: 2026-10-03
+updated: 2026-10-14
 ---
 
 # Cấu trúc phản hồi REST API
@@ -134,4 +134,3 @@ Theo quy ước dự án, agent không tự chạy Maven nếu người dùng kh
 
 - [Cấu trúc xử lý lỗi Backend](error-handling.md)
 - [Kiến trúc Backend](architecture.md)
-- [Kế hoạch triển khai Backend](implementation-plan.md)

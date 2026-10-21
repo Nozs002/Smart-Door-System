@@ -127,7 +127,106 @@ cd backend
 
 Docker build hiện bỏ qua tests vì CI chạy Maven `verify` trước bước Docker build. Thành viên vẫn nên chạy tests trước khi tạo Pull Request. Nếu Maven Wrapper gặp lỗi trên Windows, có thể tạm chạy tests bằng Maven integration của IDE và thông báo cho nhóm.
 
-## 6. Tạo nhánh công việc
+## 6. Test Mobile trên điện thoại Android thật
+
+### Thiết lập lần đầu
+
+1. Trên điện thoại, vào **Cài đặt → Giới thiệu điện thoại**, nhấn **Số bản dựng**
+   7 lần để bật Tùy chọn nhà phát triển. Tên mục có thể khác theo hãng; Xiaomi/
+   Redmi có thể dùng mục phiên bản MIUI/HyperOS.
+2. Bật **Gỡ lỗi USB / USB debugging** trong Tùy chọn nhà phát triển.
+3. Kết nối bằng cáp USB hỗ trợ truyền dữ liệu, mở khóa điện thoại và chấp nhận
+   hộp thoại **Cho phép gỡ lỗi USB**. Nếu được hỏi, chọn chế độ **Truyền tệp**.
+4. Kiểm tra thiết bị:
+
+   ```powershell
+   flutter devices
+   ```
+
+Nếu điện thoại chưa xuất hiện, kiểm tra bằng ADB:
+
+```powershell
+adb devices -l
+```
+
+Nếu PowerShell không nhận lệnh `adb`, dùng đường dẫn đầy đủ tới Android SDK.
+Ví dụ với SDK mặc định trên Windows:
+
+```powershell
+& "$env:LOCALAPPDATA\Android\Sdk\platform-tools\adb.exe" devices -l
+```
+
+Vị trí SDK được xem tại **Android Studio → Settings → Languages & Frameworks
+→ Android SDK → Android SDK Location**. Nếu thiếu `adb.exe`, vào tab
+**SDK Tools**, cài **Android SDK Platform-Tools**.
+
+| Kết quả ADB | Cách xử lý |
+| --- | --- |
+| `device` | Đã sẵn sàng chạy ứng dụng. |
+| `unauthorized` | Mở khóa điện thoại và chấp nhận quyền gỡ lỗi USB. |
+| Không có thiết bị | Kiểm tra gỡ lỗi USB, thử cáp/cổng khác; Windows có thể cần driver USB của hãng. |
+
+### Chạy ứng dụng mỗi lần test
+
+Mở terminal trong thư mục `mobile/` của checkout chứa code cần test:
+
+```powershell
+cd D:\Workspace\Projects\smart_door_system\mobile
+flutter pub get
+flutter run -d <device-id>
+```
+
+Thay đường dẫn theo nơi clone project và `<device-id>` bằng ID từ
+`flutter devices`. Ví dụ trên máy đã kết nối điện thoại có ID `b15929897d72`:
+
+```powershell
+flutter run -d b15929897d72
+```
+
+`flutter pub get` cần chạy khi vừa clone hoặc thay đổi dependency/khai báo
+assets trong `pubspec.yaml`; các lần test tiếp theo thường chỉ cần `flutter run`.
+Giữ điện thoại kết nối USB và cho phép cài đặt nếu có hộp thoại. Lần build đầu
+có thể lâu hơn do tải dependency và khởi tạo Gradle cache.
+
+Không cần mở Android Studio để chạy trên điện thoại thật bằng terminal.
+Android Studio dùng khi cài/quản lý SDK hoặc tạo/chạy emulator. Cảnh báo thiếu
+Visual Studio cho Windows desktop không cản việc test Android.
+
+### Cập nhật code khi app đang chạy
+
+Giữ terminal `flutter run` mở:
+
+| Phím | Thao tác |
+| --- | --- |
+| `r` | Hot reload: cập nhật code Flutter, thường giữ trạng thái màn hình. |
+| `R` | Hot restart: khởi động lại app Dart và đặt lại trạng thái. |
+| `q` | Dừng phiên debug. |
+
+Thay đổi code Android native hoặc cấu hình build cần dừng rồi chạy lại
+`flutter run`. Khi thay đổi dependency/assets, chạy lại `flutter pub get` và
+khởi động lại phiên nếu hot reload chưa nhận thay đổi.
+
+### Lỗi cài đặt bị điện thoại chặn
+
+Nếu APK build thành công nhưng cài đặt báo:
+
+```text
+INSTALL_FAILED_USER_RESTRICTED: Install canceled by user
+```
+
+Mở khóa điện thoại, chạy lại và chấp nhận hộp thoại cài ứng dụng. Với điện thoại
+có tùy chọn **Cài đặt qua USB / Install via USB** (ví dụ một số Xiaomi/Redmi),
+kiểm tra tùy chọn này trong Tùy chọn nhà phát triển. Đây là lỗi ở bước cài đặt,
+không phải lỗi biên dịch Flutter.
+
+Nếu đang làm trong Git worktree, code chưa commit không tự xuất hiện trong
+checkout chính. Hãy chạy tại đúng thư mục chứa thay đổi cần test.
+
+Giao diện đăng nhập/đăng ký hiện chưa nối API; test bố cục, điều hướng,
+validation, hiện/ẩn mật khẩu và bàn phím không cần chạy Backend/DB.
+Xem thêm [hướng dẫn Flutter Android](../06-frontend/android-development.md).
+
+## 7. Tạo nhánh công việc
 
 Luôn tạo nhánh mới từ phiên bản `dev` mới nhất:
 
@@ -151,7 +250,7 @@ Ví dụ:
 git switch -c feature/user-login
 ```
 
-## 7. Commit và push
+## 8. Commit và push
 
 Chỉ stage các file liên quan đến công việc đang thực hiện:
 
@@ -164,7 +263,7 @@ git push -u origin feature/user-login
 
 Tên commit phải rõ ràng và bắt đầu bằng loại thay đổi phù hợp như `add`, `fix`, `refactor`, `docs`, `test` hoặc `chore`.
 
-## 8. Checklist trước Pull Request
+## 9. Checklist trước Pull Request
 
 - [ ] Nhánh được tạo từ phiên bản mới nhất của `dev`.
 - [ ] Không có `.env`, mật khẩu, token, khóa API hoặc thông tin bí mật trong commit.
@@ -183,7 +282,7 @@ git diff --check
 
 Tạo Pull Request từ nhánh công việc vào `dev`. Pull Request phải được ít nhất một thành viên khác review và approve, các conversation phải được resolve và CI phải thành công trước khi merge.
 
-## 9. Cập nhật sau khi Pull Request được merge
+## 10. Cập nhật sau khi Pull Request được merge
 
 Quay lại `dev` và lấy code mới:
 

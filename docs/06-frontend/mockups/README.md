@@ -14,7 +14,9 @@ vào ứng dụng trong `mobile/` và không phải là một Flutter Web projec
 | File | Nội dung |
 | --- | --- |
 | `index.html` | Đăng nhập và điểm bắt đầu của prototype. |
-| `dashboard.html` | Tổng quan, quản lý truy cập và điều khiển cửa. |
+| `profile.html` | Xem hồ sơ Account mẫu, mở từ avatar góc trái dashboard; có nút quay lại và liên kết tới cửa sở hữu. |
+| `register.html` | Đăng ký Account: tên hiển thị, username, mật khẩu và xác nhận; chỉ mô phỏng. |
+| `dashboard.html` | Tổng quan, chọn cửa thuộc sở hữu, quản lý truy cập và điều khiển cửa. |
 | `users.html` | Mockup mô hình người dùng cũ; cần chuyển thành quản lý Cardholder. |
 | `fingerprints.html` | Mockup cũ ngoài phạm vi; không triển khai vân tay. |
 | `rfid.html` | Cấp phát và quản lý thẻ RFID. |
@@ -26,6 +28,7 @@ Tài nguyên dùng chung:
 
 - `style.css`: theme, layout và component styles.
 - `script.js`: chuyển theme, điều hướng và tương tác mô phỏng.
+- `register.js`: kiểm tra form đăng ký, hiện/ẩn mật khẩu và trạng thái gửi; không lưu hoặc gửi mật khẩu.
 - `house_bg.jpg`, `OIP.webp`: hình ảnh minh họa cục bộ.
 
 ## Xem prototype
@@ -59,3 +62,9 @@ liệu mô phỏng; prototype không kết nối Backend, MQTT hoặc thiết b�
 
 - Font và avatar phụ thuộc tài nguyên bên ngoài nên có thể không hiển thị khi
   offline.
+
+Dashboard có bộ chọn 3 cửa mẫu; tên cửa trên thẻ tổng quan và hộp điều khiển được đồng bộ khi chuyển cửa. Lệnh khóa/mở và bộ hẹn giờ tự khóa được mô phỏng riêng cho từng cửa trong phiên xem trang.
+
+Mục **Cấu hình cửa** có công tắc nhanh bảo mật, báo cháy và cảnh báo cửa mở quá lâu. Mỗi cửa có cấu hình mẫu riêng trong sessionStorage của tab; trang settings nhận tham số door, lưu cấu hình đúng cửa và quay lại dashboard của cửa đó. Chế độ bảo mật được đồng bộ giữa công tắc và form cài đặt. Ngưỡng báo cháy và thời gian cửa mở hiển thị ngay dưới công tắc tương ứng, đồng bộ với settings theo từng cửa; không lặp lại ở danh sách bên dưới.
+
+Trong settings, Báo cháy và Cảnh báo cửa mở quá lâu có hai công tắc độc lập, mặc định bật. Tắt công tắc sẽ khóa ô ngưỡng tương ứng và giữ giá trị để dùng lại khi bật. Trạng thái được lưu mẫu riêng theo cửa qua nút Lưu cấu hình; dashboard hiển thị Đã tắt cho cảnh báo tương ứng. Đây là tương tác prototype, chưa thay đổi contract hay hành vi thiết bị thật.
