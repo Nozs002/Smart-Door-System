@@ -38,6 +38,29 @@ class LoginTests {
         return new LoginService(accounts, passwords, configuration.jwtEncoder(properties), properties, clock);
     }
     @Test
+    void jwtIdentityCanAccessDoorOwnershipBoundary() {
+        Account account = account();
+        when(accounts.findByUsername("customer")).thenReturn(Optional.of(account));
+        when(accounts.findById(7L)).thenReturn(Optional.of(account));
+        String token = service().login(new LoginRequest("customer", "test-password")).accessToken();
+        var authentication = new AccountJwtAuthenticationConverter(accounts)
+                .convert(configuration.jwtDecoder(properties, clock).decode(token));
+        var context = org.springframework.security.core.context.SecurityContextHolder.createEmptyContext();
+        context.setAuthentication(authentication);
+        org.springframework.security.core.context.SecurityContextHolder.setContext(context);
+        try {
+            assertThat(authentication.getName()).isEqualTo("7");
+            assertThat(new com.smartdoor.backend.shared.security.CurrentAccountProvider(accounts)
+                    .requireAccountId()).isEqualTo(7L);
+            account.setStatus(Account.Status.DISABLED);
+            assertThatThrownBy(() -> new com.smartdoor.backend.shared.security.CurrentAccountProvider(accounts)
+                    .requireAccountId()).isInstanceOf(AuthenticationRequiredException.class);
+        } finally {
+            org.springframework.security.core.context.SecurityContextHolder.clearContext();
+        }
+    }
+
+    @Test
     void activeAccountGetsSignedTokenWithIdentityAndExpiry() {
         when(accounts.findByUsername("customer")).thenReturn(Optional.of(account()));
         var result = service().login(new LoginRequest("customer", "test-password"));

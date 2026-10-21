@@ -5,7 +5,8 @@ import org.springframework.core.convert.converter.Converter;
 import org.springframework.security.authentication.AbstractAuthenticationToken;
 import org.springframework.security.oauth2.core.OAuth2AuthenticationException;
 import org.springframework.security.oauth2.jwt.Jwt;
-import org.springframework.security.oauth2.server.resource.authentication.JwtAuthenticationToken;
+import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
+import com.smartdoor.backend.shared.security.AccountPrincipal;
 import org.springframework.stereotype.Component;
 import com.smartdoor.backend.identity.entity.Account;
 import com.smartdoor.backend.identity.repository.AccountRepository;
@@ -25,6 +26,7 @@ public class AccountJwtAuthenticationConverter implements Converter<Jwt, Abstrac
         }
         Account account = accounts.findById(id).orElseThrow(() -> new OAuth2AuthenticationException("invalid_token"));
         if (account.getStatus() != Account.Status.ACTIVE) { throw new OAuth2AuthenticationException("invalid_token"); }
-        return new JwtAuthenticationToken(jwt, List.of(), id.toString());
+        return UsernamePasswordAuthenticationToken.authenticated(new AuthenticatedAccount(id), null, List.of());
     }
+    private record AuthenticatedAccount(Long accountId) implements AccountPrincipal {}
 }
