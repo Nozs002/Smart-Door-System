@@ -39,6 +39,63 @@ class DashboardRepository extends FakeDoorRepository {
 }
 
 void main() {
+  testWidgets(
+    'access tiles match the grid and unavailable controls do not send commands',
+    (tester) async {
+      tester.view.physicalSize = const Size(430, 932);
+      tester.view.devicePixelRatio = 1;
+      addTearDown(tester.view.resetPhysicalSize);
+      addTearDown(tester.view.resetDevicePixelRatio);
+      final session = testSession();
+      addTearDown(session.dispose);
+      await session.login('test', '123456789');
+      final repository = DashboardRepository();
+      await tester.pumpWidget(
+        SmartDoorApp(session: session, repository: repository),
+      );
+      await tester.pumpAndSettle();
+      expect(find.byTooltip('Thông báo'), findsOneWidget);
+      await tester.tap(find.byTooltip('Thông báo'));
+      await tester.pumpAndSettle();
+      expect(find.text('Đã hiểu'), findsOneWidget);
+      await tester.tap(find.text('Đã hiểu'));
+      await tester.pumpAndSettle();
+      await tester.scrollUntilVisible(
+        find.text('Thẻ từ'),
+        250,
+        scrollable: find.byType(Scrollable).first,
+      );
+      expect(
+        tester.getTopLeft(find.text('Thẻ từ')).dy,
+        closeTo(tester.getTopLeft(find.text('Mã PIN')).dy, 1),
+      );
+      expect(
+        tester.getTopLeft(find.text('Thẻ từ')).dx,
+        lessThan(tester.getTopLeft(find.text('Mã PIN')).dx),
+      );
+      expect(find.text('Vân tay'), findsNothing);
+      await tester.tap(find.text('Thẻ từ'));
+      await tester.pumpAndSettle();
+      expect(find.text('Đã hiểu'), findsOneWidget);
+      await tester.tap(find.text('Đã hiểu'));
+      await tester.pumpAndSettle();
+      await tester.scrollUntilVisible(
+        find.text('CẤU HÌNH CỬA'),
+        300,
+        scrollable: find.byType(Scrollable).first,
+      );
+      await tester.pumpAndSettle();
+      expect(find.byType(Switch), findsNWidgets(3));
+      for (final toggle in tester.widgetList<Switch>(find.byType(Switch))) {
+        expect(toggle.onChanged, isNull);
+      }
+      expect(repository.lifecycleCalls, isEmpty);
+      expect(tester.takeException(), isNull);
+      await session.logout();
+      await tester.pumpAndSettle();
+    },
+  );
+
   testWidgets('empty dashboard can open claim flow', (tester) async {
     final session = testSession();
     addTearDown(session.dispose);
@@ -78,16 +135,23 @@ void main() {
     await tester.pumpAndSettle();
     expect(repository.requests, [1]);
     await tester.scrollUntilVisible(
+      find.text('Trạng thái thiết bị'),
+      300,
+      scrollable: find.byType(Scrollable).first,
+    );
+    await tester.tap(find.text('Trạng thái thiết bị'));
+    await tester.pumpAndSettle();
+    await tester.scrollUntilVisible(
       find.text('NODE-1'),
       200,
       scrollable: find.byType(Scrollable).first,
     );
     expect(find.text('NODE-1'), findsOneWidget);
-    await tester.scrollUntilVisible(
-      find.byTooltip('Làm mới dashboard'),
-      -300,
-      scrollable: find.byType(Scrollable).first,
-    );
+    tester
+        .state<ScrollableState>(find.byType(Scrollable).first)
+        .position
+        .jumpTo(0);
+    await tester.pumpAndSettle();
     repository.failure = const ApiException('Phiên hết hạn', statusCode: 401);
     await tester.tap(find.byTooltip('Làm mới dashboard'));
     await tester.pumpAndSettle();

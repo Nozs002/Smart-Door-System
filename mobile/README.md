@@ -147,3 +147,18 @@ ghi Chưa khả dụng. Không sao chép số liệu, ảnh avatar, vân tay ho�
 khóa mô phỏng của HTML vào App thật.
 
 Source: lib/features/dashboard/dashboard_screen.dart và lib/core/theme/app_theme.dart.
+
+Thẻ tổng quan cửa dùng một khối cao tối thiểu 240 px, bo góc 28 px, ảnh khóa
+bên phải với mask chuyển trong suốt. Tên/lệnh khóa ở trên, chỉ số ở đáy thẻ.
+Chưa có API sensor/lệnh khóa nên chỉ số hiển thị — và lệnh ghi Chưa có dữ liệu;
+không suy trạng thái khóa từ lifecycle. Thẻ tự tăng chiều cao khi chữ lớn/tên dài.
+
+Phần còn lại của dashboard bám bố cục dashboard.html: giới hạn chiều rộng 430 px,
+lề 16 px, nút tròn hồ sơ/thông báo/theme; bộ chọn cửa kính mờ, thanh thiết bị
+bo tròn, nhóm truy cập lưới 2×2 và bảng cấu hình có các công tắc chưa khả dụng.
+Bộ chọn và bảng cấu hình dùng blur 15, nền trắng 70% (tối: đen 50%).
+Thanh thiết bị dùng số lượng/trạng thái thật; danh sách Node nằm trong mục
+Trạng thái thiết bị có thể mở rộng. Ô Lịch sử thiết bị mở lịch sử cửa đang chọn.
+Ô Người giữ thẻ thay phần quản lý người dùng cũ; không triển khai vân tay.
+Các mục chưa khả dụng mở thông báo; công tắc cấu hình bị vô hiệu hóa, không
+gửi lệnh hoặc giả lập lưu. Cài đặt cửa mở thông tin/các thiết bị của cửa hiện tại.
