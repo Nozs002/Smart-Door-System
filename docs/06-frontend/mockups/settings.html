@@ -32,20 +32,20 @@
     <!-- SETTINGS SCREEN -->
     <div class="screen active" style="background: transparent;">
       <div class="screen-content">
-        <button class="back-btn" onclick="window.location.href='dashboard.html'" aria-label="Quay lại Dashboard">
+        <a id="settings-back" class="back-btn" href="dashboard.html?door=main" aria-label="Quay lại Dashboard">
           <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
             <path d="M15 18l-6-6 6-6" />
           </svg>
-        </button>
+        </a>
         <h1 style="font-size: 22px; font-weight: 700; letter-spacing: -0.3px;">Cài đặt</h1>
 
         <form id="settings-form" novalidate>
         <div class="card settings-card">
-          <p class="settings-section-label">CẤU HÌNH CỬA CHÍNH</p>
+          <p id="settings-door-label" class="settings-section-label">CẤU HÌNH CỬA CHÍNH</p>
           <div class="setting-row">
             <div>
-              <p class="settings-item-title">Cửa chính</p>
-              <p class="settings-item-subtitle">Cập nhật gần nhất: vừa xong</p>
+              <p id="settings-door-name" class="settings-item-title">Cửa chính</p>
+              <p class="settings-item-subtitle">Cấu hình riêng cho cửa này · Dữ liệu mẫu</p>
             </div>
             <span class="settings-status active">Đang hoạt động</span>
           </div>
@@ -95,6 +95,13 @@
         <div class="card settings-card">
           <p class="settings-section-label">AN TOÀN VÀ CẢNH BÁO</p>
           <div class="settings-control">
+            <div class="settings-alert-switch-row">
+              <div>
+                <label id="fireAlertEnabled-label" for="fireAlertEnabled">Báo cháy</label>
+                <p id="fireAlertEnabled-status" class="settings-item-subtitle">Đang bật</p>
+              </div>
+              <input class="settings-alert-switch" type="checkbox" role="switch" id="fireAlertEnabled" name="fireAlertEnabled" value="true" checked aria-labelledby="fireAlertEnabled-label" aria-describedby="fireAlertEnabled-status" />
+            </div>
             <div class="flex justify-between" style="margin-bottom: 8px;">
               <span class="settings-item-title">Ngưỡng nhiệt độ báo cháy</span>
             </div>
@@ -106,6 +113,13 @@
             <p class="settings-item-subtitle">Tạo cảnh báo nhiệt độ cao và mở khóa khẩn cấp.</p>
           </div>
           <div class="settings-control">
+            <div class="settings-alert-switch-row">
+              <div>
+                <label id="doorOpenAlertEnabled-label" for="doorOpenAlertEnabled">Cảnh báo cửa mở quá lâu</label>
+                <p id="doorOpenAlertEnabled-status" class="settings-item-subtitle">Đang bật</p>
+              </div>
+              <input class="settings-alert-switch" type="checkbox" role="switch" id="doorOpenAlertEnabled" name="doorOpenAlertEnabled" value="true" checked aria-labelledby="doorOpenAlertEnabled-label" aria-describedby="doorOpenAlertEnabled-status" />
+            </div>
             <div class="flex justify-between" style="margin-bottom: 8px;">
               <span class="settings-item-title">Thời gian cửa mở tối đa</span>
             </div>
@@ -131,14 +145,14 @@
           <div class="setting-row">
             <div>
               <p class="settings-item-title">Trạm xác thực</p>
-              <p class="settings-item-subtitle">SD-NODE1-ENTRANCE-01 · NODE 1</p>
+              <p id="settings-node-auth" class="settings-item-subtitle">SD-NODE1-MAIN · NODE 1</p>
             </div>
             <span class="settings-status active">Online</span>
           </div>
           <div class="setting-row">
             <div>
               <p class="settings-item-title">Trạm điều khiển &amp; cảnh báo</p>
-              <p class="settings-item-subtitle">SD-NODE2-LOCK-01 · NODE 2</p>
+              <p id="settings-node-control" class="settings-item-subtitle">SD-NODE2-MAIN · NODE 2</p>
             </div>
             <span class="settings-status active">Online</span>
           </div>
