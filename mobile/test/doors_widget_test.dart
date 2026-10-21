@@ -4,28 +4,19 @@ import 'package:smart_door_mobile/core/api_client.dart';
 import 'package:smart_door_mobile/features/doors/presentation/device_detail_screen.dart';
 import 'package:smart_door_mobile/features/doors/presentation/door_detail_screen.dart';
 import 'package:smart_door_mobile/features/doors/presentation/lifecycle_history_screen.dart';
-import 'package:smart_door_mobile/main.dart';
+import 'package:smart_door_mobile/features/doors/presentation/door_list_screen.dart';
 
 import 'support/fake_door_repository.dart';
 
 void main() {
-  testWidgets('signed-out app asks for login without a demo account', (
-    tester,
-  ) async {
-    _phoneSize(tester);
-    await tester.pumpWidget(const SmartDoorApp());
-    await tester.pumpAndSettle();
-    expect(find.text('Vui lòng đăng nhập để quản lý cửa.'), findsOneWidget);
-    expect(find.text('Thêm cửa'), findsNothing);
-    expect(find.text('Thử lại'), findsOneWidget);
-  });
-
   testWidgets('claim validates and normalizes code before loading door', (
     tester,
   ) async {
     _phoneSize(tester);
     final repository = FakeDoorRepository()..doors = [];
-    await tester.pumpWidget(SmartDoorApp(repository: repository));
+    await tester.pumpWidget(
+      MaterialApp(home: DoorListScreen(repository: repository)),
+    );
     await tester.pumpAndSettle();
     expect(find.text('Bạn chưa có cửa nào'), findsOneWidget);
     await tester.tap(find.text('Thêm cửa'));

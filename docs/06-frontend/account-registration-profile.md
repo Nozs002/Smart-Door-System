@@ -20,6 +20,9 @@ viền sáng, bo góc 36. Không sửa HTML mockup hoặc ảnh nền trong bư�
   `flutter_secure_storage` (Android secure storage); không lưu mật khẩu.
 - Hồ sơ lấy từ `GET /api/v1/accounts/me`, có loading, lỗi/thử lại, tải lại và
   đăng xuất local. Không tự dựng thông tin hồ sơ từ JWT.
+- Đăng nhập/khôi phục phiên thành công vào dashboard theo mockup; avatar mở hồ sơ.
+- Từ dashboard hoặc hồ sơ mở Quản lý cửa; REST Door/Device dùng cùng token và API_BASE_URL.
+- Dữ liệu test / 123456789 nạp bằng [SQL local](../../infrastructure/mysql/README.md); đã bỏ chế độ preview.
 - Khi mở App, khôi phục token còn hạn rồi lấy hồ sơ từ server. Lỗi mạng giữ
   phiên để retry; 401 hoặc hết hạn xóa phiên và trở về đăng nhập.
 - Đăng xuất chỉ xóa token local; chưa có server revoke/refresh. Màn hình đổi

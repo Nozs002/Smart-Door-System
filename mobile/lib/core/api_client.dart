@@ -3,6 +3,7 @@ import 'dart:convert';
 import 'dart:io';
 
 import 'access_token_provider.dart';
+import 'config/api_config.dart';
 
 class ApiException implements Exception {
   const ApiException(this.message, {this.statusCode, this.errorCode});
@@ -21,10 +22,7 @@ class ApiException implements Exception {
 class ApiClient {
   ApiClient({
     required this.tokenProvider,
-    String baseUrl = const String.fromEnvironment(
-      'API_BASE_URL',
-      defaultValue: 'http://10.0.2.2:8080',
-    ),
+    String baseUrl = ApiConfig.baseUrl,
     HttpClient? httpClient,
     this.timeout = const Duration(seconds: 20),
   }) : baseUri = Uri.parse(baseUrl),

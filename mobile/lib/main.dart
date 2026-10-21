@@ -6,14 +6,16 @@ import 'features/authentication/login_screen.dart';
 import 'core/storage/session_store.dart';
 import 'features/authentication/auth_api.dart';
 import 'features/authentication/auth_session.dart';
-import 'features/authentication/profile_screen.dart';
+import 'features/dashboard/dashboard_screen.dart';
+import 'core/theme/app_theme.dart';
 
 void main() {
   runApp(const SmartDoorApp());
 }
 
 class SmartDoorApp extends StatefulWidget {
-  const SmartDoorApp({super.key, this.session});
+  const SmartDoorApp({super.key, this.session, this.repository});
+  final DoorRepository? repository;
   final AuthSession? session;
 
   @override
@@ -22,6 +24,8 @@ class SmartDoorApp extends StatefulWidget {
 
 class _SmartDoorAppState extends State<SmartDoorApp> {
   late final AuthSession session;
+  ThemeMode _themeMode = ThemeMode.light;
+  final _navigator = GlobalKey<NavigatorState>();
   ApiClient? _doorClient;
   late final DoorRepository doorRepository;
   @override
@@ -30,14 +34,26 @@ class _SmartDoorAppState extends State<SmartDoorApp> {
     session =
         widget.session ??
         AuthSession(api: HttpAuthApi(), store: SecureSessionStore());
-    doorRepository = RestDoorRepository(
-      _doorClient = ApiClient(tokenProvider: session),
-    );
+    doorRepository =
+        widget.repository ??
+        RestDoorRepository(_doorClient = ApiClient(tokenProvider: session));
+    session.addListener(_sessionChanged);
     session.restore();
+  }
+
+  void _sessionChanged() {
+    if (!session.signedIn) {
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (mounted) {
+          _navigator.currentState?.popUntil((route) => route.isFirst);
+        }
+      });
+    }
   }
 
   @override
   void dispose() {
+    session.removeListener(_sessionChanged);
     if (widget.session == null) session.dispose();
     _doorClient?.close();
     super.dispose();
@@ -46,12 +62,12 @@ class _SmartDoorAppState extends State<SmartDoorApp> {
   @override
   Widget build(BuildContext context) {
     return MaterialApp(
+      navigatorKey: _navigator,
       title: 'Smart Door',
       debugShowCheckedModeBanner: false,
-      theme: ThemeData(
-        colorScheme: ColorScheme.fromSeed(seedColor: Colors.indigo),
-        useMaterial3: true,
-      ),
+      theme: AppTheme.theme(Brightness.light),
+      darkTheme: AppTheme.theme(Brightness.dark),
+      themeMode: _themeMode,
       home: ListenableBuilder(
         listenable: session,
         builder: (context, _) {
@@ -61,9 +77,14 @@ class _SmartDoorAppState extends State<SmartDoorApp> {
             );
           }
           if (session.signedIn) {
-            return ProfileScreen(
+            return DashboardScreen(
               session: session,
-              doorRepository: doorRepository,
+              repository: doorRepository,
+              onToggleTheme: () => setState(() {
+                _themeMode = _themeMode == ThemeMode.light
+                    ? ThemeMode.dark
+                    : ThemeMode.light;
+              }),
             );
           }
           return LoginScreen(

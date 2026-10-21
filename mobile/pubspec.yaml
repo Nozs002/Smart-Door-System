@@ -59,6 +59,7 @@ flutter:
   uses-material-design: true
   assets:
     - assets/images/auth_background.jpg
+    - assets/images/door_lock.webp
 
   # To add assets to your application, add an assets section, like this:
   # assets:

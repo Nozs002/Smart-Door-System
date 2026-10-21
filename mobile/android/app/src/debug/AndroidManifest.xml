@@ -5,5 +5,5 @@
     -->
     <uses-permission android:name="android.permission.INTERNET"/>
     <!-- Local development backend. Release still requires HTTPS. -->
-    <application android:usesCleartextTraffic="true" />
+    <application android:networkSecurityConfig="@xml/debug_network_security_config" />
 </manifest>

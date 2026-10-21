@@ -20,16 +20,11 @@ phím mở. Login giữ nguyên username/password và kiểm tra tối đa 72 by
 theo contract. Registration chỉ kiểm tra đầu vào cơ bản và xác nhận khớp;
 policy đầy đủ phải chốt cùng API đăng ký.
 
-Đây là bước giao diện, **chưa gọi API hoặc lưu JWT**. Các callback `onSubmit`
-cho phép adapter API nối vào sau. Khi chưa có adapter, form báo chưa khả dụng,
-không chuyển dashboard hoặc thông báo đăng ký thành công giả. Adapter có thể
-trả `AuthFormException` với thông báo an toàn; exception khác chỉ hiện lỗi
-chung. Không log hoặc lưu mật khẩu. Mockup HTML giữ nguyên trong bước này.
-
-Đã bổ sung widget test cho điều hướng, validation, chặn submit lặp, lỗi và
-màn hình hẹp/chữ lớn/bàn phím. Dart formatter đã chạy; Flutter analyze/test/APK
-chưa chạy được trong worktree vì dependency chưa tải và quyền cache SDK chưa
-được cấp. Cần chạy các lệnh kiểm tra bên dưới trước khi tích hợp.
+Form gọi REST API thật qua AuthSession, lưu JWT trong Android secure storage.
+Đăng nhập thành công mở dashboard theo mockup. Avatar góc trái mở hồ sơ;
+nút **Quản lý cửa** mở danh sách cửa của tài khoản.
+Đã bỏ entrypoint và repository preview. Dữ liệu mẫu được nạp vào MySQL.
+Xem [dữ liệu test local](../infrastructure/mysql/README.md).
 
 ## Yêu cầu
 
@@ -80,93 +75,30 @@ không tự bỏ qua.
 Kích hoạt/kích hoạt lại chỉ cần xác nhận, không có ô lý do và vẫn ghi lịch sử.
 Vô hiệu hóa cho phép nhập lý do tùy chọn; thay thế/ngừng sử dụng bắt buộc lý do.
 
-### Thử giao diện trên Android khi chưa có đăng nhập
+### Tích hợp đăng nhập và dữ liệu test
 
-Có entrypoint preview riêng dùng `PreviewApp` và `PreviewDoorRepository` trong
-`lib/preview`. Dữ liệu nằm trong bộ nhớ điện thoại, không gọi API, không cần
-Docker/MySQL/JWT và không tạo hay sửa dữ liệu Backend. Preview chỉ chạy ở chế
-độ debug; entrypoint từ chối chạy ở profile/release.
+Chỉ chạy entrypoint lib/main.dart. AuthSession cung cấp Bearer token cho
+RestDoorRepository; hết hạn token yêu cầu đăng nhập lại. API cửa dùng cùng
+API_BASE_URL với API đăng nhập/hồ sơ. Widget test vẫn dùng repository giả
+để kiểm thử độc lập, không phải chế độ chạy App.
 
-Trong thư mục `mobile`, dừng phiên `flutter run` hiện tại bằng `q`, rồi chạy:
+Tài khoản local: **test / 123456789**. Nạp
+[SQL và hướng dẫn](../infrastructure/mysql/README.md) trước khi đăng nhập.
+Dữ liệu gồm ba cửa, thiết bị ở nhiều trạng thái và lịch sử lifecycle.
+Các màn RFID/log/cảnh báo chưa có trong App; các bản ghi đó chỉ xem trong DB.
 
-```powershell
-flutter devices
-flutter run --debug -t lib/main_preview.dart -d DEVICE_ID
-```
-
-Thay `DEVICE_ID` bằng ID Android thật từ `flutter devices`. Không cần truyền
-`API_BASE_URL` cho preview. Nếu thiếu dependency, chạy `flutter pub get` trước.
-Màn hình có banner dữ liệu giả, nút `Đặt lại` và hai công tắc mặc định tắt:
-
-| Điều khiển | Ý nghĩa mô phỏng |
-| --- | --- |
-| `Sẵn sàng` | Giả lập đã xác minh danh tính Node và đã áp dụng cấu hình/PIN |
-| `Thu hồi` | Giả lập quyền Broker của Node cũ đã được thu hồi khi thay Node |
-| `Đặt lại` | Xóa thay đổi trong preview, nạp lại dữ liệu mẫu và tắt hai công tắc |
-
-Các công tắc không gửi MQTT, không nhận ACK và không thay đổi policy của
-Backend thật. Dữ liệu cũng được nạp lại khi khởi động lại App/hot restart.
-
-Luồng thử bằng tay:
-
-1. Danh sách ban đầu có hai cửa đã claim. Mở cửa ID `1` để xem Node `11`
-   `ACTIVE/ONLINE`, Node `12` `ACTIVE/OFFLINE` và Node `13`
-   `PROVISIONED/UNKNOWN` chờ thay Node 1. Đây là các trạng thái mẫu cố định,
-   không phải heartbeat nhận từ phần cứng.
-2. Thêm cửa bằng mã `K7MP-4Q2D`: có cửa thứ ba; nhập lại cùng mã trả lại cùng
-   cửa, không tạo trùng. Mã khác bị báo không hợp lệ (lỗi mô phỏng `400`).
-   Thử sửa tên/vị trí cửa rồi quay lại danh sách kiểm tra.
-3. Cửa ID `2` ban đầu `SETUP_PENDING`, hai Node `PROVISIONED`. Thử kích hoạt
-   khi `Sẵn sàng` tắt để xem lỗi, sau đó bật công tắc và kích hoạt lại.
-4. Thử vô hiệu hóa Node với lý do tùy chọn, sau đó kích hoạt lại chỉ bằng xác
-   nhận và kiểm tra lịch sử lifecycle. Thử ngừng sử dụng trên một Node không
-   cần cho bước thay thế bên dưới và nhập lý do bắt buộc.
-5. Ở cửa ID `1`, thay Node `11` bằng Node `13`. Thao tác yêu cầu cả `Sẵn sàng`
-   và `Thu hồi`; thử thiếu một điều kiện để xem lỗi rồi bật đủ để hoàn tất.
-   Kiểm tra Node cũ `RETIRED`, Node mới `ACTIVE` và lịch sử được cập nhật.
-6. Bấm `Đặt lại` để quay về dữ liệu ban đầu và thử lại.
-
-Preview giúp kiểm tra form, điều hướng, hiển thị trạng thái và xử lý lỗi.
-Nó không chứng minh API, database, ownership, JWT hoặc bảo mật Backend đã đạt.
-Muốn quay lại App gọi API thật, dừng preview rồi chạy:
-
-```powershell
-flutter run --debug -t lib/main.dart -d DEVICE_ID
-```
-
-### Kết nối với đăng nhập của Người 1
-
-Entrypoint bình thường `lib/main.dart` không triển khai đăng nhập và không chứa
-token/tài khoản demo. Khi chưa ghép đăng nhập, App bình thường hiển thị yêu cầu
-đăng nhập. Đó là trạng thái dự kiến, không phải lỗi Backend. Entrypoint preview
-ở trên dùng repository giả riêng, không cấp token hay bỏ qua xác thực của API.
-Các widget test cũng dùng `DoorRepository` giả để kiểm thử độc lập.
-
-Người 1 hiện thực `AccessTokenProvider` trong
-`lib/core/access_token_provider.dart`, trả về access token hợp lệ (hoặc `null`
-khi đã đăng xuất). Việc refresh token, lưu token và điều hướng đăng nhập thuộc
-feature tài khoản. Khi ghép App, truyền provider cùng callback vào:
-
-```dart
-SmartDoorApp(
-  tokenProvider: accountSession,
-  onSignInRequested: openLogin,
-)
-```
-
-`accountSession` và `openLogin` là thành phần do Người 1 cung cấp. Nếu App dùng
-Navigator hoặc shell riêng, có thể mở trực tiếp `DoorListScreen` và truyền
-`RestDoorRepository(ApiClient(tokenProvider: accountSession))`; shell sở hữu
-client cần gọi `close()` khi không còn sử dụng. Provider được đọc lại ở mỗi
-request. Không truyền Account ID từ form để giả lập danh tính người đăng nhập.
+Thiết bị Android thật qua USB: chạy adb reverse tcp:8080 tcp:8080, rồi
+flutter run -t lib/main.dart -d DEVICE_ID --dart-define=API_BASE_URL=http://127.0.0.1:8080.
+Backend phải chạy trên máy ở cổng 8080.
 
 ### Backend khi chạy Android
 
 Mặc định API là `http://10.0.2.2:8080` dành cho Android Emulator. Nếu chạy trên
-điện thoại thật, dùng IP LAN của máy chạy Backend:
+điện thoại thật qua USB, dùng ADB reverse như hướng dẫn bên trên:
 
 ```powershell
-flutter run --dart-define=API_BASE_URL=http://192.168.1.10:8080
+adb reverse tcp:8080 tcp:8080
+flutter run --dart-define=API_BASE_URL=http://127.0.0.1:8080
 ```
 
 Chỉ debug manifest cho phép HTTP để thử Backend local. Bản release cần địa chỉ
@@ -188,13 +120,9 @@ trong cùng transaction.
 lib/core/                       Token provider, REST client và lỗi API
 lib/features/doors/data/         DTO, repository và REST endpoints
 lib/features/doors/presentation/ Danh sách/claim/chi tiết/lifecycle/lịch sử
-lib/main_preview.dart           Entrypoint preview chỉ dành cho debug
-lib/preview/                    App preview và repository dữ liệu trong bộ nhớ
 test/api_client_test.dart        Bearer, body claim, envelope, lỗi và phân trang
 test/door_models_test.dart       Mã kích hoạt, UTC, trạng thái và phân trang
 test/widget_test.dart            Các luồng màn hình với repository giả
-test/preview_app_test.dart       Preview, nhận cửa mẫu, reset và nút Back Android
-test/preview_door_repository_test.dart  Lifecycle/dữ liệu giả, retry và lịch sử
 ```
 
 ```powershell
@@ -202,7 +130,20 @@ flutter analyze --no-pub
 flutter test --no-pub
 ```
 
-Lượt kiểm tra sau khi thêm preview: Flutter analyze không phát hiện vấn đề;
-toàn bộ 31 test đạt, gồm 15 test có sẵn và 16 test mới cho preview. Chưa xác minh
-APK preview trên điện thoại thật trong phiên này. Dữ liệu giả không chứng minh
-backend/MySQL/JWT/MQTT đã được tích hợp.
+## Dashboard theo mockup
+
+Tham chiếu: docs/06-frontend/mockups/dashboard.html, profile.html và style.css.
+Flutter dùng widget native, ảnh nền local và ảnh khóa local; không tải avatar/font mạng.
+Theme sáng/tối và thẻ bo góc dùng chung cho dashboard, hồ sơ và các trang quản lý cửa.
+
+Dashboard tải tất cả trang cửa thuộc tài khoản, chọn cửa và đọc thiết bị của cửa
+qua REST. Mỗi Node hiển thị lifecycle tách khỏi kết nối. Có tải lại, lỗi/thử lại,
+trạng thái chưa có cửa và liên kết hồ sơ, quản lý cửa, chi tiết, lịch sử thiết bị.
+Đăng xuất/hết phiên xóa các route cần xác thực và trở về đăng nhập.
+
+Dữ liệu nhiệt độ/độ ẩm/trạng thái khóa vật lý/cấu hình chưa có trong contract
+hiện tại được ghi Chưa có dữ liệu. RFID, PIN, người truy cập chưa có API được
+ghi Chưa khả dụng. Không sao chép số liệu, ảnh avatar, vân tay hoặc lệnh mở
+khóa mô phỏng của HTML vào App thật.
+
+Source: lib/features/dashboard/dashboard_screen.dart và lib/core/theme/app_theme.dart.
