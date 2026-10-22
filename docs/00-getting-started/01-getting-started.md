@@ -118,6 +118,87 @@ Class khởi động ứng dụng:
 com.smartdoor.backend.BackendApplication
 ```
 
+### Thiết lập Run/Debug một lần
+
+MySQL được publish tại `127.0.0.1:3306` để Backend chạy từ IDE có thể kết nối.
+Backend trong Docker vẫn dùng service `mysql:3306`.
+
+Trong cấu hình Run/Debug của IDE, chọn class trên, JDK 21 và khai báo các biến
+môi trường sau. Thay các phần `<...>` bằng giá trị tương ứng trong file `.env`
+cục bộ; không giữ nguyên dấu ngoặc:
+
+```dotenv
+SPRING_PROFILES_ACTIVE=local
+SPRING_DATASOURCE_URL=jdbc:mysql://localhost:3306/<MYSQL_DATABASE>?connectionTimeZone=UTC
+SPRING_DATASOURCE_USERNAME=<MYSQL_USER>
+SPRING_DATASOURCE_PASSWORD=<MYSQL_PASSWORD>
+JWT_SECRET=<JWT_SECRET>
+JWT_ISSUER=<JWT_ISSUER>
+JWT_AUDIENCE=<JWT_AUDIENCE>
+JWT_ACCESS_TOKEN_TTL=<JWT_ACCESS_TOKEN_TTL>
+MQTT_HOST=localhost
+MQTT_PORT=1883
+MQTT_USERNAME=<MQTT_USERNAME>
+MQTT_PASSWORD=<MQTT_PASSWORD>
+MQTT_CONNECTION_TIMEOUT=<MQTT_CONNECTION_TIMEOUT>
+CORS_ALLOWED_ORIGINS=<CORS_ALLOWED_ORIGINS>
+```
+
+Spring Boot hiện không tự đọc file `.env` ở thư mục gốc. Docker Compose đọc
+file này cho các service của nó; IDE cần được cấp biến môi trường riêng.
+Giữ cấu hình chứa secret ở chế độ local, không chia sẻ hoặc commit cấu hình đó.
+
+### Mỗi lần phát triển và debug
+
+Với VS Code, cài Extension Pack for Java và chọn JDK 21. Có thể dùng cấu hình
+Java launch trong `.vscode/launch.json` với `mainClass` là
+`com.smartdoor.backend.BackendApplication`, `envFile` là `${workspaceFolder}/.env`,
+và override `SPRING_PROFILES_ACTIVE=local`, `MQTT_HOST=localhost`, `MQTT_PORT=1883`.
+Mở thư mục gốc repository trong VS Code. File `.env` cần có thêm
+`SPRING_DATASOURCE_URL` trỏ tới `localhost:3306`, `SPRING_DATASOURCE_USERNAME`
+và `SPRING_DATASOURCE_PASSWORD` khớp MySQL. Khi đổi credential MySQL, cập nhật
+cả các biến datasource này. `.vscode/` hiện được Git bỏ qua nên cấu hình launch
+là cấu hình riêng trên máy mỗi thành viên.
+
+Mở Docker Desktop, rồi chạy từ thư mục gốc repository:
+
+```powershell
+docker compose stop backend
+docker compose up -d mysql mosquitto phpmyadmin
+docker compose ps
+```
+
+Lệnh `up` cũng áp dụng mapping cổng MySQL khi thiết lập lần đầu. Chờ MySQL có
+trạng thái `healthy`, rồi đặt breakpoint và chọn Debug trong IDE. Dừng Backend
+Docker trước để nhường cổng `8080` cho phiên chạy từ IDE.
+
+Chờ log `Started BackendApplication`, sau đó kiểm tra:
+
+```powershell
+Invoke-RestMethod http://localhost:8080/actuator/health
+```
+
+Kết quả mong đợi có `status` là `UP`. Gọi API từ ứng dụng hoặc API client để
+chạy tới breakpoint. Khi sửa code, restart phiên Debug nếu IDE chưa áp dụng
+thay đổi; không cần build image Backend cho cách chạy này.
+
+Khi kết thúc, dừng phiên Debug. Có thể giữ các dịch vụ Docker chạy cho lần sau,
+hoặc dừng chúng bằng `docker compose stop`.
+
+### Chuyển lại sang chạy toàn bộ bằng Docker
+
+Dừng phiên Backend trong IDE, rồi chạy từ thư mục gốc:
+
+```powershell
+docker compose up -d --build
+docker compose logs --tail=100 backend
+```
+
+Nếu IDE báo `Connection refused`, kiểm tra MySQL đã `healthy` và cổng
+`127.0.0.1:3306` đã được publish. Nếu báo `Access denied`, kiểm tra credential
+IDE có khớp database hiện có. Đổi biến `MYSQL_PASSWORD` trong `.env` không tự
+đổi mật khẩu của database đã có dữ liệu trong volume.
+
 Chạy automated tests:
 
 ```powershell

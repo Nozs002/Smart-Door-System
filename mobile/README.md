@@ -93,6 +93,29 @@ Backend phải chạy trên máy ở cổng 8080.
 
 ### Backend khi chạy Android
 
+Để test điện thoại Android qua USB trên Windows, bật USB debugging và chấp
+nhận thông báo cấp quyền trên điện thoại. Khởi động Backend từ thư mục gốc:
+
+```powershell
+docker compose up -d --build
+```
+
+Sau đó chạy từ `mobile/`:
+
+```powershell
+.\tool\run-usb.ps1
+```
+
+Script tự tìm Android SDK, chọn thiết bị, thiết lập `adb reverse tcp:8080
+tcp:8080` và chạy Flutter với API `http://127.0.0.1:8080`. Không cần IP Wi-Fi.
+Nếu có nhiều thiết bị, truyền `-DeviceId <adb-serial>`. Backend phải khởi động
+xong trước khi gọi API. Nếu Backend đang chạy bằng IDE, không chạy thêm
+container Backend trên cùng cổng.
+
+`flutter run` thuần không tự thiết lập USB forwarding. Có thể chạy script với
+`-SetupOnly`, rồi dùng `flutter run --dart-define=API_BASE_URL=http://127.0.0.1:8080`.
+Sau khi rút/cắm lại USB hoặc restart adb, chạy lại script để khôi phục forwarding.
+
 Mặc định API là `http://10.0.2.2:8080` dành cho Android Emulator. Nếu chạy trên
 điện thoại thật qua USB, dùng ADB reverse như hướng dẫn bên trên:
 
