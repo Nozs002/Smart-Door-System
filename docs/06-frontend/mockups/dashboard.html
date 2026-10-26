@@ -1,0 +1,327 @@
+<!DOCTYPE html>
+<html lang="vi">
+
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>SmartLock System - Dashboard</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link
+    href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;600;700&family=Outfit:wght@400;500;600;700;800&display=swap"
+    rel="stylesheet">
+  <link rel="stylesheet" href="style.css" />
+</head>
+
+<body>
+  <div class="app-container dashboard-home">
+
+    <!-- Status bar -->
+    <div class="status-bar" style="color: #fff; text-shadow: 0 1px 4px rgba(0,0,0,0.3);">
+      <span>09:41</span>
+      <div class="status-right">
+        <span>●●●</span><span>LTE</span><span>78%</span>
+      </div>
+    </div>
+
+    <!-- DASHBOARD SCREEN -->
+    <div class="screen active" style="background: transparent;">
+      <div class="screen-content" style="padding-top: 10px;">
+
+        <!-- Top header -->
+        <div class="flex justify-between items-center">
+          <a href="profile.html" class="profile-avatar-link" aria-label="Xem hồ sơ tài khoản">
+            <img src="https://i.pravatar.cc/100?img=5" alt=""
+              width="44" height="44" />
+          </a>
+          <div style="display: flex; align-items: center; gap: 10px;">
+            <button title="Thông báo"
+              style="width: 44px; height: 44px; border-radius: 50%; background: #fff; border: none; display: flex; justify-content: center; align-items: center; cursor: pointer; box-shadow: 0 4px 12px rgba(0,0,0,0.05);">
+              <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#111" stroke-width="2"
+                stroke-linecap="round" stroke-linejoin="round">
+                <path d="M18 8A6 6 0 006 8c0 7-3 9-3 9h18s-3-2-3-9" />
+                <path d="M13.73 21a2 2 0 01-3.46 0" />
+              </svg>
+            </button>
+            <button class="theme-toggle" id="theme-toggle" title="Chuyển giao diện"
+              style="width: 44px; height: 44px; background: #fff; border: none; box-shadow: 0 4px 12px rgba(0,0,0,0.05);">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"
+                stroke-linejoin="round">
+                <circle cx="12" cy="12" r="5" />
+                <line x1="12" y1="1" x2="12" y2="3" />
+                <line x1="12" y1="21" x2="12" y2="23" />
+                <line x1="4.22" y1="4.22" x2="5.64" y2="5.64" />
+                <line x1="18.36" y1="18.36" x2="19.78" y2="19.78" />
+                <line x1="1" y1="12" x2="3" y2="12" />
+                <line x1="21" y1="12" x2="23" y2="12" />
+                <line x1="4.22" y1="19.78" x2="5.64" y2="18.36" />
+                <line x1="18.36" y1="5.64" x2="19.78" y2="4.22" />
+              </svg>
+            </button>
+          </div>
+        </div>
+
+        <!-- Door Overview -->
+        <section class="door-section">
+          <h2 class="door-section-title">Tổng quan cửa</h2>
+          <div class="door-picker">
+            <div class="door-picker-heading">
+              <label for="door-select">Cửa của bạn</label>
+              <span>3 cửa · Dữ liệu mẫu</span>
+            </div>
+            <select id="door-select">
+              <option value="main">Cửa chính</option>
+              <option value="back">Cửa sau</option>
+              <option value="garage">Cửa gara</option>
+            </select>
+            <p id="door-selection-note" aria-live="polite">Đang xem và điều khiển: Cửa chính</p>
+          </div>
+
+          <div id="door-card" class="door-card-modern locked" data-commanded-lock-state="LOCKED">
+          <img src="OIP.webp" alt="Lock" class="door-img" />
+
+          <div class="door-info">
+            <div class="door-name">Cửa chính</div>
+            <div class="door-status" id="door-status" aria-live="polite">
+              <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
+                stroke-linecap="round" stroke-linejoin="round">
+                <rect x="3" y="11" width="18" height="11" rx="2" ry="2"></rect>
+                <path d="M7 11V7a5 5 0 0 1 10 0v4"></path>
+              </svg>
+              <span>Lệnh gần nhất: Khóa cửa</span>
+            </div>
+            <div class="door-command-note">Trạng thái vật lý chưa được xác nhận</div>
+          </div>
+
+          <div class="door-stats-row">
+            <div class="door-stat">
+              <span class="door-stat-label">Nhiệt độ</span>
+              <span class="door-stat-value">27°C</span>
+            </div>
+            <div class="door-stat">
+              <span class="door-stat-label">Độ ẩm</span>
+              <span class="door-stat-value">65%</span>
+            </div>
+          </div>
+          </div>
+
+          <!-- Preset Pill -->
+          <div
+            style="background: rgba(255,255,255,0.7); backdrop-filter: blur(10px); -webkit-backdrop-filter: blur(10px); border-radius: 30px; padding: 12px 20px; display: flex; align-items: center; justify-content: space-between; cursor: pointer;">
+            <div style="display: flex; align-items: center; gap: 16px;">
+              <div
+                style="width: 40px; height: 40px; border-radius: 50%; background: #fff; display: flex; align-items: center; justify-content: center; box-shadow: 0 2px 8px rgba(0,0,0,0.05);">
+                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
+                  stroke-linecap="round" stroke-linejoin="round">
+                  <path d="M12 2v20M17 5l-10 14M22 12H2M19 17L5 7" />
+                </svg>
+              </div>
+              <div>
+                <p style="font-size: 11px; color: var(--muted); font-weight: 600;">Hôm nay 11:00-18:00</p>
+                <p style="font-size: 15px; font-weight: 600; color: var(--text);">Chế độ Mùa Xuân (Spring warm)</p>
+              </div>
+            </div>
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="var(--muted)" stroke-width="2"
+              stroke-linecap="round" stroke-linejoin="round">
+              <path d="M9 18l6-6-6-6" />
+            </svg>
+          </div>
+        </section>
+
+        <!-- Access Management -->
+        <section class="door-section">
+          <h2 class="door-section-title">Quản lý truy cập</h2>
+
+          <div class="owners-card">
+          <div>
+            <div class="owners-title">Người truy cập</div>
+            <div class="avatar-group">
+              <img src="https://i.pravatar.cc/100?img=1" class="avatar" alt="user" />
+              <img src="https://i.pravatar.cc/100?img=2" class="avatar" alt="user" />
+              <img src="https://i.pravatar.cc/100?img=3" class="avatar" alt="user" />
+            </div>
+          </div>
+          <button class="add-btn" onclick="window.location.href='users.html'" aria-label="Mở quản lý người dùng">
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
+              stroke-linecap="round" stroke-linejoin="round">
+              <line x1="12" y1="5" x2="12" y2="19"></line>
+              <line x1="5" y1="12" x2="19" y2="12"></line>
+            </svg>
+          </button>
+          </div>
+
+          <div class="grid-2">
+          <div class="square-card" onclick="window.location.href='fingerprints.html'">
+            <div class="square-card-icon">
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
+                stroke-linecap="round" stroke-linejoin="round">
+                <path d="M12 10a2 2 0 00-2 2c0 1.02-.1 2.51-.26 4" />
+                <path d="M14 13.12c0 2.38 0 6.38-1 8.88" />
+                <path d="M17.29 21.02c.12-.6.43-2.3.5-3.02" />
+                <path d="M2 12a10 10 0 0118-6" />
+                <path d="M2 17.5A14.5 14.5 0 016 12" />
+                <path d="M20 12a10 10 0 01-1 4.5" />
+                <path d="M7 9.98c.12-.58.41-1.97.62-2.48" />
+                <path d="M12 4a8 8 0 018 7.5" />
+                <path d="M4.22 12.75a8 8 0 014.22-7" />
+              </svg>
+            </div>
+            <div>
+              <div class="square-card-title">Vân tay</div>
+              <div class="square-card-subtitle">Chưa khả dụng</div>
+            </div>
+          </div>
+
+          <div class="square-card" onclick="window.location.href='rfid.html'">
+            <div class="square-card-icon">
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
+                stroke-linecap="round" stroke-linejoin="round">
+                <rect x="1" y="4" width="22" height="16" rx="2" ry="2" />
+                <line x1="1" y1="10" x2="23" y2="10" />
+              </svg>
+            </div>
+            <div>
+              <div class="square-card-title">Thẻ từ</div>
+              <div class="square-card-subtitle">3 thẻ đang hoạt động</div>
+            </div>
+          </div>
+
+          <div class="square-card" onclick="window.location.href='pin.html'">
+            <div class="square-card-icon">
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
+                stroke-linecap="round" stroke-linejoin="round">
+                <rect x="3" y="3" width="18" height="18" rx="2" ry="2" />
+                <path d="M7 8h.01" /><path d="M12 8h.01" /><path d="M17 8h.01" />
+                <path d="M7 12h.01" /><path d="M12 12h.01" /><path d="M17 12h.01" />
+                <path d="M7 16h.01" /><path d="M12 16h.01" /><path d="M17 16h.01" />
+              </svg>
+            </div>
+            <div>
+              <div class="square-card-title">Mã PIN</div>
+              <div class="square-card-subtitle">*******5</div>
+            </div>
+          </div>
+
+          <div class="square-card" onclick="window.location.href='users.html'">
+            <div class="square-card-icon">
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <path d="M16 21v-2a4 4 0 00-4-4H6a4 4 0 00-4 4v2" />
+                <circle cx="9" cy="7" r="4" />
+                <path d="M22 21v-2a4 4 0 00-3-3.87" />
+                <path d="M16 3.13a4 4 0 010 7.75" />
+              </svg>
+            </div>
+            <div>
+              <div class="square-card-title">Người dùng</div>
+              <div class="square-card-subtitle">3 đang hoạt động</div>
+            </div>
+          </div>
+
+          </div>
+        </section>
+
+        <!-- Configuration and quick controls for the selected door -->
+        <section class="door-section" aria-labelledby="door-controls-title">
+          <div class="door-config-heading">
+            <h2 id="door-controls-title" class="door-section-title">Cấu hình cửa</h2>
+            <span id="config-door-name" class="door-context-badge">Cửa chính</span>
+          </div>
+          <div class="door-config-panel">
+            <div class="door-quick-row">
+              <span class="door-config-symbol" aria-hidden="true">
+                <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z" /></svg>
+              </span>
+              <div class="door-quick-copy">
+                <h3 id="quick-security-label">Chế độ bảo mật</h3>
+                <p id="quick-security-description">Đang bật · Yêu cầu xác thực</p>
+              </div>
+              <button id="quick-security-toggle" class="toggle-btn on" type="button" role="switch" aria-checked="true" aria-labelledby="quick-security-label" aria-describedby="quick-security-description"><span class="knob"></span></button>
+            </div>
+            <div class="door-quick-row">
+              <span class="door-config-symbol" aria-hidden="true">
+                <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><path d="M12 3c1 5 6 6 6 12a6 6 0 0 1-12 0c0-3 2-5 3-6 0 3 2 4 2 4s3-4 1-10Z" /></svg>
+              </span>
+              <div class="door-quick-copy">
+                <h3 id="quick-fire-label">Báo cháy</h3>
+                <p id="quick-fire-description">Đang bật · Ngưỡng 55°C</p>
+              </div>
+              <button id="quick-fire-toggle" class="toggle-btn on" type="button" role="switch" aria-checked="true" aria-labelledby="quick-fire-label" aria-describedby="quick-fire-description"><span class="knob"></span></button>
+            </div>
+            <div class="door-quick-row">
+              <span class="door-config-symbol" aria-hidden="true">
+                <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M4 21h16M6 21V3h12v18M14 12h.01" /></svg>
+              </span>
+              <div class="door-quick-copy">
+                <h3 id="quick-open-label">Cảnh báo cửa mở quá lâu</h3>
+                <p id="quick-open-description">Đang bật · Quá 30 giây</p>
+              </div>
+              <button id="quick-open-toggle" class="toggle-btn on" type="button" role="switch" aria-checked="true" aria-labelledby="quick-open-label" aria-describedby="quick-open-description"><span class="knob"></span></button>
+            </div>
+            <dl class="door-config-values">
+              <div><dt>Giới hạn xác thực sai</dt><dd id="config-attempts">3 lần</dd></div>
+              <div><dt>Thời gian khóa tạm</dt><dd id="config-lockout">60 giây</dd></div>
+            </dl>
+            <a id="door-settings-link" class="door-config-link" href="settings.html?door=main">
+              <span>Cài đặt cửa</span>
+              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="m9 6 6 6-6 6" /></svg>
+            </a>
+            <p id="door-quick-status" class="door-config-note" role="status">Áp dụng riêng cho cửa đang chọn · Dữ liệu mô phỏng</p>
+          </div>
+        </section>
+
+        <button id="unlock-btn" style="display:none;"></button>
+      </div>
+    </div>
+
+    <!-- UNLOCK MODAL -->
+    <div id="unlock-modal" class="modal-overlay">
+      <div class="modal-content">
+
+        <!-- Big Unlock Card -->
+        <div class="unlock-card">
+          <button id="close-x-btn"
+            style="position: absolute; top: 20px; right: 20px; width: 34px; height: 34px; border-radius: 50%; border: none; background: var(--surface2); color: var(--text); display: flex; justify-content: center; align-items: center; cursor: pointer; z-index: 10;">
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
+              stroke-linecap="round" stroke-linejoin="round">
+              <line x1="18" y1="6" x2="6" y2="18"></line>
+              <line x1="6" y1="6" x2="18" y2="18"></line>
+            </svg>
+          </button>
+          <div class="unlock-header">Cửa chính</div>
+          <img src="OIP.webp" alt="Lock" class="unlock-img" />
+          <div class="unlock-status" id="modal-lock-status" aria-live="polite">Lệnh gần nhất: Khóa cửa</div>
+          <div class="unlock-sub" id="modal-lock-sub">Vuốt để gửi lệnh mở khóa</div>
+
+          <!-- Slider -->
+          <div class="swipe-slider" id="swipe-slider">
+            <div class="swipe-track">
+              <span class="swipe-arrows">› › ›</span>
+              <div class="swipe-icon right">
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
+                  stroke-linecap="round" stroke-linejoin="round">
+                  <rect x="3" y="11" width="18" height="11" rx="2" ry="2"></rect>
+                  <path d="M7 11V7a5 5 0 0 1 9.9-1"></path>
+                </svg>
+              </div>
+            </div>
+            <div class="swipe-handle" id="swipe-handle">
+              <svg id="handle-icon" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+                stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <rect x="3" y="11" width="18" height="11" rx="2" ry="2"></rect>
+                <path d="M7 11V7a5 5 0 0 1 10 0v4"></path>
+              </svg>
+            </div>
+          </div>
+        </div>
+
+        <!-- More settings -->
+        <button class="more-settings-btn" onclick="window.location.href='settings.html'">Nhiều cài đặt hơn</button>
+
+      </div>
+    </div>
+
+  </div>
+  <script src="script.js"></script>
+</body>
+
+</html>

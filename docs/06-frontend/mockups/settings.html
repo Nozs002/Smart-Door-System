@@ -1,0 +1,166 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>SmartLock System - Settings</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;600;700&family=Outfit:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="style.css" />
+</head>
+<body>
+  <div class="app-container dashboard-home">
+    
+    <!-- Status bar -->
+    <div class="status-bar" style="color: #fff; text-shadow: 0 1px 4px rgba(0,0,0,0.3);">
+      <span>09:41</span>
+      <div class="status-right">
+        <button class="theme-toggle" id="theme-toggle" title="Chuyển giao diện">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <circle cx="12" cy="12" r="5" />
+            <line x1="12" y1="1" x2="12" y2="3" /><line x1="12" y1="21" x2="12" y2="23" />
+            <line x1="4.22" y1="4.22" x2="5.64" y2="5.64" /><line x1="18.36" y1="18.36" x2="19.78" y2="19.78" />
+            <line x1="1" y1="12" x2="3" y2="12" /><line x1="21" y1="12" x2="23" y2="12" />
+            <line x1="4.22" y1="19.78" x2="5.64" y2="18.36" /><line x1="18.36" y1="5.64" x2="19.78" y2="4.22" />
+          </svg>
+        </button>
+        <span>●●●</span><span>LTE</span><span>78%</span>
+      </div>
+    </div>
+
+    <!-- SETTINGS SCREEN -->
+    <div class="screen active" style="background: transparent;">
+      <div class="screen-content">
+        <a id="settings-back" class="back-btn" href="dashboard.html?door=main" aria-label="Quay lại Dashboard">
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M15 18l-6-6 6-6" />
+          </svg>
+        </a>
+        <h1 style="font-size: 22px; font-weight: 700; letter-spacing: -0.3px;">Cài đặt</h1>
+
+        <form id="settings-form" novalidate>
+        <div class="card settings-card">
+          <p id="settings-door-label" class="settings-section-label">CẤU HÌNH CỬA CHÍNH</p>
+          <div class="setting-row">
+            <div>
+              <p id="settings-door-name" class="settings-item-title">Cửa chính</p>
+              <p class="settings-item-subtitle">Cấu hình riêng cho cửa này · Dữ liệu mẫu</p>
+            </div>
+            <span class="settings-status active">Đang hoạt động</span>
+          </div>
+          <div class="setting-row">
+            <div>
+              <p class="settings-item-title">Chế độ vận hành</p>
+              <p class="settings-item-subtitle">Quy định cách cửa xử lý yêu cầu mở</p>
+            </div>
+            <select id="operating-mode" name="operatingMode" class="settings-select" aria-label="Chế độ vận hành" required>
+              <option value="SECURITY" selected>Bảo mật</option>
+              <option value="AUTOMATIC">Tự động</option>
+            </select>
+          </div>
+        </div>
+
+        <div class="card settings-card">
+          <p class="settings-section-label">BẢO MẬT TRUY CẬP</p>
+          <div class="settings-control">
+            <div class="flex justify-between" style="margin-bottom: 8px;">
+              <span class="settings-item-title">Số lần xác thực sai tối đa</span>
+            </div>
+            <label class="settings-number-field">
+              <input id="max-failed-attempts" name="maxFailedAttempts" type="number" min="1" max="10" value="3" aria-label="Số lần xác thực sai tối đa" aria-describedby="max-failed-attempts-error" required />
+              <span>lần</span>
+            </label>
+            <p class="settings-field-error" id="max-failed-attempts-error"></p>
+          </div>
+          <div class="settings-control">
+            <div class="flex justify-between" style="margin-bottom: 8px;">
+              <span class="settings-item-title">Thời gian khóa tạm</span>
+            </div>
+            <label class="settings-number-field">
+              <input id="lockout-seconds" name="lockoutSeconds" type="number" min="10" max="600" step="10" value="60" aria-label="Thời gian khóa tạm" aria-describedby="lockout-seconds-error" required />
+              <span>giây</span>
+            </label>
+            <p class="settings-field-error" id="lockout-seconds-error"></p>
+          </div>
+          <div class="setting-row">
+            <div>
+              <p class="settings-item-title">Mã PIN hệ thống</p>
+              <p class="settings-item-subtitle">Đang hoạt động · đổi 30 ngày trước</p>
+            </div>
+            <button type="button" class="settings-action-btn" onclick="window.location.href='pin.html'">Đổi PIN</button>
+          </div>
+        </div>
+
+        <div class="card settings-card">
+          <p class="settings-section-label">AN TOÀN VÀ CẢNH BÁO</p>
+          <div class="settings-control">
+            <div class="settings-alert-switch-row">
+              <div>
+                <label id="fireAlertEnabled-label" for="fireAlertEnabled">Báo cháy</label>
+                <p id="fireAlertEnabled-status" class="settings-item-subtitle">Đang bật</p>
+              </div>
+              <input class="settings-alert-switch" type="checkbox" role="switch" id="fireAlertEnabled" name="fireAlertEnabled" value="true" checked aria-labelledby="fireAlertEnabled-label" aria-describedby="fireAlertEnabled-status" />
+            </div>
+            <div class="flex justify-between" style="margin-bottom: 8px;">
+              <span class="settings-item-title">Ngưỡng nhiệt độ báo cháy</span>
+            </div>
+            <label class="settings-number-field">
+              <input id="temperature-threshold" name="temperatureThreshold" type="number" min="30" max="80" step="0.5" value="55" aria-label="Ngưỡng nhiệt độ báo cháy" aria-describedby="temperature-threshold-error" required />
+              <span>°C</span>
+            </label>
+            <p class="settings-field-error" id="temperature-threshold-error"></p>
+            <p class="settings-item-subtitle">Tạo cảnh báo nhiệt độ cao và mở khóa khẩn cấp.</p>
+          </div>
+          <div class="settings-control">
+            <div class="settings-alert-switch-row">
+              <div>
+                <label id="doorOpenAlertEnabled-label" for="doorOpenAlertEnabled">Cảnh báo cửa mở quá lâu</label>
+                <p id="doorOpenAlertEnabled-status" class="settings-item-subtitle">Đang bật</p>
+              </div>
+              <input class="settings-alert-switch" type="checkbox" role="switch" id="doorOpenAlertEnabled" name="doorOpenAlertEnabled" value="true" checked aria-labelledby="doorOpenAlertEnabled-label" aria-describedby="doorOpenAlertEnabled-status" />
+            </div>
+            <div class="flex justify-between" style="margin-bottom: 8px;">
+              <span class="settings-item-title">Thời gian cửa mở tối đa</span>
+            </div>
+            <label class="settings-number-field">
+              <input id="open-timeout-seconds" name="openTimeoutSeconds" type="number" min="10" max="120" step="5" value="30" aria-label="Thời gian cửa mở tối đa" aria-describedby="open-timeout-seconds-error" required />
+              <span>giây</span>
+            </label>
+            <p class="settings-field-error" id="open-timeout-seconds-error"></p>
+            <p class="settings-item-subtitle">Tạo cảnh báo khi cửa mở quá thời gian này.</p>
+          </div>
+        </div>
+
+        <div class="settings-save-panel">
+          <p id="settings-save-status" class="settings-save-status" role="status" aria-live="polite">Chưa có thay đổi.</p>
+          <button id="save-settings-btn" class="btn-primary settings-save-btn" type="submit" disabled>
+            Lưu cấu hình
+          </button>
+        </div>
+        </form>
+
+        <div class="card settings-card">
+          <p class="settings-section-label">THIẾT BỊ LIÊN KẾT</p>
+          <div class="setting-row">
+            <div>
+              <p class="settings-item-title">Trạm xác thực</p>
+              <p id="settings-node-auth" class="settings-item-subtitle">SD-NODE1-MAIN · NODE 1</p>
+            </div>
+            <span class="settings-status active">Online</span>
+          </div>
+          <div class="setting-row">
+            <div>
+              <p class="settings-item-title">Trạm điều khiển &amp; cảnh báo</p>
+              <p id="settings-node-control" class="settings-item-subtitle">SD-NODE2-MAIN · NODE 2</p>
+            </div>
+            <span class="settings-status active">Online</span>
+          </div>
+        </div>
+      </div>
+    </div>
+
+  </div>
+  <script src="script.js"></script>
+</body>
+</html>
