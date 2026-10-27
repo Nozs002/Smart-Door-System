@@ -30,6 +30,9 @@ public class Alert {
 	@Column(name = "id", nullable = false, columnDefinition = "bigint unsigned")
 	private Long id;
 
+	@Column(name = "event_id", nullable = true, columnDefinition = "varchar(100)", length = 100)
+	private String eventId;
+
 	@Column(name = "door_id", nullable = false, columnDefinition = "bigint unsigned")
 	private Long doorId;
 

@@ -8,14 +8,24 @@ import 'features/authentication/auth_api.dart';
 import 'features/authentication/auth_session.dart';
 import 'features/dashboard/dashboard_screen.dart';
 import 'core/theme/app_theme.dart';
+import 'features/settings/data/settings_repository.dart';
+import 'features/alerts/data/alert_repository.dart';
 
 void main() {
   runApp(const SmartDoorApp());
 }
 
 class SmartDoorApp extends StatefulWidget {
-  const SmartDoorApp({super.key, this.session, this.repository});
+  const SmartDoorApp({
+    super.key,
+    this.session,
+    this.repository,
+    this.settingsRepository,
+    this.alertRepository,
+  });
   final DoorRepository? repository;
+  final SettingsRepository? settingsRepository;
+  final AlertRepository? alertRepository;
   final AuthSession? session;
 
   @override
@@ -28,15 +38,20 @@ class _SmartDoorAppState extends State<SmartDoorApp> {
   final _navigator = GlobalKey<NavigatorState>();
   ApiClient? _doorClient;
   late final DoorRepository doorRepository;
+  SettingsRepository? settingsRepository;
+  AlertRepository? alertRepository;
   @override
   void initState() {
     super.initState();
     session =
         widget.session ??
         AuthSession(api: HttpAuthApi(), store: SecureSessionStore());
-    doorRepository =
-        widget.repository ??
-        RestDoorRepository(_doorClient = ApiClient(tokenProvider: session));
+    final client = _doorClient = ApiClient(tokenProvider: session);
+    doorRepository = widget.repository ?? RestDoorRepository(client);
+    settingsRepository = widget.settingsRepository ??
+        (widget.repository == null ? RestSettingsRepository(client) : null);
+    alertRepository = widget.alertRepository ??
+        (widget.repository == null ? RestAlertRepository(client) : null);
     session.addListener(_sessionChanged);
     session.restore();
   }
@@ -80,6 +95,8 @@ class _SmartDoorAppState extends State<SmartDoorApp> {
             return DashboardScreen(
               session: session,
               repository: doorRepository,
+              settingsRepository: settingsRepository,
+              alertRepository: alertRepository,
               onToggleTheme: () => setState(() {
                 _themeMode = _themeMode == ThemeMode.light
                     ? ThemeMode.dark

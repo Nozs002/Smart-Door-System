@@ -11,6 +11,11 @@ import '../doors/presentation/door_detail_screen.dart';
 import '../doors/presentation/door_list_screen.dart';
 import '../doors/presentation/door_widgets.dart';
 import '../doors/presentation/lifecycle_history_screen.dart';
+import '../settings/data/settings_models.dart';
+import '../settings/data/settings_repository.dart';
+import '../settings/presentation/door_settings_screen.dart';
+import '../alerts/data/alert_repository.dart';
+import '../alerts/presentation/alert_list_screen.dart';
 
 class DashboardScreen extends StatefulWidget {
   const DashboardScreen({
@@ -18,9 +23,13 @@ class DashboardScreen extends StatefulWidget {
     required this.session,
     required this.repository,
     required this.onToggleTheme,
+    this.settingsRepository,
+    this.alertRepository,
   });
   final AuthSession session;
   final DoorRepository repository;
+  final SettingsRepository? settingsRepository;
+  final AlertRepository? alertRepository;
   final VoidCallback onToggleTheme;
   @override
   State<DashboardScreen> createState() => _DashboardScreenState();
@@ -34,6 +43,8 @@ class _DashboardScreenState extends State<DashboardScreen> {
   bool _loadingDevices = false;
   Object? _error;
   Object? _deviceError;
+  DoorConfiguration? _configurationValue;
+  Object? _configurationError;
   int _request = 0;
   DoorView? get _selected =>
       _doors.where((d) => d.id == _selectedId).firstOrNull;
@@ -65,7 +76,12 @@ class _DashboardScreenState extends State<DashboardScreen> {
           _selectedId = doors.firstOrNull?.id;
         }
       });
-      if (_selectedId != null) await _loadDevices(_selectedId!);
+      if (_selectedId != null) {
+        await Future.wait([
+          _loadDevices(_selectedId!),
+          _loadConfiguration(_selectedId!),
+        ]);
+      }
     } catch (error) {
       if (mounted && request == _request) setState(() => _error = error);
     } finally {
@@ -86,6 +102,25 @@ class _DashboardScreenState extends State<DashboardScreen> {
       if (mounted && _selectedId == id) setState(() => _deviceError = error);
     } finally {
       if (mounted && _selectedId == id) setState(() => _loadingDevices = false);
+    }
+  }
+
+  Future<void> _loadConfiguration(int id) async {
+    final repository = widget.settingsRepository;
+    if (repository == null) return;
+    setState(() {
+      _configurationValue = null;
+      _configurationError = null;
+    });
+    try {
+      final value = await repository.getConfiguration(id);
+      if (mounted && _selectedId == id) {
+        setState(() => _configurationValue = value);
+      }
+    } catch (error) {
+      if (mounted && _selectedId == id) {
+        setState(() => _configurationError = error);
+      }
     }
   }
 
@@ -116,6 +151,22 @@ class _DashboardScreenState extends State<DashboardScreen> {
       repository: widget.repository,
       doorId: _selectedId!,
       devices: _devices,
+    ),
+  );
+
+  Future<void> _settings() => _open(
+    DoorSettingsScreen(
+      repository: widget.settingsRepository!,
+      doorId: _selectedId!,
+      doorName: _selected!.name,
+      onSignInRequested: _signIn,
+    ),
+  );
+
+  Future<void> _alerts() => _open(
+    AlertListScreen(
+      repository: widget.alertRepository!,
+      onSignInRequested: _signIn,
     ),
   );
 
@@ -242,6 +293,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
             if (id == null) return;
             setState(() => _selectedId = id);
             _loadDevices(id);
+            _loadConfiguration(id);
           },
         ),
         const SizedBox(height: 10),
@@ -416,12 +468,29 @@ class _DashboardScreenState extends State<DashboardScreen> {
           icon: Icons.timer_outlined,
         ),
         const Divider(height: 1),
-        _configValue('Giới hạn xác thực sai'),
+        _configValue(
+          'Giới hạn xác thực sai',
+          _configurationValue == null
+              ? null
+              : '${_configurationValue!.maxFailedAttempts} lần',
+        ),
         const Divider(height: 1),
-        _configValue('Thời gian khóa tạm'),
+        _configValue(
+          'Thời gian khóa tạm',
+          _configurationValue == null
+              ? null
+              : '${_configurationValue!.lockoutSeconds} giây',
+        ),
+        const Divider(height: 1),
+        _configValue(
+          'Ngưỡng nhiệt độ',
+          _configurationValue == null
+              ? null
+              : '${_configurationValue!.temperatureThreshold.toStringAsFixed(1)}°C',
+        ),
         const SizedBox(height: 12),
         FilledButton(
-          onPressed: _detail,
+          onPressed: widget.settingsRepository == null ? _detail : _settings,
           child: const Row(
             children: [
               Expanded(child: Text('Cài đặt cửa')),
@@ -431,25 +500,33 @@ class _DashboardScreenState extends State<DashboardScreen> {
         ),
         const SizedBox(height: 12),
         Text(
-          'Áp dụng riêng cho cửa đang chọn. Chưa có dữ liệu cấu hình.',
+          _configurationError != null
+              ? 'Không tải được cấu hình. Chạm Cài đặt cửa để thử lại.'
+              : _configurationValue == null
+                  ? 'Đang tải cấu hình riêng của cửa đang chọn…'
+                  : 'Phiên bản ${_configurationValue!.version} · '
+                      '${_configurationValue!.devices.where((d) => d.configState == 'SYNCED').length}/'
+                      '${_configurationValue!.devices.length} thiết bị đã xác nhận.',
           style: Theme.of(context).textTheme.bodySmall,
         ),
       ],
     ),
   );
 
-  Widget _configValue(String label) => Padding(
+  Widget _configValue(String label, String? value) => Padding(
     padding: const EdgeInsets.symmetric(vertical: 12),
     child: Row(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         Expanded(child: Text(label, style: const TextStyle(fontSize: 13))),
         const SizedBox(width: 12),
-        const Tooltip(
-          message: 'Chưa có dữ liệu',
+        Tooltip(
+          message: value == null
+              ? 'Chưa có dữ liệu'
+              : 'Cấu hình đang lưu trên máy chủ',
           child: Text(
-            '—',
-            style: TextStyle(fontSize: 13, fontWeight: FontWeight.w600),
+            value ?? '—',
+            style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w600),
           ),
         ),
       ],
@@ -548,7 +625,9 @@ class _DashboardScreenState extends State<DashboardScreen> {
                           DashboardRoundAction(
                             label: 'Thông báo',
                             icon: Icons.notifications_none_rounded,
-                            onPressed: () => _unavailable('Thông báo'),
+                            onPressed: widget.alertRepository == null
+                                ? () => _unavailable('Thông báo')
+                                : _alerts,
                           ),
                           const SizedBox(width: 10),
                           DashboardRoundAction(
