@@ -115,6 +115,98 @@ document.addEventListener('DOMContentLoaded', () => {
     });
   }
 
+  // Independent demo command state and timer for each owned door.
+  const doorSelect = document.getElementById('door-select');
+  const mockDoors = {
+    main: { name: 'Cửa chính', state: 'LOCKED', timer: null },
+    back: { name: 'Cửa sau', state: 'LOCKED', timer: null },
+    garage: { name: 'Cửa gara', state: 'LOCKED', timer: null },
+  };
+  const requestedDoor = new URLSearchParams(window.location.search).get('door');
+  const activeDoorId = Object.hasOwn(mockDoors, requestedDoor) ? requestedDoor : 'main';
+  let selectedDoor = mockDoors[activeDoorId];
+  const defaultConfig = {
+    operatingMode: 'SECURITY', maxFailedAttempts: '3',
+    lockoutSeconds: '60', temperatureThreshold: '55', openTimeoutSeconds: '30',
+    fireAlertEnabled: 'true', doorOpenAlertEnabled: 'true',
+  };
+  const readDoorConfig = (id) => {
+    try {
+      const saved = JSON.parse(sessionStorage.getItem('mock-door-config-' + id));
+      const config = { ...defaultConfig };
+      for (const key of Object.keys(config)) {
+        if (typeof saved?.[key] === typeof config[key]) config[key] = saved[key];
+      }
+      return config;
+    } catch { return { ...defaultConfig }; }
+  };
+  const renderDoorConfig = () => {
+    if (!doorSelect) return;
+    const id = doorSelect.value;
+    const config = readDoorConfig(id);
+    document.getElementById('config-door-name').textContent = mockDoors[id].name;
+    const securityOn = config.operatingMode === 'SECURITY';
+    for (const [kind, on] of [
+      ['security', securityOn],
+      ['fire', config.fireAlertEnabled !== 'false'],
+      ['open', config.doorOpenAlertEnabled !== 'false'],
+    ]) {
+      const toggle = document.getElementById('quick-' + kind + '-toggle');
+      toggle.classList.toggle('on', on);
+      toggle.classList.toggle('off', !on);
+      toggle.setAttribute('aria-checked', String(on));
+    }
+    document.getElementById('quick-security-description').textContent =
+      securityOn ? 'Đang bật · Yêu cầu xác thực' : 'Đang tắt · Chế độ tự động';
+    document.getElementById('quick-fire-description').textContent =
+      (config.fireAlertEnabled === 'false' ? 'Đang tắt' : 'Đang bật') +
+      ' · Ngưỡng ' + config.temperatureThreshold + '°C';
+    document.getElementById('quick-open-description').textContent =
+      (config.doorOpenAlertEnabled === 'false' ? 'Đang tắt' : 'Đang bật') +
+      ' · Quá ' + config.openTimeoutSeconds + ' giây';
+    document.getElementById('config-attempts').textContent = config.maxFailedAttempts + ' lần';
+    document.getElementById('config-lockout').textContent = config.lockoutSeconds + ' giây';
+    document.getElementById('door-settings-link').href = 'settings.html?door=' + id;
+    modal?.querySelector('.more-settings-btn')?.setAttribute('onclick',
+      "window.location.href='settings.html?door=" + id + "'");
+  };
+  if (doorSelect) {
+    doorSelect.value = activeDoorId;
+    doorCard.querySelector('.door-name').textContent = selectedDoor.name;
+    modal.querySelector('.unlock-header').textContent = selectedDoor.name;
+    document.getElementById('door-selection-note').textContent =
+      'Đang xem và điều khiển: ' + selectedDoor.name;
+    renderDoorConfig();
+    doorSelect.addEventListener('change', () => {
+      renderDoorConfig();
+      document.getElementById('door-quick-status').textContent =
+        'Áp dụng riêng cho cửa đang chọn · Dữ liệu mô phỏng';
+    });
+    window.addEventListener('pageshow', renderDoorConfig);
+    for (const kind of ['security', 'fire', 'open']) {
+      document.getElementById('quick-' + kind + '-toggle').addEventListener('click', () => {
+        const id = doorSelect.value;
+        const config = readDoorConfig(id);
+        if (kind === 'security') config.operatingMode =
+          config.operatingMode === 'SECURITY' ? 'AUTOMATIC' : 'SECURITY';
+        else {
+          const key = kind === 'fire' ? 'fireAlertEnabled' : 'doorOpenAlertEnabled';
+          config[key] = config[key] === 'false' ? 'true' : 'false';
+        }
+        try {
+          sessionStorage.setItem('mock-door-config-' + id, JSON.stringify(config));
+          renderDoorConfig();
+          document.getElementById('door-quick-status').textContent =
+            'Đã cập nhật mô phỏng cho ' + mockDoors[id].name + '.';
+        } catch {
+          document.getElementById('door-quick-status').textContent =
+            'Không thể lưu mô phỏng. Vui lòng cho phép lưu trữ trong trình duyệt.';
+        }
+      });
+    }
+  }
+
+
   // --- Swipe logic ---
   const swipeSlider = document.getElementById('swipe-slider');
   const swipeHandle = document.getElementById('swipe-handle');
@@ -127,10 +219,11 @@ document.addEventListener('DOMContentLoaded', () => {
     let startX = 0;
     let currentTranslate = 0;
     let isUnlocked = false;
-    let autoLockTimeout = null;
+
     
     const setLockedUI = () => {
       isUnlocked = false;
+      selectedDoor.state = 'LOCKED';
       swipeHandle.style.transition = 'transform 0.3s ease';
       swipeHandle.style.transform = `translateX(0px)`;
       swipeSlider.classList.remove('unlocked');
@@ -148,14 +241,15 @@ document.addEventListener('DOMContentLoaded', () => {
         const svg = doorStatus.querySelector('svg');
         if (svg) svg.innerHTML = `<rect x="3" y="11" width="18" height="11" rx="2" ry="2"></rect><path d="M7 11V7a5 5 0 0 1 10 0v4"></path>`;
       }
-      if(autoLockTimeout) {
-        clearTimeout(autoLockTimeout);
-        autoLockTimeout = null;
+      if(selectedDoor.timer) {
+        clearTimeout(selectedDoor.timer);
+        selectedDoor.timer = null;
       }
     };
 
     const setUnlockedUI = () => {
       isUnlocked = true;
+      selectedDoor.state = 'UNLOCKED';
       const maxScroll = swipeSlider.clientWidth - swipeHandle.clientWidth - 8;
       swipeHandle.style.transition = 'transform 0.3s ease';
       swipeHandle.style.transform = `translateX(${maxScroll}px)`;
@@ -176,9 +270,12 @@ document.addEventListener('DOMContentLoaded', () => {
       }
 
       // Auto relock after 30 seconds
-      if (autoLockTimeout) clearTimeout(autoLockTimeout);
-      autoLockTimeout = setTimeout(() => {
-        if (isUnlocked) setLockedUI();
+      if (selectedDoor.timer) clearTimeout(selectedDoor.timer);
+      const commandedDoor = selectedDoor;
+      commandedDoor.timer = setTimeout(() => {
+        commandedDoor.state = 'LOCKED';
+        commandedDoor.timer = null;
+        if (selectedDoor === commandedDoor) setLockedUI();
       }, 30000);
     };
 
@@ -186,7 +283,7 @@ document.addEventListener('DOMContentLoaded', () => {
       isDragging = true;
       startX = e.type.includes('mouse') ? e.clientX : e.touches[0].clientX;
       swipeHandle.style.transition = 'none';
-      if (autoLockTimeout) clearTimeout(autoLockTimeout);
+      if (selectedDoor.timer) clearTimeout(selectedDoor.timer);
     };
 
     const drag = (e) => {
@@ -231,6 +328,20 @@ document.addEventListener('DOMContentLoaded', () => {
         }
       }
     };
+
+    if (doorSelect && doorCard && modal) {
+      doorSelect.addEventListener('change', () => {
+        selectedDoor = mockDoors[doorSelect.value];
+        isDragging = false;
+        modal.classList.remove('open');
+        doorCard.querySelector('.door-name').textContent = selectedDoor.name;
+        modal.querySelector('.unlock-header').textContent = selectedDoor.name;
+        document.getElementById('door-selection-note').textContent =
+          'Đang xem và điều khiển: ' + selectedDoor.name;
+        if (selectedDoor.state === 'UNLOCKED') setUnlockedUI();
+        else setLockedUI();
+      });
+    }
 
     swipeHandle.addEventListener('mousedown', startDrag);
     swipeHandle.addEventListener('touchstart', startDrag, {passive: true});
@@ -385,12 +496,49 @@ document.addEventListener('DOMContentLoaded', () => {
 
   if (settingsForm && saveSettingsBtn && settingsSaveStatus) {
     const fields = [...settingsForm.querySelectorAll('input, select')];
-    let savedValues = new FormData(settingsForm);
+    const config = readDoorConfig(activeDoorId);
+    fields.forEach(field => {
+      if (!Object.hasOwn(config, field.name)) return;
+      if (field.type === 'checkbox') field.checked = config[field.name] !== 'false';
+      else field.value = config[field.name];
+    });
+    const syncAlertSwitches = () => {
+      for (const [key, thresholdId] of [
+        ['fireAlertEnabled', 'temperature-threshold'],
+        ['doorOpenAlertEnabled', 'open-timeout-seconds'],
+      ]) {
+        const toggle = document.getElementById(key);
+        const threshold = document.getElementById(thresholdId);
+        threshold.disabled = !toggle.checked;
+        document.getElementById(key + '-status').textContent =
+          toggle.checked ? 'Đang bật' : 'Đang tắt';
+        if (!toggle.checked) {
+          threshold.setAttribute('aria-invalid', 'false');
+          threshold.closest('.settings-number-field')?.classList.remove('invalid');
+          document.getElementById(thresholdId + '-error').textContent = '';
+        }
+      }
+    };
+    syncAlertSwitches();
+    const settingsSnapshot = () => {
+      const values = new FormData(settingsForm);
+      // Keep disabled thresholds and explicit off values in the saved configuration.
+      fields.forEach(field => values.set(field.name,
+        field.type === 'checkbox' ? String(field.checked) : field.value));
+      return values;
+    };
+    document.getElementById('settings-door-label').textContent =
+      'CẤU HÌNH ' + selectedDoor.name.toLocaleUpperCase('vi');
+    document.getElementById('settings-door-name').textContent = selectedDoor.name;
+    document.getElementById('settings-back').href = 'dashboard.html?door=' + activeDoorId;
+    document.getElementById('settings-node-auth').textContent = 'SD-NODE1-' + activeDoorId.toUpperCase() + ' · NODE 1';
+    document.getElementById('settings-node-control').textContent = 'SD-NODE2-' + activeDoorId.toUpperCase() + ' · NODE 2';
+    let savedValues = settingsSnapshot();
     let hasUnsavedChanges = false;
     let isSaving = false;
 
     const valuesChanged = () => {
-      const currentValues = new FormData(settingsForm);
+      const currentValues = settingsSnapshot();
       return fields.some(field => currentValues.get(field.name) !== savedValues.get(field.name));
     };
 
@@ -400,6 +548,7 @@ document.addEventListener('DOMContentLoaded', () => {
     };
 
     const validationMessage = (field) => {
+      if (field.disabled) return '';
       const label = field.getAttribute('aria-label') || 'Giá trị';
       if (field.validity.valueMissing) return `${label} không được để trống.`;
       if (field.validity.rangeUnderflow) return `${label} phải từ ${field.min} trở lên.`;
@@ -434,6 +583,7 @@ document.addEventListener('DOMContentLoaded', () => {
         updateDirtyState();
       });
       field.addEventListener('change', () => {
+        syncAlertSwitches();
         validateField(field);
         updateDirtyState();
       });
@@ -463,9 +613,12 @@ document.addEventListener('DOMContentLoaded', () => {
           }, 800);
         });
 
-        savedValues = new FormData(settingsForm);
+        const nextValues = settingsSnapshot();
+        sessionStorage.setItem('mock-door-config-' + activeDoorId,
+          JSON.stringify({ ...readDoorConfig(activeDoorId), ...Object.fromEntries(nextValues) }));
+        savedValues = nextValues;
         hasUnsavedChanges = false;
-        setSaveStatus('success', 'Đã lưu cấu hình thành công.');
+        setSaveStatus('success', 'Đã lưu cấu hình mẫu cho ' + selectedDoor.name + '.');
       } catch (error) {
         hasUnsavedChanges = true;
         setSaveStatus('error', 'Lưu thất bại. Kiểm tra kết nối và thử lại.');
@@ -485,7 +638,7 @@ document.addEventListener('DOMContentLoaded', () => {
   }
 
   // --- Toggle Buttons in Settings ---
-  const toggleBtns = document.querySelectorAll('.toggle-btn');
+  const toggleBtns = document.querySelectorAll('.toggle-btn:not([role="switch"])');
   toggleBtns.forEach(btn => {
     btn.addEventListener('click', () => {
       if (btn.classList.contains('on')) {

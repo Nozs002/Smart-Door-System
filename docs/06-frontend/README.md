@@ -15,6 +15,7 @@ Phạm vi hiện tại chỉ hỗ trợ Android; iOS, Web và Desktop chưa đư
 ## Tài liệu
 
 - [Thiết lập và phát triển Flutter Android](android-development.md)
+- [Đăng ký và hồ sơ Account](account-registration-profile.md)
 - [HTML Mobile UI Mockups](mockups/README.md)
 
 ## Liên kết

@@ -4,17 +4,17 @@ type: reference
 version: 1.1
 lang: vi
 tags: [backend, security, spring-security, cors, bcrypt]
-updated: 2026-10-16
+updated: 2026-10-14
 ---
 
 # Nền tảng bảo mật Backend
 
 ## 1. Phạm vi đã triển khai
 
-Backend đã có lớp bảo mật nền để mọi API nghiệp vụ bị từ chối mặc định cho đến
-khi cơ chế JWT được chốt và triển khai. Phần này không phát hành hoặc xác minh
-JWT. Module Người 2 đã bổ sung ownership service, provider lấy Account xác thực
-và giới hạn thử mã claim; chúng không thay thế JWT filter của Người 1.
+Backend có lớp bảo mật nền và đã bổ sung phát hành/xác minh JWT cho đăng nhập.
+Các endpoint identity được public theo contract; API nghiệp vụ yêu cầu xác thực.
+Door/Device kiểm tra ownership dựa trên Account principal. Xem
+[triển khai đăng nhập](account-login.md) và [bàn giao Door/Device](door-device-handoff.md).
 
 Các thành phần đã cấu hình:
 
@@ -55,6 +55,9 @@ security filter.
 | Endpoint/request | Chính sách |
 | --- | --- |
 | `OPTIONS /**` | Public để xử lý CORS preflight. |
+| `POST /api/v1/auth/login` | Public; validate credential và rate limit. |
+| `POST /api/v1/auth/register` | Public; validate đăng ký, lưu BCrypt và kiểm tra UNIQUE username. |
+| `GET /api/v1/accounts/me` | JWT hợp lệ, Account ACTIVE; chỉ trả hồ sơ của chính mình. |
 | `/actuator/health` | Public, không hiển thị chi tiết. |
 | `/actuator/health/liveness` | Public. |
 | `/actuator/health/readiness` | Public. |
@@ -105,27 +108,30 @@ kiểm tra thêm:
 Không nhận Account ID trong request body làm nguồn quyền. Account phải lấy từ
 security context sau khi JWT được xác minh.
 
+## 7. Persistence Account và nội dung chưa triển khai
+
+Đã có `identity/entity/Account` với trạng thái `ACTIVE/DISABLED` và
+`AccountRepository` với truy vấn theo username. Đây là mapping persistence;
+đã có service đăng nhập và kiểm tra trạng thái Account khi xác thực JWT.
+Xem [mapping JPA và repository](entity-repository-mapping.md).
+
 `CurrentAccountProvider.requireAccountId()` yêu cầu `Authentication` đã xác
 thực, principal triển khai `AccountPrincipal` với `Long accountId()` và Account
-còn ACTIVE trong database. Không tự suy ID từ username, header hoặc principal
-kiểu bất kỳ. Người 1 cần cung cấp principal đúng kiểu sau khi xác minh token.
+còn ACTIVE trong database. Không suy ID từ username, header hoặc principal bất kỳ.
 
-`DoorOwnershipService.requireOwner(accountId, doorId)` phục vụ module khác.
-Đọc/ghi Device, Door và lịch sử phải kiểm tra Door trước; không thuộc Account
-trả 404. Thao tác ghi dùng khóa Door trước Device/mã trong cùng transaction.
+`DoorOwnershipService` bảo vệ đọc/ghi Door, Device và lịch sử; tài nguyên không
+thuộc Account trả 404. Thao tác ghi khóa Door trước Device/mã trong cùng transaction.
 
 Heartbeat không thay thế quyền lifecycle. MQTT adapter tương lai phải xác minh
-credential/ACL trước khi gọi service; thiết bị DISABLED/RETIRED không được
-xử lý nghiệp vụ chỉ vì vẫn liên lạc. Chưa có readiness/ACK đáng tin cậy thì
+credential/ACL trước khi gọi service. Chưa có readiness/ACK đáng tin cậy thì
 activate/reactivate/replace bị từ chối mặc định.
 
-## 7. Nội dung chưa triển khai
+Các nội dung chưa triển khai:
 
-- thuật toán và khóa ký JWT;
-- access/refresh token lifecycle, revoke và rotation;
-- JWT authentication filter/converter;
-- các use case Account/đăng nhập và chính sách phiên/token hoàn chỉnh;
-- rate limit phân tán, bảo vệ replay ở MQTT và audit security tổng thể;
+- refresh token, revoke phiên và rotation nhiều khóa (JWT hiện dùng HS256,
+  access token 15 phút, hết hạn đăng nhập lại);
+- rate limit chia sẻ nhiều instance, replay protection và audit security
+  (đã có limiter in-memory cho đăng nhập);
 - MQTT identity/ACL;
 - TLS termination và production secret store.
 

@@ -97,4 +97,3 @@ khoảng cách/AUTOMATIC hoặc thay đổi cảm biến chưa nằm trong năm 
 - [Yêu cầu hệ thống](requirement.md)
 - [Database ERD](../03-technical-reference/database-erd.md)
 - [Kiến trúc Backend](../05-backend/architecture.md)
-- [Kế hoạch triển khai Backend](../05-backend/implementation-plan.md)

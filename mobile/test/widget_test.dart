@@ -1,193 +1,130 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:smart_door_mobile/core/api_client.dart';
-import 'package:smart_door_mobile/features/doors/presentation/device_detail_screen.dart';
-import 'package:smart_door_mobile/features/doors/presentation/door_detail_screen.dart';
-import 'package:smart_door_mobile/features/doors/presentation/lifecycle_history_screen.dart';
 import 'package:smart_door_mobile/main.dart';
+import 'package:smart_door_mobile/features/authentication/auth_widgets.dart';
+import 'package:smart_door_mobile/features/authentication/login_screen.dart';
+import 'package:smart_door_mobile/features/authentication/register_screen.dart';
 
-import 'support/fake_door_repository.dart';
+import 'auth_fakes.dart';
 
 void main() {
-  testWidgets('signed-out app asks for login without a demo account', (
+  testWidgets('opens registration and returns to login with glass cards', (
     tester,
   ) async {
-    _phoneSize(tester);
-    await tester.pumpWidget(const SmartDoorApp());
+    final session = testSession();
+    addTearDown(session.dispose);
+    await tester.pumpWidget(SmartDoorApp(session: session));
     await tester.pumpAndSettle();
-    expect(find.text('Vui lòng đăng nhập để quản lý cửa.'), findsOneWidget);
-    expect(find.text('Thêm cửa'), findsNothing);
-    expect(find.text('Thử lại'), findsOneWidget);
+    expect(find.text('SmartLock'), findsOneWidget);
+    expect(find.byType(BackdropFilter), findsNWidgets(2));
+    await tester.ensureVisible(find.widgetWithText(TextButton, 'Đăng ký'));
+    await tester.tap(find.widgetWithText(TextButton, 'Đăng ký'));
+    await tester.pumpAndSettle();
+    expect(find.text('Tạo tài khoản'), findsOneWidget);
+    expect(find.byType(TextFormField), findsNWidgets(4));
+    await tester.ensureVisible(find.widgetWithText(TextButton, 'Đăng nhập'));
+    await tester.tap(find.widgetWithText(TextButton, 'Đăng nhập'));
+    await tester.pumpAndSettle();
+    expect(find.byType(TextFormField), findsNWidgets(2));
   });
 
-  testWidgets('claim validates and normalizes code before loading door', (
+  testWidgets('validates required fields and UTF-8 password limit', (
     tester,
   ) async {
-    _phoneSize(tester);
-    final repository = FakeDoorRepository()..doors = [];
-    await tester.pumpWidget(SmartDoorApp(repository: repository));
+    await tester.pumpWidget(const MaterialApp(home: LoginScreen()));
+    await tester.ensureVisible(find.byType(FilledButton));
+    await tester.tap(find.byType(FilledButton));
     await tester.pumpAndSettle();
-    expect(find.text('Bạn chưa có cửa nào'), findsOneWidget);
-    await tester.tap(find.text('Thêm cửa'));
+    expect(find.text('Vui lòng nhập tên đăng nhập.'), findsOneWidget);
+    expect(find.text('Vui lòng nhập mật khẩu.'), findsOneWidget);
+    await tester.enterText(find.byType(TextFormField).at(0), 'customer');
+    await tester.enterText(find.byType(TextFormField).at(1), 'ấ' * 25);
+    await tester.ensureVisible(find.byType(FilledButton));
+    await tester.tap(find.byType(FilledButton));
     await tester.pumpAndSettle();
-    await tester.enterText(find.byKey(const Key('activationCode')), '123');
-    await tester.tap(find.text('Xác nhận thêm cửa'));
-    await tester.pumpAndSettle();
-    expect(repository.claimedCode, isNull);
-    expect(find.text('Nhập mã gồm 8 ký tự, ví dụ K7MP-4Q2D.'), findsOneWidget);
-    await tester.enterText(
-      find.byKey(const Key('activationCode')),
-      'k7mp-4q2d',
-    );
-    await tester.tap(find.text('Xác nhận thêm cửa'));
-    await tester.pumpAndSettle();
-    expect(repository.claimedCode, 'K7MP4Q2D');
-    expect(find.text('Thông tin cửa'), findsOneWidget);
-    expect(repository.lifecycleCalls, isEmpty);
+    expect(find.text('Mật khẩu tối đa 72 byte UTF-8.'), findsOneWidget);
   });
 
-  testWidgets(
-    'door detail separates node connection and lifecycle, edits door',
-    (tester) async {
-      _phoneSize(tester);
-      final repository = FakeDoorRepository();
-      await tester.pumpWidget(
-        MaterialApp(home: DoorDetailScreen(repository: repository, doorId: 1)),
-      );
-      await tester.pumpAndSettle();
-      expect(find.text('NODE-READER'), findsOneWidget);
-      expect(find.text('NODE-LOCK'), findsOneWidget);
-      expect(find.text('Trực tuyến'), findsOneWidget);
-      expect(find.text('Chưa có heartbeat'), findsOneWidget);
-      expect(find.text('Đã vô hiệu hóa'), findsOneWidget);
-      expect(find.text('Đã đăng ký'), findsOneWidget);
-      await tester.tap(find.byTooltip('Sửa tên và vị trí'));
-      await tester.pumpAndSettle();
-      await tester.enterText(find.byKey(const Key('doorName')), 'Cửa sân');
-      await tester.enterText(find.byKey(const Key('doorLocation')), 'Tầng 1');
-      await tester.tap(find.text('Lưu'));
-      await tester.pumpAndSettle();
-      expect(repository.door.name, 'Cửa sân');
-      expect(repository.door.location, 'Tầng 1');
-      expect(find.text('Cửa sân'), findsNWidgets(2));
-    },
-  );
-
-  testWidgets('ownership error is visible and retry reloads', (tester) async {
-    _phoneSize(tester);
-    final repository = FakeDoorRepository()
-      ..doorError = const ApiException('Không tìm thấy cửa.', statusCode: 404);
-    await tester.pumpWidget(
-      MaterialApp(home: DoorDetailScreen(repository: repository, doorId: 1)),
-    );
-    await tester.pumpAndSettle();
-    expect(find.text('Không tìm thấy cửa.'), findsOneWidget);
-    expect(find.text('Thông tin cửa'), findsNothing);
-    repository.doorError = null;
-    await tester.tap(find.text('Thử lại'));
-    await tester.pumpAndSettle();
-    expect(find.text('Thông tin cửa'), findsOneWidget);
-  });
-
-  testWidgets('activation reports readiness denial and preserves state', (
+  testWidgets('prevents duplicate submit and shows a safe error', (
     tester,
   ) async {
-    _phoneSize(tester);
-    final repository = FakeDoorRepository()
-      ..lifecycleError = const ApiException(
-        'Node chưa xác nhận cấu hình và PIN.',
-        statusCode: 409,
-      );
+    final pending = Completer<void>();
+    var attempts = 0;
     await tester.pumpWidget(
       MaterialApp(
-        home: DeviceDetailScreen(
-          repository: repository,
-          doorId: 1,
-          deviceId: 12,
+        home: LoginScreen(
+          onSubmit: (username, password) {
+            attempts++;
+            expect(username, ' customer ');
+            expect(password, ' unchanged ');
+            return pending.future;
+          },
+        ),
+      ),
+    );
+    await tester.enterText(find.byType(TextFormField).at(0), ' customer ');
+    await tester.enterText(find.byType(TextFormField).at(1), ' unchanged ');
+    await tester.ensureVisible(find.byType(FilledButton));
+    await tester.tap(find.byType(FilledButton));
+    await tester.pump();
+    expect(
+      tester.widget<FilledButton>(find.byType(FilledButton)).onPressed,
+      isNull,
+    );
+    expect(attempts, 1);
+    pending.completeError(
+      const AuthFormException('Thông tin đăng nhập không hợp lệ.'),
+    );
+    await tester.pumpAndSettle();
+    expect(find.text('Thông tin đăng nhập không hợp lệ.'), findsOneWidget);
+  });
+
+  testWidgets('registration rejects mismatched passwords', (tester) async {
+    var submitted = false;
+    await tester.pumpWidget(
+      MaterialApp(
+        home: RegisterScreen(
+          onSubmit: (_, _, _) async {
+            submitted = true;
+          },
+        ),
+      ),
+    );
+    final fields = find.byType(TextFormField);
+    await tester.enterText(fields.at(0), 'Khách hàng');
+    await tester.enterText(fields.at(1), 'customer');
+    await tester.enterText(fields.at(2), 'password-one');
+    await tester.enterText(fields.at(3), 'password-two');
+    await tester.ensureVisible(find.byType(FilledButton));
+    await tester.tap(find.byType(FilledButton));
+    await tester.pumpAndSettle();
+    expect(find.text('Mật khẩu xác nhận chưa khớp.'), findsOneWidget);
+    expect(submitted, isFalse);
+  });
+
+  testWidgets('supports narrow screens large text and keyboard', (
+    tester,
+  ) async {
+    tester.view.physicalSize = const Size(320, 640);
+    tester.view.devicePixelRatio = 1;
+    addTearDown(tester.view.resetPhysicalSize);
+    addTearDown(tester.view.resetDevicePixelRatio);
+    await tester.pumpWidget(
+      const MaterialApp(
+        home: MediaQuery(
+          data: MediaQueryData(
+            size: Size(320, 640),
+            textScaler: TextScaler.linear(1.6),
+            viewInsets: EdgeInsets.only(bottom: 260),
+          ),
+          child: RegisterScreen(),
         ),
       ),
     );
     await tester.pumpAndSettle();
-    expect(find.text('Ngừng sử dụng thiết bị'), findsNothing);
-    await tester.ensureVisible(find.text('Kích hoạt thiết bị'));
-    await tester.tap(find.text('Kích hoạt thiết bị'));
-    await tester.pumpAndSettle();
-    await tester.tap(find.text('Xác nhận'));
-    await tester.pumpAndSettle();
-    expect(repository.lifecycleCalls.single, 'ACTIVATE');
-    expect(find.text('Node chưa xác nhận cấu hình và PIN.'), findsOneWidget);
-    expect(repository.devices.last.lifecycleStatus, 'PROVISIONED');
-    expect(find.text('Hủy'), findsOneWidget);
+    await tester.ensureVisible(find.byType(FilledButton));
+    expect(tester.takeException(), isNull);
   });
-
-  testWidgets('retirement needs reason and is irreversible in UI', (
-    tester,
-  ) async {
-    _phoneSize(tester);
-    final repository = FakeDoorRepository();
-    await tester.pumpWidget(
-      MaterialApp(
-        home: DeviceDetailScreen(
-          repository: repository,
-          doorId: 1,
-          deviceId: 11,
-        ),
-      ),
-    );
-    await tester.pumpAndSettle();
-    await tester.ensureVisible(find.text('Ngừng sử dụng thiết bị'));
-    await tester.tap(find.text('Ngừng sử dụng thiết bị'));
-    await tester.pumpAndSettle();
-    expect(repository.lifecycleCalls, isEmpty);
-    await tester.tap(find.text('Xác nhận'));
-    await tester.pumpAndSettle();
-    expect(find.text('Vui lòng nhập lý do.'), findsOneWidget);
-    await tester.enterText(
-      find.byKey(const Key('lifecycleReason')),
-      'Thiết bị hỏng',
-    );
-    await tester.tap(find.text('Xác nhận'));
-    await tester.pumpAndSettle();
-    expect(repository.lifecycleCalls.single, 'RETIRE');
-    expect(repository.devices.first.lifecycleStatus, 'RETIRED');
-    expect(find.text('Kích hoạt lại thiết bị'), findsNothing);
-    expect(find.text('Ngừng sử dụng thiết bị'), findsNothing);
-  });
-
-  testWidgets('history appends pages and filter resets pagination', (
-    tester,
-  ) async {
-    _phoneSize(tester);
-    final repository = FakeDoorRepository();
-    await tester.pumpWidget(
-      MaterialApp(
-        home: LifecycleHistoryScreen(
-          repository: repository,
-          doorId: 1,
-          devices: repository.devices,
-        ),
-      ),
-    );
-    await tester.pumpAndSettle();
-    expect(repository.historyRequests, [(page: 0, deviceId: null)]);
-    await tester.ensureVisible(find.text('Xem thêm lịch sử'));
-    await tester.tap(find.text('Xem thêm lịch sử'));
-    await tester.pumpAndSettle();
-    expect(repository.historyRequests.last, (page: 1, deviceId: null));
-    expect(find.text('Lý do: Sự kiện 0'), findsOneWidget);
-    expect(find.text('Lý do: Sự kiện 1'), findsOneWidget);
-    await tester.tap(find.byKey(const Key('historyDeviceFilter')));
-    await tester.pumpAndSettle();
-    await tester.tap(find.text('NODE-READER').last);
-    await tester.pumpAndSettle();
-    expect(repository.historyRequests.last, (page: 0, deviceId: 11));
-    expect(find.text('Lý do: Sự kiện 1'), findsNothing);
-  });
-}
-
-void _phoneSize(WidgetTester tester) {
-  tester.view.devicePixelRatio = 1;
-  tester.view.physicalSize = const Size(600, 1100);
-  addTearDown(tester.view.resetPhysicalSize);
-  addTearDown(tester.view.resetDevicePixelRatio);
 }

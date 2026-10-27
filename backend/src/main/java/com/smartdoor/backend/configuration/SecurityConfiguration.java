@@ -38,7 +38,8 @@ public class SecurityConfiguration {
 	@Profile("!provision")
 	SecurityFilterChain securityFilterChain(HttpSecurity http,
 			RestAuthenticationEntryPoint authenticationEntryPoint,
-			RestAccessDeniedHandler accessDeniedHandler) throws Exception {
+			RestAccessDeniedHandler accessDeniedHandler,
+			com.smartdoor.backend.identity.service.AccountJwtAuthenticationConverter jwtConverter) throws Exception {
 		return http
 				.csrf(AbstractHttpConfigurer::disable)
 				.cors(Customizer.withDefaults())
@@ -46,12 +47,18 @@ public class SecurityConfiguration {
 				.formLogin(AbstractHttpConfigurer::disable)
 				.logout(AbstractHttpConfigurer::disable)
 				.requestCache(AbstractHttpConfigurer::disable)
+				.oauth2ResourceServer(resource -> resource
+						.jwt(jwt -> jwt.jwtAuthenticationConverter(jwtConverter))
+						.authenticationEntryPoint(authenticationEntryPoint)
+						.accessDeniedHandler(accessDeniedHandler))
 				.sessionManagement(session -> session.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
 				.exceptionHandling(exceptions -> exceptions
 						.authenticationEntryPoint(authenticationEntryPoint)
 						.accessDeniedHandler(accessDeniedHandler))
 				.authorizeHttpRequests(authorize -> authorize
 						.requestMatchers(HttpMethod.OPTIONS, "/**").permitAll()
+						.requestMatchers(HttpMethod.POST, "/api/v1/auth/login").permitAll()
+						.requestMatchers(HttpMethod.POST, "/api/v1/auth/register").permitAll()
 						.requestMatchers(PUBLIC_HEALTH_ENDPOINTS).permitAll()
 						.anyRequest().authenticated())
 				.build();

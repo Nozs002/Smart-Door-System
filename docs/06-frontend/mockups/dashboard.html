@@ -30,8 +30,10 @@
 
         <!-- Top header -->
         <div class="flex justify-between items-center">
-          <img src="https://i.pravatar.cc/100?img=5" alt="Profile"
-            style="width: 44px; height: 44px; border-radius: 50%; border: 2px solid #fff; object-fit: cover;" />
+          <a href="profile.html" class="profile-avatar-link" aria-label="Xem hồ sơ tài khoản">
+            <img src="https://i.pravatar.cc/100?img=5" alt=""
+              width="44" height="44" />
+          </a>
           <div style="display: flex; align-items: center; gap: 10px;">
             <button title="Thông báo"
               style="width: 44px; height: 44px; border-radius: 50%; background: #fff; border: none; display: flex; justify-content: center; align-items: center; cursor: pointer; box-shadow: 0 4px 12px rgba(0,0,0,0.05);">
@@ -62,6 +64,18 @@
         <!-- Door Overview -->
         <section class="door-section">
           <h2 class="door-section-title">Tổng quan cửa</h2>
+          <div class="door-picker">
+            <div class="door-picker-heading">
+              <label for="door-select">Cửa của bạn</label>
+              <span>3 cửa · Dữ liệu mẫu</span>
+            </div>
+            <select id="door-select">
+              <option value="main">Cửa chính</option>
+              <option value="back">Cửa sau</option>
+              <option value="garage">Cửa gara</option>
+            </select>
+            <p id="door-selection-note" aria-live="polite">Đang xem và điều khiển: Cửa chính</p>
+          </div>
 
           <div id="door-card" class="door-card-modern locked" data-commanded-lock-state="LOCKED">
           <img src="OIP.webp" alt="Lock" class="door-img" />
@@ -89,13 +103,6 @@
               <span class="door-stat-value">65%</span>
             </div>
           </div>
-          </div>
-
-          <!-- Pagination dots (aesthetic) -->
-          <div style="display: flex; justify-content: center; gap: 6px; margin-top: -10px;">
-            <div style="width: 16px; height: 4px; border-radius: 2px; background: var(--text);"></div>
-            <div style="width: 4px; height: 4px; border-radius: 2px; background: var(--muted2);"></div>
-            <div style="width: 4px; height: 4px; border-radius: 2px; background: var(--muted2);"></div>
           </div>
 
           <!-- Preset Pill -->
@@ -213,69 +220,53 @@
           </div>
         </section>
 
-        <!-- System Controls -->
-        <section class="door-section">
-          <h2 class="door-section-title">Điều khiển hệ thống</h2>
-
-          <div class="grid-2">
-          <!-- Security Mode Card -->
-          <div class="square-card" style="background: rgba(255,255,255,0.7); backdrop-filter: blur(10px);">
-            <div class="flex justify-between items-start">
-              <div class="square-card-icon" style="background: #fff; box-shadow: 0 2px 8px rgba(0,0,0,0.05);">
-                <svg id="security-icon" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#111"
-                  stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                  <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"></path>
-                </svg>
+        <!-- Configuration and quick controls for the selected door -->
+        <section class="door-section" aria-labelledby="door-controls-title">
+          <div class="door-config-heading">
+            <h2 id="door-controls-title" class="door-section-title">Cấu hình cửa</h2>
+            <span id="config-door-name" class="door-context-badge">Cửa chính</span>
+          </div>
+          <div class="door-config-panel">
+            <div class="door-quick-row">
+              <span class="door-config-symbol" aria-hidden="true">
+                <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z" /></svg>
+              </span>
+              <div class="door-quick-copy">
+                <h3 id="quick-security-label">Chế độ bảo mật</h3>
+                <p id="quick-security-description">Đang bật · Yêu cầu xác thực</p>
               </div>
-              <button id="security-toggle" class="toggle-btn on"
-                style="transform: scale(0.85); transform-origin: top right;">
-                <div class="knob"></div>
-              </button>
+              <button id="quick-security-toggle" class="toggle-btn on" type="button" role="switch" aria-checked="true" aria-labelledby="quick-security-label" aria-describedby="quick-security-description"><span class="knob"></span></button>
             </div>
-            <div>
-              <div id="security-title" class="square-card-title">Chế độ bảo mật</div>
-              <div id="security-subtitle" class="square-card-subtitle">Chỉ người có khóa</div>
-            </div>
-          </div>
-
-          <!-- Climate Control Card -->
-          <div class="square-card" style="background: rgba(255,255,255,0.7); backdrop-filter: blur(10px);">
-            <div class="flex justify-between items-start">
-              <div class="square-card-icon" style="background: #fff; box-shadow: 0 2px 8px rgba(0,0,0,0.05);">
-                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#111" stroke-width="2"
-                  stroke-linecap="round" stroke-linejoin="round">
-                  <path d="M14 14.76V3.5a2.5 2.5 0 0 0-5 0v11.26a4.5 4.5 0 1 0 5 0z"></path>
-                </svg>
+            <div class="door-quick-row">
+              <span class="door-config-symbol" aria-hidden="true">
+                <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><path d="M12 3c1 5 6 6 6 12a6 6 0 0 1-12 0c0-3 2-5 3-6 0 3 2 4 2 4s3-4 1-10Z" /></svg>
+              </span>
+              <div class="door-quick-copy">
+                <h3 id="quick-fire-label">Báo cháy</h3>
+                <p id="quick-fire-description">Đang bật · Ngưỡng 55°C</p>
               </div>
-              <button class="toggle-btn on" style="transform: scale(0.85); transform-origin: top right;">
-                <div class="knob"></div>
-              </button>
+              <button id="quick-fire-toggle" class="toggle-btn on" type="button" role="switch" aria-checked="true" aria-labelledby="quick-fire-label" aria-describedby="quick-fire-description"><span class="knob"></span></button>
             </div>
-            <div>
-              <div class="square-card-title">Điều hòa</div>
-              <div class="square-card-subtitle">22°C</div>
+            <div class="door-quick-row">
+              <span class="door-config-symbol" aria-hidden="true">
+                <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M4 21h16M6 21V3h12v18M14 12h.01" /></svg>
+              </span>
+              <div class="door-quick-copy">
+                <h3 id="quick-open-label">Cảnh báo cửa mở quá lâu</h3>
+                <p id="quick-open-description">Đang bật · Quá 30 giây</p>
+              </div>
+              <button id="quick-open-toggle" class="toggle-btn on" type="button" role="switch" aria-checked="true" aria-labelledby="quick-open-label" aria-describedby="quick-open-description"><span class="knob"></span></button>
             </div>
+            <dl class="door-config-values">
+              <div><dt>Giới hạn xác thực sai</dt><dd id="config-attempts">3 lần</dd></div>
+              <div><dt>Thời gian khóa tạm</dt><dd id="config-lockout">60 giây</dd></div>
+            </dl>
+            <a id="door-settings-link" class="door-config-link" href="settings.html?door=main">
+              <span>Cài đặt cửa</span>
+              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="m9 6 6 6-6 6" /></svg>
+            </a>
+            <p id="door-quick-status" class="door-config-note" role="status">Áp dụng riêng cho cửa đang chọn · Dữ liệu mô phỏng</p>
           </div>
-
-          <!-- Settings Card -->
-          <div class="square-card"
-            style="background: rgba(255,255,255,0.7); backdrop-filter: blur(10px); cursor: pointer;"
-            onclick="window.location.href='settings.html'">
-            <div class="square-card-icon" style="background: #fff; box-shadow: 0 2px 8px rgba(0,0,0,0.05);">
-              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#111" stroke-width="2"
-                stroke-linecap="round" stroke-linejoin="round">
-                <circle cx="12" cy="12" r="3"></circle>
-                <path
-                  d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z">
-                </path>
-              </svg>
-            </div>
-            <div style="margin-top: auto; padding-top: 24px;">
-              <div class="square-card-title">Cài đặt</div>
-              <div class="square-card-subtitle">Hệ thống</div>
-            </div>
-          </div>
-        </div>
         </section>
 
         <button id="unlock-btn" style="display:none;"></button>

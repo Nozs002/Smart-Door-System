@@ -4,7 +4,7 @@ type: reference
 version: 1.0
 lang: vi
 tags: [backend, architecture, spring-boot, security, observability]
-updated: 2026-10-13
+updated: 2026-10-14
 ---
 
 # Kiến trúc Backend
@@ -21,7 +21,9 @@ Tài liệu này định nghĩa kiến trúc mục tiêu cho Backend Smart Door 
 
 Source hiện tại có nền tảng Spring Boot với Java 21, Spring Boot 4.1.1, JPA,
 Flyway, Security, Validation, Actuator, MySQL/H2 và entity/repository 12 bảng.
-Service/controller nghiệp vụ chưa triển khai. Các thành phần
+Đã bổ sung service/controller đăng nhập và JWT, đã qua Maven verify ngày 14/10/2026;
+đã bổ sung đăng ký/hồ sơ Account nhưng thay đổi mới chưa chạy Maven;
+các nghiệp vụ khác chưa triển khai. Các thành phần
 trong tài liệu này là **kiến trúc mục tiêu**, không phải tất cả đã được triển
 khai. REST API và MQTT contract vẫn đang là placeholder nên tài liệu không tự
 định nghĩa endpoint, topic hoặc payload cụ thể.
@@ -107,7 +109,9 @@ Nhóm thống nhất cấu trúc theo module với Controller–Service–Reposi
 một JPA entity cho mỗi bảng. Chưa tách domain model và JPA entity thành hai
 class. Khung package đã tạo bằng package-info.java; 12 entity và repository
 đã thêm theo schema v2, xem [mapping JPA](entity-repository-mapping.md).
-Controller/service nghiệp vụ và endpoint hoạt động chưa triển khai.
+Đã bổ sung controller/service/DTO đăng nhập, đăng ký và hồ sơ trong identity;
+các module nghiệp vụ khác còn là khung. Xem [đăng nhập Backend](account-login.md)
+và [đăng ký/hồ sơ](account-registration-profile.md).
 
 ```text
 com.smartdoor.backend
@@ -259,8 +263,11 @@ trong profile.
 
 ## 9. Dữ liệu và transaction
 
-- Flyway là nguồn migration của Backend. Cần chuyển schema bootstrap hiện tại
-  sang migration có version trước khi phát triển entity.
+- Mục tiêu: Flyway là nguồn migration của Backend. Hiện đã có 12 entity/repository
+  theo schema bootstrap v2 nhưng chưa có migration trong Backend. Local/prod
+  cần schema v2 khởi tạo từ hạ tầng để Hibernate validate; cần chuyển schema
+  bootstrap sang migration có version và kiểm chứng quy trình baseline/nâng cấp
+  trước khi dùng Flyway để quản lý thay đổi schema.
 - Production đặt Hibernate schema management ở chế độ `validate`.
 - Migration đã phát hành không được sửa; bổ sung migration mới và có kế hoạch
   rollback/forward-fix.
@@ -327,9 +334,12 @@ database quan trọng phải chạy với MySQL tương thích production.
 
 Các mục sau phải có quyết định kỹ thuật hoặc contract được review trước khi code:
 
-1. OpenAPI: base path, endpoint, DTO, pagination và error code.
+1. OpenAPI tổng thể, endpoint ngoài identity, pagination và error code;
+   đã chốt [đăng nhập](../../contracts/api/login.md) và
+   [đăng ký/hồ sơ](../../contracts/api/accounts.md).
 2. MQTT: topic, ACL, QoS, retained flag, payload và versioning.
-3. JWT: thuật toán/khoá, issuer/audience, access/refresh lifecycle và revoke.
+3. JWT mở rộng: refresh/revoke và rotation nhiều khóa. Bước đăng nhập đã chốt
+   HS256, issuer/audience từ cấu hình, access token 15 phút, không refresh.
 4. Mã hóa trường: threat model và phạm vi UID RFID/PII.
 5. Delivery command: outbox, retry, timeout và acknowledgment cho mở khóa.
 6. Runtime: nơi kết thúc TLS, metrics backend, log collector và secret store.
@@ -339,7 +349,6 @@ Các mục sau phải có quyết định kỹ thuật hoặc contract được 
 
 ## 14. Tài liệu liên quan
 
-- [Kế hoạch triển khai Backend](implementation-plan.md)
 - [Cấu trúc xử lý lỗi Backend](error-handling.md)
 - [Cấu trúc phản hồi REST API](api-response.md)
 - [Cấu hình môi trường Backend](environment-configuration.md)
