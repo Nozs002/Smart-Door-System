@@ -2,10 +2,29 @@
 title: Khởi tạo và chuyển đổi database
 type: technical-reference
 lang: vi
-updated: 2026-10-16
+updated: 2026-10-28
 ---
 
 # Khởi tạo và chuyển đổi database
+
+Hiện tại Backend nâng cấp đến **Flyway V6**. V3 thêm phiên bản credentials và
+event ID cảnh báo; V4 thêm phiên đăng nhập/thu hồi token; V5 thêm outbox và
+inbox; V6 thêm danh tính MQTT và receipt chống replay. Xem
+[bảng thay đổi và quy trình test](../05-backend/person1-person4-completion.md).
+
+Với database của dự án đã ở V1/V2/V3, giữ volume, sao lưu rồi chạy Backend mới:
+
+```powershell
+python scripts/db-check.py --backup
+python scripts/setup-mqtt.py init
+docker compose up -d --build
+python scripts/db-check.py --expect-version 6
+```
+
+Không sửa checksum các migration đã áp dụng, không xóa volume để nâng cấp.
+Các hướng dẫn fixture/legacy phía dưới mô tả bootstrap cũ; sau bootstrap
+Backend vẫn cần áp dụng V2–V6. Cổng MySQL từ Windows lấy theo `MYSQL_HOST_PORT`
+trong `.env` (3307 trên máy phát triển hiện tại); trong Docker vẫn là 3306.
 
 Schema mới dành cho MySQL 8.4. Xem [giải thích từng bảng](database-erd.md).
 Thời gian SQL, Backend và session phải dùng UTC; chuyển múi giờ khi hiển thị.

@@ -42,8 +42,14 @@ cấp. Dữ liệu mẫu chỉ dành cho local/demo, không dùng cho production
 Sau khi tạo file `.env` từ `.env.example`, khởi động các dịch vụ:
 
 ```powershell
+python scripts/setup-mqtt.py init
 docker compose up -d
 ```
+
+Khi vừa cập nhật code Backend, dùng `docker compose up -d --build` để chạy bản mới.
+Broker yêu cầu file mật khẩu/ACL do lệnh `setup-mqtt.py init` chuẩn bị. Xem
+[bàn giao Người 1, Người 4 và cách kiểm thử](docs/05-backend/person1-person4-completion.md)
+cho migration V4–V6, giao diện thẻ/PIN, cấu hình, cảnh báo và bộ giả lập Node.
 
 Mở phpMyAdmin tại <http://localhost:8081> và đăng nhập bằng:
 
