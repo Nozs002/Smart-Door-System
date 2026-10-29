@@ -19,17 +19,42 @@ class AlertDetailScreen extends StatefulWidget {
 class _AlertDetailScreenState extends State<AlertDetailScreen> {
   late AlertView _alert = widget.alert;
   bool _working = false;
+  bool _loading = false;
+
+  @override
+  void initState() {
+    super.initState();
+    _refresh();
+  }
+
+  Future<void> _refresh() async {
+    if (_working || _loading) return;
+    setState(() => _loading = true);
+    try {
+      final value = await widget.repository.getAlert(_alert.id);
+      if (mounted) setState(() => _alert = value);
+    } catch (error) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Không thể tải trạng thái mới nhất: $error')),
+        );
+      }
+    } finally {
+      if (mounted) setState(() => _loading = false);
+    }
+  }
 
   Future<void> _change(String status) async {
+    if (_working || _loading) return;
     setState(() => _working = true);
     try {
       final value = await widget.repository.changeStatus(_alert.id, status);
       if (mounted) setState(() => _alert = value);
     } catch (error) {
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Không thể cập nhật: $error')),
-        );
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(SnackBar(content: Text('Không thể cập nhật: $error')));
       }
     } finally {
       if (mounted) setState(() => _working = false);
@@ -38,10 +63,20 @@ class _AlertDetailScreenState extends State<AlertDetailScreen> {
 
   @override
   Widget build(BuildContext context) => Scaffold(
-    appBar: AppBar(title: const Text('Chi tiết cảnh báo')),
+    appBar: AppBar(
+      title: const Text('Chi tiết cảnh báo'),
+      actions: [
+        IconButton(
+          tooltip: 'Làm mới cảnh báo',
+          onPressed: _loading || _working ? null : _refresh,
+          icon: const Icon(Icons.refresh),
+        ),
+      ],
+    ),
     body: ListView(
       padding: const EdgeInsets.all(16),
       children: [
+        if (_loading) const LinearProgressIndicator(),
         Card(
           child: Padding(
             padding: const EdgeInsets.all(20),
@@ -53,7 +88,9 @@ class _AlertDetailScreenState extends State<AlertDetailScreen> {
                       ? Icons.local_fire_department
                       : Icons.warning_amber_rounded,
                   size: 52,
-                  color: _alert.severity == 'CRITICAL' ? Colors.red : Colors.orange,
+                  color: _alert.severity == 'CRITICAL'
+                      ? Colors.red
+                      : Colors.orange,
                 ),
                 const SizedBox(height: 12),
                 Text(
@@ -79,14 +116,16 @@ class _AlertDetailScreenState extends State<AlertDetailScreen> {
         const SizedBox(height: 16),
         if (_alert.status == 'ACTIVE')
           OutlinedButton.icon(
-            onPressed: _working ? null : () => _change('ACKNOWLEDGED'),
+            onPressed: _working || _loading
+                ? null
+                : () => _change('ACKNOWLEDGED'),
             icon: const Icon(Icons.visibility_outlined),
             label: const Text('Đánh dấu đã xem'),
           ),
         if (_alert.status != 'RESOLVED') ...[
           const SizedBox(height: 10),
           FilledButton.icon(
-            onPressed: _working ? null : () => _change('RESOLVED'),
+            onPressed: _working || _loading ? null : () => _change('RESOLVED'),
             icon: const Icon(Icons.task_alt),
             label: const Text('Đánh dấu đã giải quyết'),
           ),

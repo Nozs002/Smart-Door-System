@@ -139,6 +139,8 @@ void main() {
       300,
       scrollable: find.byType(Scrollable).first,
     );
+    await tester.ensureVisible(find.text('Trạng thái thiết bị'));
+    await tester.pumpAndSettle();
     await tester.tap(find.text('Trạng thái thiết bị'));
     await tester.pumpAndSettle();
     await tester.scrollUntilVisible(

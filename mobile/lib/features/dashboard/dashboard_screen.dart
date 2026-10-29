@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 
 import 'door_overview_card.dart';
@@ -16,6 +18,12 @@ import '../settings/data/settings_repository.dart';
 import '../settings/presentation/door_settings_screen.dart';
 import '../alerts/data/alert_repository.dart';
 import '../alerts/presentation/alert_list_screen.dart';
+import '../credentials/data/credential_repository.dart';
+import '../credentials/presentation/cardholder_screen.dart';
+import '../credentials/presentation/rfid_screen.dart';
+import '../credentials/presentation/pin_screen.dart';
+import '../notifications/data/notification_repository.dart';
+import '../notifications/presentation/notification_screen.dart';
 
 class DashboardScreen extends StatefulWidget {
   const DashboardScreen({
@@ -25,17 +33,22 @@ class DashboardScreen extends StatefulWidget {
     required this.onToggleTheme,
     this.settingsRepository,
     this.alertRepository,
+    this.credentialRepository,
+    this.notificationRepository,
   });
   final AuthSession session;
   final DoorRepository repository;
   final SettingsRepository? settingsRepository;
   final AlertRepository? alertRepository;
+  final CredentialRepository? credentialRepository;
+  final NotificationRepository? notificationRepository;
   final VoidCallback onToggleTheme;
   @override
   State<DashboardScreen> createState() => _DashboardScreenState();
 }
 
-class _DashboardScreenState extends State<DashboardScreen> {
+class _DashboardScreenState extends State<DashboardScreen>
+    with WidgetsBindingObserver {
   List<DoorView> _doors = [];
   List<DeviceView> _devices = [];
   int? _selectedId;
@@ -46,13 +59,60 @@ class _DashboardScreenState extends State<DashboardScreen> {
   DoorConfiguration? _configurationValue;
   Object? _configurationError;
   int _request = 0;
+  int _unreadCount = 0;
+  bool _loadingUnread = false;
+  Timer? _notificationTimer;
   DoorView? get _selected =>
       _doors.where((d) => d.id == _selectedId).firstOrNull;
 
   @override
   void initState() {
     super.initState();
+    WidgetsBinding.instance.addObserver(this);
     _load();
+    _startNotifications();
+  }
+
+  @override
+  void dispose() {
+    WidgetsBinding.instance.removeObserver(this);
+    _notificationTimer?.cancel();
+    super.dispose();
+  }
+
+  @override
+  void didChangeAppLifecycleState(AppLifecycleState state) {
+    if (state == AppLifecycleState.resumed) {
+      _startNotifications();
+    } else {
+      _notificationTimer?.cancel();
+    }
+  }
+
+  void _startNotifications() {
+    _notificationTimer?.cancel();
+    if (widget.notificationRepository == null) return;
+    _loadUnread();
+    _notificationTimer = Timer.periodic(
+      const Duration(seconds: 30),
+      (_) => _loadUnread(),
+    );
+  }
+
+  Future<void> _loadUnread() async {
+    final repository = widget.notificationRepository;
+    if (repository == null || _loadingUnread || !widget.session.signedIn) {
+      return;
+    }
+    _loadingUnread = true;
+    try {
+      final result = await repository.list(unread: true);
+      if (mounted) setState(() => _unreadCount = result.totalElements);
+    } catch (_) {
+      // Keep the last known badge during network failure; opening the inbox shows retry/error.
+    } finally {
+      _loadingUnread = false;
+    }
   }
 
   Future<void> _load() async {
@@ -136,13 +196,22 @@ class _DashboardScreenState extends State<DashboardScreen> {
   }
 
   Future<void> _manage() => _open(
-    DoorListScreen(repository: widget.repository, onSignInRequested: _signIn),
+    DoorListScreen(
+      repository: widget.repository,
+      onSignInRequested: _signIn,
+      credentialRepository: widget.credentialRepository,
+      settingsRepository: widget.settingsRepository,
+      alertRepository: widget.alertRepository,
+    ),
   );
   Future<void> _detail() => _open(
     DoorDetailScreen(
       repository: widget.repository,
       doorId: _selectedId!,
       onSignInRequested: _signIn,
+      credentialRepository: widget.credentialRepository,
+      settingsRepository: widget.settingsRepository,
+      alertRepository: widget.alertRepository,
     ),
   );
 
@@ -169,6 +238,48 @@ class _DashboardScreenState extends State<DashboardScreen> {
       onSignInRequested: _signIn,
     ),
   );
+
+  Future<void> _notifications() async {
+    await _open(
+      NotificationScreen(
+        repository: widget.notificationRepository!,
+        alerts: widget.alertRepository!,
+        onSignInRequested: _signIn,
+      ),
+    );
+    await _loadUnread();
+  }
+
+  Future<void> _cardholders() => widget.credentialRepository == null
+      ? Future<void>.sync(() => _unavailable('Người giữ thẻ'))
+      : _open(
+          CardholderScreen(
+            repository: widget.credentialRepository!,
+            onSignInRequested: _signIn,
+          ),
+        );
+
+  Future<void> _rfid() => widget.credentialRepository == null
+      ? Future<void>.sync(() => _unavailable('Thẻ từ'))
+      : _open(
+          RfidScreen(
+            repository: widget.credentialRepository!,
+            doorId: _selectedId!,
+            doorName: _selected!.name,
+            onSignInRequested: _signIn,
+          ),
+        );
+
+  Future<void> _pin() => widget.credentialRepository == null
+      ? Future<void>.sync(() => _unavailable('Mã PIN'))
+      : _open(
+          DoorPinScreen(
+            repository: widget.credentialRepository!,
+            doorId: _selectedId!,
+            doorName: _selected!.name,
+            onSignInRequested: _signIn,
+          ),
+        );
 
   void _unavailable(String title) {
     showModalBottomSheet<void>(
@@ -397,7 +508,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
                   backgroundColor: Theme.of(context).colorScheme.onSurface,
                   foregroundColor: Theme.of(context).colorScheme.surface,
                 ),
-                onPressed: () => _unavailable('Người truy cập'),
+                onPressed: _cardholders,
                 icon: const Icon(Icons.add, size: 20),
               ),
             ],
@@ -414,21 +525,27 @@ class _DashboardScreenState extends State<DashboardScreen> {
           final items = [
             DashboardFeatureCard(
               title: 'Thẻ từ',
-              subtitle: 'Chưa khả dụng',
+              subtitle: widget.credentialRepository == null
+                  ? 'Chưa khả dụng'
+                  : 'Cấp/thu hồi theo cửa',
               icon: Icons.credit_card_outlined,
-              onTap: () => _unavailable('Thẻ từ'),
+              onTap: _rfid,
             ),
             DashboardFeatureCard(
               title: 'Mã PIN',
-              subtitle: 'Chưa khả dụng',
+              subtitle: widget.credentialRepository == null
+                  ? 'Chưa khả dụng'
+                  : 'PIN chung của cửa',
               icon: Icons.dialpad_outlined,
-              onTap: () => _unavailable('Mã PIN'),
+              onTap: _pin,
             ),
             DashboardFeatureCard(
               title: 'Người giữ thẻ',
-              subtitle: 'Chưa khả dụng',
+              subtitle: widget.credentialRepository == null
+                  ? 'Chưa khả dụng'
+                  : 'Quản lý hồ sơ',
               icon: Icons.people_outline,
-              onTap: () => _unavailable('Người giữ thẻ'),
+              onTap: _cardholders,
             ),
             DashboardFeatureCard(
               title: 'Lịch sử thiết bị',
@@ -503,10 +620,10 @@ class _DashboardScreenState extends State<DashboardScreen> {
           _configurationError != null
               ? 'Không tải được cấu hình. Chạm Cài đặt cửa để thử lại.'
               : _configurationValue == null
-                  ? 'Đang tải cấu hình riêng của cửa đang chọn…'
-                  : 'Phiên bản ${_configurationValue!.version} · '
-                      '${_configurationValue!.devices.where((d) => d.configState == 'SYNCED').length}/'
-                      '${_configurationValue!.devices.length} thiết bị đã xác nhận.',
+              ? 'Đang tải cấu hình riêng của cửa đang chọn…'
+              : 'Phiên bản ${_configurationValue!.version} · '
+                    '${_configurationValue!.devices.where((d) => d.configState == 'SYNCED').length}/'
+                    '${_configurationValue!.devices.length} thiết bị đã xác nhận.',
           style: Theme.of(context).textTheme.bodySmall,
         ),
       ],
@@ -618,16 +735,28 @@ class _DashboardScreenState extends State<DashboardScreen> {
                               ProfileScreen(
                                 session: widget.session,
                                 doorRepository: widget.repository,
+                                credentialRepository:
+                                    widget.credentialRepository,
+                                settingsRepository: widget.settingsRepository,
+                                alertRepository: widget.alertRepository,
                               ),
                             ),
                           ),
                           const Spacer(),
-                          DashboardRoundAction(
-                            label: 'Thông báo',
-                            icon: Icons.notifications_none_rounded,
-                            onPressed: widget.alertRepository == null
-                                ? () => _unavailable('Thông báo')
-                                : _alerts,
+                          Badge(
+                            isLabelVisible: _unreadCount > 0,
+                            label: Text(
+                              _unreadCount > 99 ? '99+' : '$_unreadCount',
+                            ),
+                            child: DashboardRoundAction(
+                              label: 'Thông báo',
+                              icon: Icons.notifications_none_rounded,
+                              onPressed: widget.alertRepository == null
+                                  ? () => _unavailable('Thông báo')
+                                  : widget.notificationRepository == null
+                                  ? _alerts
+                                  : _notifications,
+                            ),
                           ),
                           const SizedBox(width: 10),
                           DashboardRoundAction(

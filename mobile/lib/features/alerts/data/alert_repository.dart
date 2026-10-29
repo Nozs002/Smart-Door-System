@@ -23,16 +23,15 @@ class RestAlertRepository implements AlertRepository {
     String? status,
   }) async => PageResult.fromJson(
     await client.request(
-          'GET',
-          '/api/v1/alerts',
-          query: {
-            'page': '$page',
-            'size': '20',
-            if (doorId != null) 'doorId': '$doorId',
-            if (status != null) 'status': status,
-          },
-        )
-        as Map<String, dynamic>,
+      'GET',
+      '/api/v1/alerts',
+      query: {
+        'page': '$page',
+        'size': '20',
+        'doorId': ?doorId?.toString(),
+        'status': ?status,
+      },
+    ) as Map<String, dynamic>,
     AlertView.fromJson,
   );
 
@@ -46,10 +45,9 @@ class RestAlertRepository implements AlertRepository {
   Future<AlertView> changeStatus(int alertId, String status) async =>
       AlertView.fromJson(
         await client.request(
-              'PATCH',
-              '/api/v1/alerts/$alertId/status',
-              body: {'status': status},
-            )
-            as Map<String, dynamic>,
+          'PATCH',
+          '/api/v1/alerts/$alertId/status',
+          body: {'status': status},
+        ) as Map<String, dynamic>,
       );
 }

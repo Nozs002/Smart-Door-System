@@ -25,12 +25,14 @@ class ApiClient {
     String baseUrl = ApiConfig.baseUrl,
     HttpClient? httpClient,
     this.timeout = const Duration(seconds: 20),
+    this.onUnauthorized,
   }) : baseUri = Uri.parse(baseUrl),
        _httpClient = httpClient ?? HttpClient();
 
   final AccessTokenProvider tokenProvider;
   final Uri baseUri;
   final Duration timeout;
+  final Future<void> Function()? onUnauthorized;
   final HttpClient _httpClient;
 
   Future<dynamic> request(
@@ -59,11 +61,20 @@ class ApiClient {
       }
       final response = await request.close().timeout(timeout);
       final content = await utf8.decoder.bind(response).join().timeout(timeout);
+      if (response.statusCode == 401 &&
+          await tokenProvider.accessToken() == token) {
+        await onUnauthorized?.call();
+      }
       dynamic decoded;
       try {
         decoded = content.isEmpty ? null : jsonDecode(content);
       } on FormatException {
-        throw const ApiException('Máy chủ trả về dữ liệu không hợp lệ.');
+        throw ApiException(
+          response.statusCode == 401
+              ? 'Phiên đăng nhập đã hết hạn. Vui lòng đăng nhập lại.'
+              : 'Máy chủ trả về dữ liệu không hợp lệ.',
+          statusCode: response.statusCode,
+        );
       }
       if (response.statusCode < 200 || response.statusCode >= 300) {
         final problem = decoded is Map<String, dynamic> ? decoded : null;

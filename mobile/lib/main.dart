@@ -10,6 +10,8 @@ import 'features/dashboard/dashboard_screen.dart';
 import 'core/theme/app_theme.dart';
 import 'features/settings/data/settings_repository.dart';
 import 'features/alerts/data/alert_repository.dart';
+import 'features/credentials/data/credential_repository.dart';
+import 'features/notifications/data/notification_repository.dart';
 
 void main() {
   runApp(const SmartDoorApp());
@@ -22,10 +24,14 @@ class SmartDoorApp extends StatefulWidget {
     this.repository,
     this.settingsRepository,
     this.alertRepository,
+    this.credentialRepository,
+    this.notificationRepository,
   });
   final DoorRepository? repository;
   final SettingsRepository? settingsRepository;
   final AlertRepository? alertRepository;
+  final CredentialRepository? credentialRepository;
+  final NotificationRepository? notificationRepository;
   final AuthSession? session;
 
   @override
@@ -40,18 +46,31 @@ class _SmartDoorAppState extends State<SmartDoorApp> {
   late final DoorRepository doorRepository;
   SettingsRepository? settingsRepository;
   AlertRepository? alertRepository;
+  CredentialRepository? credentialRepository;
+  NotificationRepository? notificationRepository;
   @override
   void initState() {
     super.initState();
     session =
         widget.session ??
         AuthSession(api: HttpAuthApi(), store: SecureSessionStore());
-    final client = _doorClient = ApiClient(tokenProvider: session);
+    final client = _doorClient = ApiClient(
+      tokenProvider: session,
+      onUnauthorized: session.expire,
+    );
     doorRepository = widget.repository ?? RestDoorRepository(client);
-    settingsRepository = widget.settingsRepository ??
+    settingsRepository =
+        widget.settingsRepository ??
         (widget.repository == null ? RestSettingsRepository(client) : null);
-    alertRepository = widget.alertRepository ??
+    alertRepository =
+        widget.alertRepository ??
         (widget.repository == null ? RestAlertRepository(client) : null);
+    credentialRepository =
+        widget.credentialRepository ??
+        (widget.repository == null ? RestCredentialRepository(client) : null);
+    notificationRepository =
+        widget.notificationRepository ??
+        (widget.repository == null ? RestNotificationRepository(client) : null);
     session.addListener(_sessionChanged);
     session.restore();
   }
@@ -97,6 +116,8 @@ class _SmartDoorAppState extends State<SmartDoorApp> {
               repository: doorRepository,
               settingsRepository: settingsRepository,
               alertRepository: alertRepository,
+              credentialRepository: credentialRepository,
+              notificationRepository: notificationRepository,
               onToggleTheme: () => setState(() {
                 _themeMode = _themeMode == ThemeMode.light
                     ? ThemeMode.dark

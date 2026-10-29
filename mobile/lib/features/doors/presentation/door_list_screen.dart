@@ -6,16 +6,25 @@ import '../data/door_repository.dart';
 import 'claim_door_screen.dart';
 import 'door_detail_screen.dart';
 import 'door_widgets.dart';
+import '../../credentials/data/credential_repository.dart';
+import '../../settings/data/settings_repository.dart';
+import '../../alerts/data/alert_repository.dart';
 
 class DoorListScreen extends StatefulWidget {
   const DoorListScreen({
     required this.repository,
     this.onSignInRequested,
+    this.credentialRepository,
+    this.settingsRepository,
+    this.alertRepository,
     super.key,
   });
 
   final DoorRepository repository;
   final VoidCallback? onSignInRequested;
+  final CredentialRepository? credentialRepository;
+  final SettingsRepository? settingsRepository;
+  final AlertRepository? alertRepository;
 
   @override
   State<DoorListScreen> createState() => _DoorListScreenState();
@@ -75,6 +84,9 @@ class _DoorListScreenState extends State<DoorListScreen> {
         builder: (_) => DoorDetailScreen(
           repository: widget.repository,
           doorId: door.id,
+          credentialRepository: widget.credentialRepository,
+          settingsRepository: widget.settingsRepository,
+          alertRepository: widget.alertRepository,
           onSignInRequested: widget.onSignInRequested,
         ),
       ),

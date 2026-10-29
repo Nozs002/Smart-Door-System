@@ -22,8 +22,8 @@ class DeviceSyncStatus {
         configState: json['configState'] as String,
         credentialsState: json['credentialsState'] as String,
         appliedConfigVersion: (json['appliedConfigVersion'] as num?)?.toInt(),
-        appliedCredentialsVersion:
-            (json['appliedCredentialsVersion'] as num?)?.toInt(),
+        appliedCredentialsVersion: (json['appliedCredentialsVersion'] as num?)
+            ?.toInt(),
         lastHeartbeatAt: parseUtcTime(json['lastHeartbeatAt']),
       );
 
@@ -56,13 +56,14 @@ class DoorConfiguration {
         doorId: (json['doorId'] as num).toInt(),
         maxFailedAttempts: (json['maxFailedAttempts'] as num).toInt(),
         lockoutSeconds: (json['lockoutSeconds'] as num).toInt(),
-        temperatureThreshold:
-            (json['temperatureThreshold'] as num).toDouble(),
+        temperatureThreshold: (json['temperatureThreshold'] as num).toDouble(),
         openTimeoutSeconds: (json['openTimeoutSeconds'] as num?)?.toInt(),
         version: (json['version'] as num).toInt(),
         credentialsVersion: (json['credentialsVersion'] as num).toInt(),
         devices: (json['devices'] as List<dynamic>? ?? const [])
-            .map((item) => DeviceSyncStatus.fromJson(item as Map<String, dynamic>))
+            .map(
+              (item) => DeviceSyncStatus.fromJson(item as Map<String, dynamic>),
+            )
             .toList(growable: false),
         updatedAt: parseUtcTime(json['updatedAt']),
       );

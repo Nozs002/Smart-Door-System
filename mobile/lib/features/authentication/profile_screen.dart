@@ -5,11 +5,26 @@ import '../doors/presentation/door_list_screen.dart';
 import 'account_models.dart';
 import 'auth_session.dart';
 import 'auth_widgets.dart';
+import 'password_change_screen.dart';
+import '../credentials/data/credential_repository.dart';
+import '../credentials/presentation/cardholder_screen.dart';
+import '../settings/data/settings_repository.dart';
+import '../alerts/data/alert_repository.dart';
 
 class ProfileScreen extends StatefulWidget {
-  const ProfileScreen({super.key, required this.session, this.doorRepository});
+  const ProfileScreen({
+    super.key,
+    required this.session,
+    this.doorRepository,
+    this.credentialRepository,
+    this.settingsRepository,
+    this.alertRepository,
+  });
   final AuthSession session;
   final DoorRepository? doorRepository;
+  final CredentialRepository? credentialRepository;
+  final SettingsRepository? settingsRepository;
+  final AlertRepository? alertRepository;
   @override
   State<ProfileScreen> createState() => _ProfileScreenState();
 }
@@ -149,6 +164,9 @@ class _ProfileScreenState extends State<ProfileScreen> {
                       MaterialPageRoute(
                         builder: (_) => DoorListScreen(
                           repository: widget.doorRepository!,
+                          credentialRepository: widget.credentialRepository,
+                          settingsRepository: widget.settingsRepository,
+                          alertRepository: widget.alertRepository,
                           onSignInRequested: () {
                             Navigator.of(context)
                                 .popUntil((route) => route.isFirst);
@@ -166,6 +184,40 @@ class _ProfileScreenState extends State<ProfileScreen> {
                 icon: const Icon(Icons.refresh_rounded),
                 label: const Text('Tải lại hồ sơ'),
               ),
+              const SizedBox(height: 12),
+              OutlinedButton.icon(
+                onPressed: leaving
+                    ? null
+                    : () => Navigator.of(context).push<void>(
+                        MaterialPageRoute(
+                          builder: (_) =>
+                              PasswordChangeScreen(session: widget.session),
+                        ),
+                      ),
+                icon: const Icon(Icons.password),
+                label: const Text('Đổi mật khẩu'),
+              ),
+              if (widget.credentialRepository != null) ...[
+                const SizedBox(height: 12),
+                OutlinedButton.icon(
+                  onPressed: leaving
+                      ? null
+                      : () => Navigator.of(context).push<void>(
+                          MaterialPageRoute(
+                            builder: (_) => CardholderScreen(
+                              repository: widget.credentialRepository!,
+                              onSignInRequested: () {
+                                Navigator.of(context)
+                                    .popUntil((r) => r.isFirst);
+                                widget.session.expire();
+                              },
+                            ),
+                          ),
+                        ),
+                  icon: const Icon(Icons.people_outline),
+                  label: const Text('Người giữ thẻ'),
+                ),
+              ],
               const SizedBox(height: 12),
               AuthButton(
                 label: 'Đăng xuất',

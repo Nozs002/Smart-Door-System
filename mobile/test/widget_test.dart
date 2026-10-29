@@ -47,6 +47,82 @@ void main() {
     expect(find.text('Mật khẩu tối đa 72 byte UTF-8.'), findsOneWidget);
   });
 
+  for (final completeRegistration in [false, true]) {
+    testWidgets(
+      'returning from registration clears login feedback (registered: $completeRegistration)',
+      (tester) async {
+        const expired = 'Phiên đã hết hạn. Vui lòng đăng nhập lại.';
+        const rejected = 'Thông tin đăng nhập không hợp lệ.';
+        await tester.pumpWidget(
+          MaterialApp(
+            home: LoginScreen(
+              notice: expired,
+              onSubmit: (_, _) async => throw const AuthFormException(rejected),
+              onRegister: (_, _, _) async {},
+            ),
+          ),
+        );
+        expect(find.text(expired), findsOneWidget);
+        await tester.enterText(find.byType(TextFormField).at(0), 'customer');
+        await tester.enterText(
+          find.byType(TextFormField).at(1),
+          'wrong-password',
+        );
+        await tester.ensureVisible(find.byType(FilledButton));
+        await tester.tap(find.byType(FilledButton));
+        await tester.pumpAndSettle();
+        expect(find.text(rejected), findsOneWidget);
+
+        await tester.ensureVisible(find.widgetWithText(TextButton, 'Đăng ký'));
+        await tester.tap(find.widgetWithText(TextButton, 'Đăng ký'));
+        await tester.pumpAndSettle();
+        if (completeRegistration) {
+          final fields = find.byType(TextFormField);
+          await tester.enterText(fields.at(0), 'Tài khoản mới');
+          await tester.enterText(fields.at(1), 'new-customer');
+          await tester.enterText(fields.at(2), 'new-password');
+          await tester.enterText(fields.at(3), 'new-password');
+          await tester.ensureVisible(find.byType(FilledButton));
+          await tester.tap(find.byType(FilledButton));
+        } else {
+          await tester.ensureVisible(
+            find.widgetWithText(TextButton, 'Đăng nhập'),
+          );
+          await tester.tap(find.widgetWithText(TextButton, 'Đăng nhập'));
+        }
+        await tester.pumpAndSettle();
+        expect(find.byType(LoginScreen), findsOneWidget);
+        expect(find.byType(RegisterScreen), findsNothing);
+        expect(find.text(rejected), findsNothing);
+        expect(find.text(expired), findsNothing);
+        expect(
+          tester
+              .widget<TextFormField>(find.byType(TextFormField).at(1))
+              .controller!
+              .text,
+          isEmpty,
+        );
+        if (completeRegistration) {
+          expect(
+            find.text('Tạo tài khoản thành công. Vui lòng đăng nhập.'),
+            findsOneWidget,
+          );
+        }
+
+        // A new failed attempt must still show its own error.
+        await tester.enterText(
+          find.byType(TextFormField).at(1),
+          'another-wrong-password',
+        );
+        await tester.ensureVisible(find.byType(FilledButton));
+        await tester.tap(find.byType(FilledButton));
+        await tester.pumpAndSettle();
+        expect(find.text(rejected), findsOneWidget);
+        expect(tester.takeException(), isNull);
+      },
+    );
+  }
+
   testWidgets('prevents duplicate submit and shows a safe error', (
     tester,
   ) async {

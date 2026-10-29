@@ -49,6 +49,7 @@ class _DoorSettingsScreenState extends State<DoorSettingsScreen> {
   }
 
   Future<void> _load() async {
+    if (_saving) return;
     setState(() {
       _loading = true;
       _error = null;
@@ -81,7 +82,7 @@ class _DoorSettingsScreenState extends State<DoorSettingsScreen> {
   }
 
   Future<void> _save() async {
-    if (!_formKey.currentState!.validate()) return;
+    if (_saving || !_formKey.currentState!.validate()) return;
     setState(() => _saving = true);
     try {
       final value = await widget.repository.updateConfiguration(
@@ -97,14 +98,39 @@ class _DoorSettingsScreenState extends State<DoorSettingsScreen> {
       _setValue(value);
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
-          content: Text('Đã lưu và phát lệnh; đang chờ thiết bị xác nhận.'),
+          content: Text(
+            'Đã lưu và đưa vào hàng đợi đồng bộ. Chỉ hoàn tất khi thiết bị xác nhận.',
+          ),
         ),
       );
     } catch (error) {
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Không thể lưu: $error')),
-        );
+        ScaffoldMessenger.of(context)
+            .showSnackBar(SnackBar(content: Text('Không thể lưu: $error')));
+      }
+    } finally {
+      if (mounted) setState(() => _saving = false);
+    }
+  }
+
+  Future<void> _retrySync() async {
+    if (_saving) return;
+    setState(() => _saving = true);
+    try {
+      final value = await widget.repository.retrySync(widget.doorId);
+      if (!mounted) return;
+      _setValue(value);
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text(
+            'Đã yêu cầu đồng bộ lại phiên bản hiện tại. Đang chờ xác nhận từ thiết bị.',
+          ),
+        ),
+      );
+    } catch (error) {
+      if (mounted) {
+        ScaffoldMessenger.of(context)
+            .showSnackBar(SnackBar(content: Text(errorMessage(error))));
       }
     } finally {
       if (mounted) setState(() => _saving = false);
@@ -136,41 +162,61 @@ class _DoorSettingsScreenState extends State<DoorSettingsScreen> {
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.stretch,
                     children: [
-                      Text('Ngưỡng theo cửa', style: Theme.of(context).textTheme.titleMedium),
+                      Text(
+                        'Ngưỡng theo cửa',
+                        style: Theme.of(context).textTheme.titleMedium,
+                      ),
                       const SizedBox(height: 16),
                       TextFormField(
+                        enabled: !_saving,
                         controller: _attempts,
-                        decoration: const InputDecoration(labelText: 'Số lần sai tối đa'),
+                        decoration: const InputDecoration(
+                          labelText: 'Số lần sai tối đa',
+                        ),
                         keyboardType: TextInputType.number,
                         validator: (value) => _integer(value, 1, 10, 'lần'),
                       ),
                       const SizedBox(height: 12),
                       TextFormField(
+                        enabled: !_saving,
                         controller: _lockout,
-                        decoration: const InputDecoration(labelText: 'Thời gian khóa (giây)'),
+                        decoration: const InputDecoration(
+                          labelText: 'Thời gian khóa (giây)',
+                        ),
                         keyboardType: TextInputType.number,
                         validator: (value) => _integer(value, 10, 3600, 'giây'),
                       ),
                       const SizedBox(height: 12),
                       TextFormField(
+                        enabled: !_saving,
                         controller: _temperature,
-                        decoration: const InputDecoration(labelText: 'Ngưỡng nhiệt độ (°C)'),
-                        keyboardType: const TextInputType.numberWithOptions(decimal: true),
+                        decoration: const InputDecoration(
+                          labelText: 'Ngưỡng nhiệt độ (°C)',
+                        ),
+                        keyboardType: const TextInputType.numberWithOptions(
+                          decimal: true,
+                        ),
                         validator: (raw) {
                           final value = double.tryParse(raw ?? '');
-                          return value == null || value < 30 || value > 80
-                              ? 'Nhập nhiệt độ từ 30 đến 80°C.' : null;
+                          return value == null ||
+                                  !value.isFinite ||
+                                  value < 30 ||
+                                  value > 80
+                              ? 'Nhập nhiệt độ từ 30 đến 80°C.'
+                              : null;
                         },
                       ),
                       const SizedBox(height: 12),
                       TextFormField(
+                        enabled: !_saving,
                         controller: _openTimeout,
                         decoration: const InputDecoration(
                           labelText: 'Cửa mở quá lâu (giây, không bắt buộc)',
                         ),
                         keyboardType: TextInputType.number,
                         validator: (raw) => raw == null || raw.trim().isEmpty
-                            ? null : _integer(raw, 5, 3600, 'giây'),
+                            ? null
+                            : _integer(raw, 5, 3600, 'giây'),
                       ),
                       const SizedBox(height: 20),
                       FilledButton.icon(
@@ -178,7 +224,9 @@ class _DoorSettingsScreenState extends State<DoorSettingsScreen> {
                         icon: _saving
                             ? const SizedBox.square(
                                 dimension: 18,
-                                child: CircularProgressIndicator(strokeWidth: 2),
+                                child: CircularProgressIndicator(
+                                  strokeWidth: 2,
+                                ),
                               )
                             : const Icon(Icons.send_outlined),
                         label: const Text('Lưu và gửi đến thiết bị'),
@@ -209,26 +257,46 @@ class _DoorSettingsScreenState extends State<DoorSettingsScreen> {
                 const Icon(Icons.sync),
                 const SizedBox(width: 10),
                 Expanded(
-                  child: Text('Trạng thái đồng bộ', style: Theme.of(context).textTheme.titleMedium),
+                  child: Text(
+                    'Trạng thái đồng bộ',
+                    style: Theme.of(context).textTheme.titleMedium,
+                  ),
                 ),
                 Text('Cấu hình v${value.version}'),
               ],
             ),
             const SizedBox(height: 12),
-            ...value.devices.map((device) => ListTile(
-              contentPadding: EdgeInsets.zero,
-              leading: Icon(
-                device.configState == 'SYNCED' ? Icons.check_circle : Icons.pending_outlined,
-                color: device.configState == 'SYNCED' ? Colors.green : Colors.orange,
+            ...value.devices.map(
+              (device) => ListTile(
+                contentPadding: EdgeInsets.zero,
+                leading: Icon(
+                  device.configState == 'SYNCED'
+                      ? Icons.check_circle
+                      : Icons.pending_outlined,
+                  color: device.configState == 'SYNCED'
+                      ? Colors.green
+                      : Colors.orange,
+                ),
+                title: Text(device.deviceCode),
+                subtitle: Text(
+                  '${device.nodeType} · ${device.lifecycleStatus}\nCấu hình: ${_state(device.configState)} '
+                  '(đã nhận ${device.appliedConfigVersion ?? '—'} / cần ${value.version})'
+                  '${device.credentialsState == 'NOT_APPLICABLE' ? '' : ' · PIN/RFID: ${_state(device.credentialsState)}'}',
+                ),
               ),
-              title: Text(device.deviceCode),
-              subtitle: Text(
-                '${device.nodeType} · Cấu hình: ${_state(device.configState)}'
-                '${device.credentialsState == 'NOT_APPLICABLE' ? '' : ' · PIN/RFID: ${_state(device.credentialsState)}'}',
-              ),
-            )),
+            ),
             const Divider(),
             Text('Phiên bản PIN/RFID cần áp dụng: ${value.credentialsVersion}'),
+            const SizedBox(height: 6),
+            const Text(
+              'Chưa xác nhận không có nghĩa đã áp dụng. Khi mất kết nối, yêu cầu được giữ để gửi lại.',
+            ),
+            const SizedBox(height: 12),
+            OutlinedButton.icon(
+              onPressed: _saving ? null : _retrySync,
+              icon: const Icon(Icons.refresh),
+              label: const Text('Yêu cầu đồng bộ lại'),
+            ),
             const SizedBox(height: 6),
             Text(
               'Kéo xuống để cập nhật ACK mới nhất từ thiết bị.',

@@ -120,6 +120,20 @@ class AuthSession extends ChangeNotifier implements AccessTokenProvider {
   }
 
   Future<void> logout() async {
+    String? warning;
+    final current = _session;
+    if (current != null && current.expiresAt.isAfter(DateTime.now())) {
+      try {
+        await api.logout(current.token);
+      } on ApiException catch (error) {
+        if (!error.unauthorized) {
+          warning = 'Đã đăng xuất trên thiết bị. Máy chủ chưa xác nhận thu hồi phiên; phiên cũ sẽ hết hạn theo quy định.';
+        }
+      } catch (_) {
+        warning =
+            'Đã đăng xuất trên thiết bị. Máy chủ chưa xác nhận thu hồi phiên.';
+      }
+    }
     try {
       await store.clear();
     } catch (_) {
@@ -129,7 +143,29 @@ class AuthSession extends ChangeNotifier implements AccessTokenProvider {
     }
     _expiry?.cancel();
     _session = null;
-    notice = null;
+    notice = warning;
+    _notify();
+  }
+
+  Future<void> changePassword(
+    String currentPassword,
+    String newPassword,
+  ) async {
+    final token = await accessToken();
+    if (token == null) {
+      throw const ApiException(
+        'Phiên đã hết hạn. Vui lòng đăng nhập lại.',
+        statusCode: 401,
+      );
+    }
+    try {
+      await api.changePassword(token, currentPassword, newPassword);
+    } on ApiException catch (error) {
+      if (error.unauthorized) await expire();
+      rethrow;
+    }
+    await expire();
+    notice = 'Đã đổi mật khẩu và kết thúc các phiên cũ. Vui lòng đăng nhập bằng mật khẩu mới.';
     _notify();
   }
 
