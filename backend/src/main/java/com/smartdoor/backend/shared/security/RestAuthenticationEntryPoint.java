@@ -13,7 +13,7 @@ import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
 
 @Component
-@Profile("!provision")
+@Profile("!provision & !device-security")
 public final class RestAuthenticationEntryPoint implements AuthenticationEntryPoint {
 
 	private final HandlerExceptionResolver exceptionResolver;

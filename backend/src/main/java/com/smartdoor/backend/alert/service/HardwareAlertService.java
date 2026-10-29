@@ -15,6 +15,9 @@ import com.smartdoor.backend.shared.error.BadRequestException;
 import com.smartdoor.backend.shared.error.ConflictException;
 import com.smartdoor.backend.shared.error.ResourceNotFoundException;
 import java.math.BigDecimal;
+import java.math.RoundingMode;
+import java.time.temporal.ChronoUnit;
+import java.util.Objects;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -35,17 +38,26 @@ public class HardwareAlertService {
 
 	@Transactional
 	public AlertView receive(AuthenticatedDeviceIdentity identity, HardwareAlertEvent event) {
+		event = normalize(event);
+		if (identity == null || identity.doorId() == null) throw new BadRequestException("Thiếu danh tính thiết bị đã xác thực.");
+		// All writers serialize on Door first, so dedupe and owner notification are atomic.
+		Door door = doors.findByIdForUpdate(identity.doorId())
+				.orElseThrow(() -> new ResourceNotFoundException("Không tìm thấy cửa."));
 		OperationalDevice source = operational.requireActive(identity);
-		validate(source, event);
+		validateShapeAndRole(source, event);
 		Alert existing = alerts.findByEventId(event.eventId()).orElse(null);
 		if (existing != null) {
-			if (!existing.getDoorId().equals(source.doorId())) throw new ConflictException("eventId đã thuộc cửa khác.");
-			Door door = door(source.doorId());
+			if (!existing.getDoorId().equals(source.doorId()) || !Objects.equals(existing.getSourceDeviceId(), source.deviceId())
+					|| existing.getType() != event.type()
+					|| !Objects.equals(existing.getObservedTemperature(), event.observedTemperature())
+					|| (event.occurredAt() != null && !event.occurredAt().equals(existing.getTriggeredAt()))) {
+				throw new ConflictException("eventId đã được sử dụng cho một sự kiện khác.");
+			}
 			return AlertView.from(existing, door.getName());
 		}
-		Door door = door(source.doorId());
+		validateNewEvent(source, event);
 		Alert alert = new Alert();
-		alert.setEventId(event.eventId().strip());
+		alert.setEventId(event.eventId());
 		alert.setDoorId(source.doorId());
 		alert.setSourceDeviceId(source.deviceId());
 		alert.setType(event.type());
@@ -58,17 +70,22 @@ public class HardwareAlertService {
 		return view;
 	}
 
-	private void validate(OperationalDevice source, HardwareAlertEvent event) {
+	private HardwareAlertEvent normalize(HardwareAlertEvent event) {
 		if (event == null || event.eventId() == null || event.eventId().isBlank() || event.eventId().length() > 100
 				|| event.type() == null) throw new BadRequestException("Sự kiện cảnh báo không hợp lệ.");
+		BigDecimal temperature = event.observedTemperature() == null ? null
+				: event.observedTemperature().setScale(2, RoundingMode.HALF_UP);
+		if (temperature != null && temperature.abs().compareTo(new BigDecimal("999.99")) > 0) {
+			throw new BadRequestException("Giá trị nhiệt độ vượt phạm vi lưu trữ.");
+		}
+		return new HardwareAlertEvent(event.eventId().strip(), event.type(), temperature,
+				event.occurredAt() == null ? null : event.occurredAt().truncatedTo(ChronoUnit.MILLIS));
+	}
+
+	private void validateShapeAndRole(OperationalDevice source, HardwareAlertEvent event) {
 		if (event.type() == Alert.Type.HIGH_TEMPERATURE) {
 			if (source.nodeType() != Device.NodeType.NODE_2 || event.observedTemperature() == null) {
 				throw new ConflictException("Cảnh báo nhiệt độ chỉ được nhận từ Node 2.");
-			}
-			DoorConfig config = configs.findById(source.doorId())
-					.orElseThrow(() -> new ResourceNotFoundException("Không tìm thấy cấu hình cửa."));
-			if (event.observedTemperature().compareTo(config.getTemperatureThreshold()) <= 0) {
-				throw new BadRequestException("Nhiệt độ chưa vượt ngưỡng đang cấu hình.");
 			}
 		} else if (event.observedTemperature() != null) {
 			throw new BadRequestException("Chỉ cảnh báo nhiệt độ được chứa observedTemperature.");
@@ -76,9 +93,18 @@ public class HardwareAlertService {
 		if (event.type() == Alert.Type.TOO_MANY_FAILURES && source.nodeType() != Device.NodeType.NODE_1) {
 			throw new ConflictException("Cảnh báo xác thực sai chỉ được nhận từ Node 1.");
 		}
+		if (event.type() == Alert.Type.DOOR_OPEN_TOO_LONG && source.nodeType() != Device.NodeType.NODE_2) {
+			throw new ConflictException("Cảnh báo cửa mở lâu chỉ được nhận từ Node 2.");
+		}
 	}
 
-	private Door door(Long id) {
-		return doors.findById(id).orElseThrow(() -> new ResourceNotFoundException("Không tìm thấy cửa."));
+	private void validateNewEvent(OperationalDevice source, HardwareAlertEvent event) {
+		if (event.type() == Alert.Type.HIGH_TEMPERATURE) {
+			DoorConfig config = configs.findById(source.doorId())
+					.orElseThrow(() -> new ResourceNotFoundException("Không tìm thấy cấu hình cửa."));
+			if (event.observedTemperature().compareTo(config.getTemperatureThreshold()) <= 0) {
+				throw new BadRequestException("Nhiệt độ chưa vượt ngưỡng đang cấu hình.");
+			}
+		}
 	}
 }

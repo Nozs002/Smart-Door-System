@@ -37,4 +37,9 @@ public class DoorSettingsController {
 	public DoorConfigView credentialsSync(@PathVariable Long doorId, @RequestParam ChangeReason reason) {
 		return settings.requestCredentialsSync(currentAccount.requireAccountId(), doorId, reason);
 	}
+
+	@PostMapping("/sync/retry")
+	public DoorConfigView retry(@PathVariable Long doorId) {
+		return settings.retrySync(currentAccount.requireAccountId(), doorId);
+	}
 }

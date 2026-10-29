@@ -43,7 +43,8 @@ class LoginTests {
         when(accounts.findByUsername("customer")).thenReturn(Optional.of(account));
         when(accounts.findById(7L)).thenReturn(Optional.of(account));
         String token = service().login(new LoginRequest("customer", "test-password")).accessToken();
-        var authentication = new AccountJwtAuthenticationConverter(accounts)
+        var authentication = new AccountJwtAuthenticationConverter(accounts,
+                mock(com.smartdoor.backend.identity.repository.RevokedAccessTokenRepository.class), clock)
                 .convert(configuration.jwtDecoder(properties, clock).decode(token));
         var context = org.springframework.security.core.context.SecurityContextHolder.createEmptyContext();
         context.setAuthentication(authentication);
@@ -109,7 +110,8 @@ class LoginTests {
         when(accounts.findById(7L)).thenReturn(Optional.of(account));
         Jwt jwt = configuration.jwtDecoder(properties, clock)
                 .decode(service().login(new LoginRequest("customer", "test-password")).accessToken());
-        var converter = new AccountJwtAuthenticationConverter(accounts);
+        var converter = new AccountJwtAuthenticationConverter(accounts,
+                mock(com.smartdoor.backend.identity.repository.RevokedAccessTokenRepository.class), clock);
         assertThat(converter.convert(jwt).getName()).isEqualTo("7");
         account.setStatus(Account.Status.DISABLED);
         assertThatThrownBy(() -> converter.convert(jwt)).isInstanceOf(OAuth2AuthenticationException.class);

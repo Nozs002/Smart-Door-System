@@ -18,4 +18,6 @@ public interface RfidCredentialRepository extends JpaRepository<RfidCredential, 
 
 	List<RfidCredential> findAllByCardholderIdAndAccountId(Long cardholderId, Long accountId);
 
+	List<RfidCredential> findAllByDoorId(Long doorId);
+
 }

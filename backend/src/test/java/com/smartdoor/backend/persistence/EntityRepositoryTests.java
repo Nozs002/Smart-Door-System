@@ -141,7 +141,10 @@ class EntityRepositoryTests {
 		alerts.saveAndFlush(alert);
 
 		entityManager.clear();
-		assertThat(entityManager.getMetamodel().getEntities()).hasSize(12);
+		assertThat(entityManager.getMetamodel().getEntities()).extracting(jakarta.persistence.metamodel.EntityType::getName)
+				.contains("Account", "Cardholder", "Door", "Device", "DoorActivationCode",
+						"DeviceLifecycleEvent", "RfidCredential", "SystemPin", "DoorConfig",
+						"AccessLog", "LockoutStatus", "Alert");
 		assertThat(accounts.findByUsername("mapping-owner")).isPresent();
 		assertThat(doors.findByIdAndOwnerAccountId(door.getId(), other.getId())).isEmpty();
 		assertThat(doors.findAllByOwnerAccountId(owner.getId(), PageRequest.of(0, 10))

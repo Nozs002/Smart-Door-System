@@ -11,7 +11,7 @@ import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
 
 @Component
-@Profile("!provision")
+@Profile("!provision & !device-security")
 public final class RestAccessDeniedHandler implements AccessDeniedHandler {
 
 	private final HandlerExceptionResolver exceptionResolver;

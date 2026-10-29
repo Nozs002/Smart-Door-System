@@ -41,6 +41,10 @@ public class Account {
 	@Column(name = "password_hash", nullable = false, columnDefinition = "varchar(255)", length = 255)
 	private String passwordHash;
 
+	/** Incremented atomically when a password changes; old JWTs stop authenticating. */
+	@Column(name = "auth_version", nullable = false, columnDefinition = "bigint unsigned")
+	private Long authVersion = 0L;
+
 	@Enumerated(EnumType.STRING)
 	@Column(name = "status", nullable = false, columnDefinition = "ENUM('ACTIVE','DISABLED')")
 	private Status status = Status.ACTIVE;

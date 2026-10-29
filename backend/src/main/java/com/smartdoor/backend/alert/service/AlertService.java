@@ -42,6 +42,7 @@ public class AlertService {
 			return PageResponse.from(result.map(alert -> AlertView.from(alert, door.getName())));
 		}
 		List<Door> owned = doors.findAllByOwnerAccountIdOrderByIdAsc(accountId);
+		if (owned.isEmpty()) return PageResponse.from(Page.<AlertView>empty(pageable));
 		Map<Long, Door> byId = owned.stream().collect(Collectors.toMap(Door::getId, Function.identity()));
 		Page<Alert> result = status == null
 				? alerts.findAllByDoorIdInOrderByTriggeredAtDescIdDesc(byId.keySet(), pageable)
@@ -57,9 +58,14 @@ public class AlertService {
 
 	@Transactional
 	public AlertView changeStatus(Long accountId, Long alertId, Alert.Status target) {
-		Alert alert = alert(alertId);
-		Door door = ownership.getOwnedDoor(accountId, alert.getDoorId());
+		// Scalar lookup avoids caching a stale Alert before acquiring the Door lock.
+		Long doorId = alerts.findDoorIdById(alertId)
+				.orElseThrow(() -> new ResourceNotFoundException("Không tìm thấy cảnh báo."));
+		Door door = ownership.requireOwnerForUpdate(accountId, doorId);
+		Alert alert = alerts.lockInDoor(alertId, doorId)
+				.orElseThrow(() -> new ResourceNotFoundException("Không tìm thấy cảnh báo."));
 		if (target == null || target == Alert.Status.ACTIVE) throw new BadRequestException("Không thể đưa cảnh báo về ACTIVE.");
+		if (target == alert.getStatus()) return AlertView.from(alert, door.getName());
 		if (alert.getStatus() == Alert.Status.RESOLVED && target != Alert.Status.RESOLVED) {
 			throw new BadRequestException("Cảnh báo đã giải quyết không thể mở lại.");
 		}
