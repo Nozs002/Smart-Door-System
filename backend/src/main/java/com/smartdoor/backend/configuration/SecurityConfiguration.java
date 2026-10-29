@@ -35,7 +35,7 @@ public class SecurityConfiguration {
 	};
 
 	@Bean
-	@Profile("!provision")
+	@Profile("!provision & !device-security")
 	SecurityFilterChain securityFilterChain(HttpSecurity http,
 			RestAuthenticationEntryPoint authenticationEntryPoint,
 			RestAccessDeniedHandler accessDeniedHandler,

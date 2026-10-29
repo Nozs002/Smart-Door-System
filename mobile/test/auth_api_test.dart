@@ -104,4 +104,34 @@ void main() {
     await expectLater(api.profile('test-token'), throwsA(isA<ApiException>()));
     expect(calls, 1);
   });
+
+  test(
+    'password change and logout send authenticated POST contracts',
+    () async {
+      var count = 0;
+      server.listen((request) async {
+        expect(request.method, 'POST');
+        expect(request.headers.value('Authorization'), 'Bearer test-token');
+        if (count++ == 0) {
+          expect(request.uri.path, '/api/v1/accounts/me/password');
+          expect(jsonDecode(await utf8.decoder.bind(request).join()), {
+            'currentPassword': ' old password ',
+            'newPassword': ' new password ',
+          });
+          request.response.write('{"data":{"requiresLogin":true}}');
+        } else {
+          expect(request.uri.path, '/api/v1/auth/logout');
+          request.response.write('{"data":{"loggedOut":true}}');
+        }
+        await request.response.close();
+      });
+      await api.changePassword(
+        'test-token',
+        ' old password ',
+        ' new password ',
+      );
+      await api.logout('test-token');
+      expect(count, 2);
+    },
+  );
 }

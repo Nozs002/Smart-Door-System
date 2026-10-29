@@ -47,7 +47,7 @@ public class LoginService {
         var jwt = properties.jwt();
         var claims = JwtClaimsSet.builder().issuer(jwt.issuer()).audience(List.of(jwt.audience()))
                 .subject(account.getId().toString()).issuedAt(now).expiresAt(now.plus(jwt.accessTokenTtl()))
-                .id(UUID.randomUUID().toString()).build();
+                .claim("authVersion", account.getAuthVersion()).id(UUID.randomUUID().toString()).build();
         String token = encoder.encode(JwtEncoderParameters.from(
                 JwsHeader.with(MacAlgorithm.HS256).build(), claims)).getTokenValue();
         return new LoginResponse(token, "Bearer", jwt.accessTokenTtl().toSeconds(),

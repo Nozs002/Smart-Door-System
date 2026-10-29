@@ -23,6 +23,27 @@ class FakeAuthApi implements AuthApi {
   String? registeredName;
   String? registeredUsername;
   String? receivedToken;
+  int logoutCalls = 0;
+  int passwordChangeCalls = 0;
+
+  @override
+  Future<void> logout(String token) async {
+    receivedToken = token;
+    logoutCalls++;
+    if (failure != null) throw failure!;
+  }
+
+  @override
+  Future<void> changePassword(
+    String token,
+    String currentPassword,
+    String newPassword,
+  ) async {
+    receivedToken = token;
+    passwordChangeCalls++;
+    if (failure != null) throw failure!;
+  }
+
   @override
   Future<void> register(
     String displayName,

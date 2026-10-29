@@ -12,6 +12,12 @@ abstract interface class AuthApi {
   Future<void> register(String displayName, String username, String password);
   Future<LoginSession> login(String username, String password);
   Future<AccountProfile> profile(String token);
+  Future<void> logout(String token);
+  Future<void> changePassword(
+    String token,
+    String currentPassword,
+    String newPassword,
+  );
 }
 
 class HttpAuthApi implements AuthApi {
@@ -73,6 +79,31 @@ class HttpAuthApi implements AuthApi {
     } on FormatException {
       throw const ApiException('Không thể đọc hồ sơ từ máy chủ.');
     }
+  }
+
+  @override
+  Future<void> logout(String token) async {
+    await _request(
+      'POST',
+      '/api/v1/auth/logout',
+      token: token,
+      expectedStatus: 200,
+    );
+  }
+
+  @override
+  Future<void> changePassword(
+    String token,
+    String currentPassword,
+    String newPassword,
+  ) async {
+    await _request(
+      'POST',
+      '/api/v1/accounts/me/password',
+      token: token,
+      body: {'currentPassword': currentPassword, 'newPassword': newPassword},
+      expectedStatus: 200,
+    );
   }
 
   Future<Map<String, dynamic>> _request(

@@ -1,6 +1,8 @@
 # Environment and secrets
 .env
 *.local
+.local/
+__pycache__/
 
 # IDE and OS
 .idea/

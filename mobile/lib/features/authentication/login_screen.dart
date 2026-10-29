@@ -22,6 +22,21 @@ class _LoginScreenState extends State<LoginScreen> {
   final password = TextEditingController();
   bool loading = false;
   String? error;
+  String? _notice;
+
+  @override
+  void initState() {
+    super.initState();
+    _notice = widget.notice;
+  }
+
+  @override
+  void didUpdateWidget(covariant LoginScreen oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (oldWidget.notice != widget.notice) {
+      _notice = widget.notice;
+    }
+  }
 
   @override
   void dispose() {
@@ -37,6 +52,7 @@ class _LoginScreenState extends State<LoginScreen> {
     FocusScope.of(context).unfocus();
     setState(() {
       error = null;
+      _notice = null;
       loading = true;
     });
     try {
@@ -120,7 +136,7 @@ class _LoginScreenState extends State<LoginScreen> {
                 return null;
               },
             ),
-            AuthError(message: error ?? widget.notice),
+            AuthError(message: error ?? _notice),
             AuthButton(label: 'Đăng nhập', loading: loading, onPressed: submit),
             const SizedBox(height: 16),
             Wrap(
@@ -135,6 +151,10 @@ class _LoginScreenState extends State<LoginScreen> {
                   onPressed: loading
                       ? null
                       : () async {
+                          setState(() {
+                            error = null;
+                            _notice = null;
+                          });
                           password.clear();
                           final registered = await Navigator.of(context)
                               .push<bool>(

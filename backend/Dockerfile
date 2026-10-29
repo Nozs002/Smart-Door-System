@@ -15,6 +15,7 @@ FROM eclipse-temurin:21-jre
 WORKDIR /app
 
 RUN useradd --system --uid 10001 spring
+RUN mkdir /app/mqtt && chown spring:spring /app/mqtt
 COPY --from=build --chown=spring:spring /workspace/target/*.jar app.jar
 
 USER spring

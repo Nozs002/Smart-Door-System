@@ -2,7 +2,7 @@ services:
   mysql:
     image: mysql:8.4
     ports:
-      - "127.0.0.1:3306:3306"
+      - "127.0.0.1:${MYSQL_HOST_PORT:-3306}:3306"
     environment:
       MYSQL_DATABASE: ${MYSQL_DATABASE}
       MYSQL_USER: ${MYSQL_USER}
@@ -33,10 +33,13 @@ services:
 
   mosquitto:
     image: eclipse-mosquitto:2
+    entrypoint: ["/bin/sh", "/mosquitto/config/start-secure.sh"]
     ports:
-      - "1883:1883"
+      - "${MQTT_HOST_PORT:-1884}:1883"
     volumes:
       - ./infrastructure/mosquitto/config:/mosquitto/config:ro
+      - ./.local/mosquitto:/mosquitto/bootstrap:ro
+      - mosquitto-security:/mosquitto/security
       - mosquitto-data:/mosquitto/data
       - mosquitto-log:/mosquitto/log
     restart: unless-stopped
@@ -58,9 +61,15 @@ services:
       MQTT_USERNAME: ${MQTT_USERNAME}
       MQTT_PASSWORD: ${MQTT_PASSWORD}
       MQTT_CONNECTION_TIMEOUT: ${MQTT_CONNECTION_TIMEOUT:-10s}
+      MQTT_SETTINGS_ENABLED: ${MQTT_SETTINGS_ENABLED:-false}
+      MQTT_TLS: ${MQTT_TLS:-false}
+      DEVICE_MASTER_KEY: ${DEVICE_MASTER_KEY:-}
+      MQTT_PERSISTENCE_DIR: /app/mqtt
       CORS_ALLOWED_ORIGINS: ${CORS_ALLOWED_ORIGINS}
     ports:
       - "8080:8080"
+    volumes:
+      - backend-mqtt:/app/mqtt
     depends_on:
       mysql:
         condition: service_healthy
@@ -72,3 +81,5 @@ volumes:
   mysql-data:
   mosquitto-data:
   mosquitto-log:
+  mosquitto-security:
+  backend-mqtt:

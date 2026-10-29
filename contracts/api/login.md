@@ -13,13 +13,15 @@
 - HTTP 429: `LOGIN_RATE_LIMITED`; HTTP 500: lỗi hệ thống chung.
 - Lỗi dùng Problem Details theo tài liệu Backend; response login không cache.
 - JWT HS256, secret UTF-8 từ cấu hình môi trường, tối thiểu 32 byte; claims
-  `sub` là Account ID, `iss`, `aud`, `iat`, `exp`, `jti`. Không chứa password/PII.
+  `sub` là Account ID, `iss`, `aud`, `iat`, `exp`, `jti`, `authVersion`.
+  Không chứa password/PII. Claim authVersion khớp accounts.auth_version.
 - Access token mặc định 15 phút, không refresh; hết hạn cần đăng nhập lại.
   Xác minh chữ ký, issuer, audience, exp/nbf với clock skew 0; mỗi request
   xác thực phải kiểm tra Account còn ACTIVE. Token không cấp quyền sở hữu cửa.
-- Nhiều access token được phép đồng thời. Logout/đổi mật khẩu chưa triển khai;
-  chưa có thu hồi token theo phiên. Thay khóa ký làm mất hiệu lực token cũ;
-  chưa hỗ trợ rotation nhiều khóa.
+- Nhiều access token được phép đồng thời. Bổ sung ngày 28/10/2026: logout thu
+  hồi jti của phiên hiện tại, đổi mật khẩu tăng authVersion để thu hồi mọi
+  token cũ. Xem [contract Account](accounts.md). Thay khóa ký cũng làm mất hiệu
+  lực token cũ; chưa hỗ trợ rotation nhiều khóa hoặc refresh token.
 - Rate limit tính mọi lần thử hợp lệ về cấu trúc theo username và IP kết nối
   trực tiếp, không tin X-Forwarded-For. Mặc định 5 lần/username và 30 lần/IP
   trong 60 giây; cấu hình qua `app.login-rate-limit.*`.
@@ -29,4 +31,5 @@
   bộ đếm; nhiều instance chưa chia sẻ bộ đếm. Production nhiều instance cần
   shared limiter/gateway; proxy làm các request có thể cùng IP.
 
-Đăng ký, refresh, logout và đổi mật khẩu nằm ngoài contract lần này.
+Đăng ký/logout/đổi mật khẩu nằm trong [contract Account](accounts.md);
+refresh token vẫn ngoài phạm vi hiện tại.

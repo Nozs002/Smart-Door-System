@@ -1,13 +1,19 @@
 ---
 title: Database ERD
 type: technical-reference
-version: 2.0
+version: 3.0
 lang: vi
 tags: [database, erd, mysql, ownership, device-lifecycle]
-updated: 2026-10-16
+updated: 2026-10-28
 ---
 
 # Database ERD
+
+Bản hiện tại dùng **Flyway V1–V6**, gồm 17 bảng nghiệp vụ và bảng lịch sử Flyway.
+`init.sql` vẫn là bootstrap 12 bảng gốc; Backend áp dụng các migration tiếp theo.
+Các bảng mới và sơ đồ quan hệ cập nhật nằm tại mục 5 cuối tài liệu. Xem
+[bàn giao Người 1, Người 4](../05-backend/person1-person4-completion.md) để chạy
+kiểm tra phiên bản và tính toàn vẹn trên database thực tế.
 
 Schema khởi tạo mới cho MySQL 8.4 ở [init.sql](../../infrastructure/mysql/init/init.sql).
 [Dữ liệu mẫu](../../infrastructure/mysql/init/mockdata.sql) chỉ dành cho local/demo.
@@ -17,10 +23,11 @@ Không có bảng users gộp, vai trò ADMIN/USER hoặc bảng vân tay.
 Đây là cấu trúc SQL trong repository, chưa xác nhận database đang chạy đã được
 nâng cấp. Thay file init không cập nhật volume MySQL cũ. Xem [hướng dẫn database](database-setup.md).
 Đã có [JPA entity/repository](../05-backend/entity-repository-mapping.md) cho 12
-bảng. Phần Người 2 đã bổ sung service/API/CLI quản lý Door/Device và Flyway V1/V2;
-xem [bàn giao](../05-backend/door-device-handoff.md) cho phạm vi và kiểm thử.
-Các module khác và MQTT credential provisioning chưa vì thế được xem là hoàn
-thành. FK không thay thế authorization ở Backend.
+bảng gốc; V4–V6 bổ sung entity cho 5 bảng phiên, delivery và MQTT. Phần Người 2
+có service/API/CLI Door/Device; Người 1 và Người 4 bổ sung JWT thu hồi, credentials,
+đồng bộ và cảnh báo. Xem [bàn giao Người 2](../05-backend/door-device-handoff.md)
+và [bàn giao Người 1/4](../05-backend/person1-person4-completion.md) để phân biệt
+phạm vi đã kiểm chứng. FK không thay thế authorization ở Backend.
 
 ## 1. Nguyên tắc
 
@@ -51,6 +58,7 @@ id BIGINT UNSIGNED NOT NULL AUTO_INCREMENT PRIMARY KEY
 display_name VARCHAR(100) NOT NULL
 username VARCHAR(100) NOT NULL
 password_hash VARCHAR(255) NOT NULL
+auth_version BIGINT UNSIGNED NOT NULL DEFAULT 0
 status ENUM('ACTIVE','DISABLED') NOT NULL DEFAULT 'ACTIVE'
 created_at DATETIME(3) NOT NULL DEFAULT CURRENT_TIMESTAMP(3)
 ```
@@ -107,6 +115,7 @@ lockout_seconds INT UNSIGNED NOT NULL DEFAULT 60
 temperature_threshold DECIMAL(5,2) NOT NULL DEFAULT 50.00
 open_timeout_seconds INT UNSIGNED NULL
 version BIGINT UNSIGNED NOT NULL DEFAULT 1
+credentials_version BIGINT UNSIGNED NOT NULL DEFAULT 1
 updated_at DATETIME(3) NOT NULL DEFAULT CURRENT_TIMESTAMP(3) ON UPDATE CURRENT_TIMESTAMP(3)
 ```
 
@@ -261,6 +270,7 @@ Các cột trong SQL:
 
 ```sql
 id BIGINT UNSIGNED NOT NULL AUTO_INCREMENT PRIMARY KEY
+event_id VARCHAR(100) NULL -- UNIQUE từ migration V3
 door_id BIGINT UNSIGNED NOT NULL
 source_device_id BIGINT UNSIGNED NULL
 type ENUM('TOO_MANY_FAILURES','HIGH_TEMPERATURE','DOOR_OPEN_TOO_LONG') NOT NULL
@@ -291,9 +301,10 @@ cho hai Node ACTIVE cùng vai trò trên cùng cửa.
 
 ## 4. Quy tắc nghiệp vụ Backend
 
-Phần Door/Device đã có source triển khai các quy tắc tương ứng; các đầu nối
-JWT, ACK và credential/ACL còn cần tích hợp. Xem [bàn giao Người 2](../05-backend/door-device-handoff.md)
-để biết trạng thái xác minh, không suy ra tất cả module đã hoàn thành từ danh sách này.
+Door/Device đã nối JWT, ACK và danh tính MQTT cho kênh cấu hình/cảnh báo. Riêng
+workflow thay Node tự động vẫn cần bằng chứng thu hồi quyền Broker cũ. Xem
+[bàn giao Người 1/4](../05-backend/person1-person4-completion.md) và
+[bàn giao Người 2](../05-backend/door-device-handoff.md) để biết giới hạn xác minh.
 
 1. Claim khóa hàng Door và mã kích hoạt trong transaction, kiểm tra hash,
    hết hạn/thu hồi/đã dùng; ghi chủ và consumed đồng thời. Retry cùng Account
@@ -316,10 +327,63 @@ JWT, ACK và credential/ACL còn cần tích hợp. Xem [bàn giao Người 2](.
 8. Online nếu heartbeat chưa quá timeout; offline nếu quá hạn; UNKNOWN nếu
    chưa nhận. Timeout cần chốt theo firmware. Dùng thời gian Backend nhận.
 9. applied_*_version chỉ cập nhật khi nhận ACK đáng tin cậy; lưu thành công
-   server chưa chứng minh Node đã áp dụng. Đồng bộ RFID chưa có bảng version
-   riêng và phải được thiết kế cùng contract.
+   server chưa chứng minh Node đã áp dụng. PIN/RFID dùng chung
+   `door_configs.credentials_version`; `devices.applied_pin_version` lưu ACK
+   phiên bản credentials của Node 1 vì giữ tên cột cũ để tương thích migration.
 10. Không ghi password/PIN/mã kích hoạt/credential MQTT vào log.
     event_id ổn định để retry không tạo log/event trùng.
+
+## 5. Bổ sung sau migration V3–V6
+
+Phần mô tả 12 bảng trên bắt nguồn từ bootstrap V1. Bản đang chạy sau nâng cấp có:
+
+| Đối tượng | Thuộc tính/ràng buộc bổ sung | Ý nghĩa |
+| --- | --- | --- |
+| `accounts` | `auth_version BIGINT UNSIGNED NOT NULL DEFAULT 0` | Tăng khi đổi mật khẩu, vô hiệu hóa JWT cũ |
+| `door_configs` | `credentials_version BIGINT UNSIGNED NOT NULL DEFAULT 1` | Phiên bản snapshot PIN/RFID chung của Node 1 |
+| `alerts` | `event_id VARCHAR(100) NULL UNIQUE`; unique `(id,door_id)` | Retry cảnh báo mới không ghi trùng; alert cũ được giữ nguyên |
+| `revoked_access_tokens` | PK `token_id`; FK `account_id`; `expires_at`, `revoked_at` | Thu hồi một JWT đến hết thời hạn; không lưu bearer token |
+| `integration_outbox` | PK `id`; FK Door, FK ghép `(device_id,door_id)`; `kind`, `device_code`, `payload`, `status`, `attempts`, `next_attempt_at`, `lease_until`, `lease_token`, `last_error`, `created_at`, `sent_at`, `version` | Giao cấu hình/credentials bền vững; lease tránh hai worker cùng gửi một claim |
+| `owner_notifications` | PK `id`; FK Account, FK ghép Alert/Door và Door/chủ; unique `(alert_id,account_id)`; `title`, `body`, `created_at`, `read_at` | Một thông báo cho đúng chủ cửa, đọc độc lập với xử lý cảnh báo |
+| `device_transport_credentials` | PK/FK `device_id`; unique `credential_id`; `verified_at`, `revoked_at`, `created_at` | Danh tính kỹ thuật đang có của mỗi Node, không chứa secret rõ |
+| `processed_device_messages` | PK `id` SHA-256; FK `device_id`; `received_at` có index | Chống xử lý lại nonce của thông điệp ký HMAC; dọn receipt quá hạn |
+
+```mermaid
+erDiagram
+    accounts |o--o{ doors : owns_after_claim
+    accounts ||--o{ cardholders : manages
+    accounts ||--o{ revoked_access_tokens : revokes
+    accounts ||--o{ owner_notifications : receives
+    doors ||--o| door_configs : config
+    doors ||--o| system_pins : pin
+    doors ||--o{ devices : current_and_historical
+    doors ||--o{ door_activation_codes : claims
+    doors ||--o{ rfid_credentials : grants
+    cardholders ||--o{ rfid_credentials : holds
+    devices ||--o{ device_lifecycle_events : lifecycle
+    doors ||--o{ device_lifecycle_events : scopes
+    doors ||--o{ access_logs : access_history
+    devices |o--o{ access_logs : source
+    rfid_credentials |o--o{ access_logs : credential
+    doors ||--o{ lockout_statuses : counters
+    doors ||--o{ alerts : alerts
+    devices |o--o{ alerts : source
+    alerts ||--o{ owner_notifications : notifies
+    doors ||--o{ owner_notifications : same_owner
+    devices ||--o{ integration_outbox : target
+    doors ||--o{ integration_outbox : scope
+    devices ||--o| device_transport_credentials : current_identity
+    devices ||--o{ processed_device_messages : replay_receipts
+```
+
+Cardinality trong sơ đồ phản ánh SQL (ví dụ Config/PIN có thể chưa có trước khi
+service hoàn tất setup). Service vẫn kiểm tra đủ cấu hình/PIN/hai Node trước
+khi vận hành. FK ghép bảo đảm RFID đúng Account, outbox đúng Door/Node và inbox
+đúng chủ cửa; sơ đồ rút gọn không thay thế toàn bộ CHECK/UNIQUE trong migration.
+
+Kiểm tra database thật bằng `python scripts/db-check.py --expect-version 6`.
+Các dòng `PASS` phản ánh các bất biến được truy vấn; không xác nhận chất lượng
+nguồn điện, cảm biến hoặc kết quả đóng/mở khóa trên phần cứng.
 
 ## 5. Dữ liệu mẫu và kiểm chứng
 

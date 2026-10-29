@@ -41,6 +41,10 @@ public class DoorConfig {
 	@Column(name = "version", nullable = false, columnDefinition = "bigint unsigned")
 	private Long version = 1L;
 
+	/** Phiên bản chung cho PIN/RFID để module credentials yêu cầu đồng bộ lại Node 1. */
+	@Column(name = "credentials_version", nullable = false, columnDefinition = "bigint unsigned")
+	private Long credentialsVersion = 1L;
+
 	@Column(name = "updated_at", nullable = false, columnDefinition = "datetime(3)")
 	private LocalDateTime updatedAt;
 

@@ -5,18 +5,32 @@ import '../data/door_repository.dart';
 import 'device_detail_screen.dart';
 import 'door_widgets.dart';
 import 'lifecycle_history_screen.dart';
+import '../../credentials/data/credential_repository.dart';
+import '../../credentials/presentation/cardholder_screen.dart';
+import '../../credentials/presentation/rfid_screen.dart';
+import '../../credentials/presentation/pin_screen.dart';
+import '../../settings/data/settings_repository.dart';
+import '../../settings/presentation/door_settings_screen.dart';
+import '../../alerts/data/alert_repository.dart';
+import '../../alerts/presentation/alert_list_screen.dart';
 
 class DoorDetailScreen extends StatefulWidget {
   const DoorDetailScreen({
     required this.repository,
     required this.doorId,
     this.onSignInRequested,
+    this.credentialRepository,
+    this.settingsRepository,
+    this.alertRepository,
     super.key,
   });
 
   final DoorRepository repository;
   final int doorId;
   final VoidCallback? onSignInRequested;
+  final CredentialRepository? credentialRepository;
+  final SettingsRepository? settingsRepository;
+  final AlertRepository? alertRepository;
 
   @override
   State<DoorDetailScreen> createState() => _DoorDetailScreenState();
@@ -91,6 +105,12 @@ class _DoorDetailScreenState extends State<DoorDetailScreen> {
     ),
   );
 
+  void _open(Widget screen) =>
+      Navigator.of(context)
+          .push<void>(MaterialPageRoute(builder: (_) => screen));
+
+  void _signIn() => widget.onSignInRequested?.call();
+
   @override
   Widget build(BuildContext context) => Scaffold(
     appBar: AppBar(
@@ -164,6 +184,85 @@ class _DoorDetailScreenState extends State<DoorDetailScreen> {
                       ),
                     ),
                     const SizedBox(height: 16),
+                    if (widget.credentialRepository != null ||
+                        widget.settingsRepository != null ||
+                        widget.alertRepository != null) ...[
+                      Card(
+                        child: Column(
+                          children: [
+                            if (widget.credentialRepository != null) ...[
+                              ListTile(
+                                leading: const Icon(Icons.people_outline),
+                                title: const Text('Người giữ thẻ'),
+                                trailing: const Icon(Icons.chevron_right),
+                                onTap: () => _open(
+                                  CardholderScreen(
+                                    repository: widget.credentialRepository!,
+                                    onSignInRequested: _signIn,
+                                  ),
+                                ),
+                              ),
+                              ListTile(
+                                leading: const Icon(Icons.credit_card),
+                                title: const Text('Thẻ RFID của cửa'),
+                                trailing: const Icon(Icons.chevron_right),
+                                onTap: () => _open(
+                                  RfidScreen(
+                                    repository: widget.credentialRepository!,
+                                    doorId: widget.doorId,
+                                    doorName: _door!.name,
+                                    onSignInRequested: _signIn,
+                                  ),
+                                ),
+                              ),
+                              ListTile(
+                                leading: const Icon(Icons.pin_outlined),
+                                title: const Text('PIN của cửa'),
+                                trailing: const Icon(Icons.chevron_right),
+                                onTap: () => _open(
+                                  DoorPinScreen(
+                                    repository: widget.credentialRepository!,
+                                    doorId: widget.doorId,
+                                    doorName: _door!.name,
+                                    onSignInRequested: _signIn,
+                                  ),
+                                ),
+                              ),
+                            ],
+                            if (widget.settingsRepository != null)
+                              ListTile(
+                                leading: const Icon(Icons.settings_outlined),
+                                title: const Text('Cấu hình và đồng bộ'),
+                                trailing: const Icon(Icons.chevron_right),
+                                onTap: () => _open(
+                                  DoorSettingsScreen(
+                                    repository: widget.settingsRepository!,
+                                    doorId: widget.doorId,
+                                    doorName: _door!.name,
+                                    onSignInRequested: _signIn,
+                                  ),
+                                ),
+                              ),
+                            if (widget.alertRepository != null)
+                              ListTile(
+                                leading: const Icon(
+                                  Icons.notifications_outlined,
+                                ),
+                                title: const Text('Cảnh báo của cửa'),
+                                trailing: const Icon(Icons.chevron_right),
+                                onTap: () => _open(
+                                  AlertListScreen(
+                                    repository: widget.alertRepository!,
+                                    doorId: widget.doorId,
+                                    onSignInRequested: _signIn,
+                                  ),
+                                ),
+                              ),
+                          ],
+                        ),
+                      ),
+                      const SizedBox(height: 16),
+                    ],
                     Text(
                       'Thiết bị của cửa',
                       style: Theme.of(context).textTheme.titleLarge,

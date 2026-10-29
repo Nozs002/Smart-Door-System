@@ -6,6 +6,12 @@ import java.security.Principal;
 public interface AccountPrincipal extends Principal {
 	Long accountId();
 
+	default String tokenId() { return null; }
+
+	default java.time.Instant tokenExpiresAt() { return null; }
+
+	default long authVersion() { return 0L; }
+
 	@Override
 	default String getName() {
 		return String.valueOf(accountId());
