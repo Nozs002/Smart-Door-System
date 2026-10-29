@@ -37,8 +37,9 @@ class SignedDeviceMessageServiceTests {
     private final SettingsMqttProperties properties = new SettingsMqttProperties(false, false,
             Base64.getEncoder().encodeToString("test-only-master-at-least-32-bytes!".getBytes(StandardCharsets.UTF_8)), 60, 4096);
     private final DeviceTransportCredentialService secrets = new DeviceTransportCredentialService(keys, devices, doors, properties, clock);
+    private final com.smartdoor.backend.control.service.UnlockService unlocks = mock(com.smartdoor.backend.control.service.UnlockService.class);
     private final SignedDeviceMessageService service = new SignedDeviceMessageService(devices, doors, keys, secrets,
-            processed, acks, alerts, heartbeats, properties, json, clock);
+            processed, acks, alerts, heartbeats, properties, json, clock, unlocks);
     private final Device device = new Device();
     private final DeviceTransportCredential key = new DeviceTransportCredential();
     private final String topic = "smart-door/v1/doors/5/devices/NODE-TEST-1/events/heartbeat";
@@ -147,6 +148,18 @@ class SignedDeviceMessageServiceTests {
 
     private byte[] signed(String target, String payload, String nonce) {
         return json.writeValueAsBytes(envelope(target, payload, nonce, clock.instant().getEpochSecond()));
+    }
+
+    @Test void commandAcknowledgementRequiresValidSignatureAndUsesAuthenticatedIdentity() {
+        device.setNodeType(Device.NodeType.NODE_2);
+        String target=topic.replace("/heartbeat","/command-ack");
+        String payload="{\"schemaVersion\":1,\"commandId\":\"test-command\",\"result\":\"EXECUTED\"}";
+        service.receive(target,signed(target,payload,"unlock_0001"));
+        verify(unlocks).acknowledge(new AuthenticatedDeviceIdentity("NODE-TEST-1",5L,Device.NodeType.NODE_2),
+            new com.smartdoor.backend.control.service.UnlockService.Ack(1,"test-command","EXECUTED"));
+        var signed=envelope(target,payload,"unlock_0002",clock.instant().getEpochSecond());
+        assertInvalid(target,json.writeValueAsBytes(new SignedEnvelope(signed.credentialId(),signed.sentAt(),signed.nonce(),signed.payload(),"0".repeat(64))));
+        verifyNoMoreInteractions(unlocks);
     }
     private SignedEnvelope envelope(String target, String payload, String nonce, long sentAt) {
         SignedEnvelope unsigned = new SignedEnvelope(key.getCredentialId(), sentAt, nonce,

@@ -18,6 +18,8 @@ Tài liệu của dự án Smart Door System được tổ chức theo các nhó
 
 ## Tài liệu hiện có
 
+- [Mở khóa cửa từ dashboard](06-frontend/door-unlock.md)
+
 - [Hoàn thiện Người 1, Người 4: thay đổi, database và cách test](05-backend/person1-person4-completion.md)
 - [Quy chuẩn quản lý tài liệu](00-getting-started/00-docs-vault.md)
 - [Hướng dẫn bắt đầu phát triển](00-getting-started/01-getting-started.md)

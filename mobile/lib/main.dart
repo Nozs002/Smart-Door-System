@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
 
+import 'features/door_control/data/unlock_repository.dart';
+
 import 'core/api_client.dart';
 import 'features/doors/data/door_repository.dart';
 import 'features/authentication/login_screen.dart';
@@ -26,12 +28,14 @@ class SmartDoorApp extends StatefulWidget {
     this.alertRepository,
     this.credentialRepository,
     this.notificationRepository,
+    this.unlockRepository,
   });
   final DoorRepository? repository;
   final SettingsRepository? settingsRepository;
   final AlertRepository? alertRepository;
   final CredentialRepository? credentialRepository;
   final NotificationRepository? notificationRepository;
+  final UnlockRepository? unlockRepository;
   final AuthSession? session;
 
   @override
@@ -48,6 +52,7 @@ class _SmartDoorAppState extends State<SmartDoorApp> {
   AlertRepository? alertRepository;
   CredentialRepository? credentialRepository;
   NotificationRepository? notificationRepository;
+  UnlockRepository? unlockRepository;
   @override
   void initState() {
     super.initState();
@@ -59,6 +64,9 @@ class _SmartDoorAppState extends State<SmartDoorApp> {
       onUnauthorized: session.expire,
     );
     doorRepository = widget.repository ?? RestDoorRepository(client);
+    unlockRepository =
+        widget.unlockRepository ??
+        (widget.repository == null ? RestUnlockRepository(client) : null);
     settingsRepository =
         widget.settingsRepository ??
         (widget.repository == null ? RestSettingsRepository(client) : null);
@@ -118,6 +126,7 @@ class _SmartDoorAppState extends State<SmartDoorApp> {
               alertRepository: alertRepository,
               credentialRepository: credentialRepository,
               notificationRepository: notificationRepository,
+              unlockRepository: unlockRepository,
               onToggleTheme: () => setState(() {
                 _themeMode = _themeMode == ThemeMode.light
                     ? ThemeMode.dark

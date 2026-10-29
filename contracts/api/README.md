@@ -1,5 +1,7 @@
 # REST API Contract
 
+- [Mở khóa từ App](door-unlock.md)
+
 - [Cấu hình, đồng bộ và cảnh báo](settings-alerts.md)
 
 Đặc tả REST đã triển khai cho phần Người 2 nằm tại

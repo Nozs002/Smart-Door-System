@@ -31,7 +31,7 @@ import tools.jackson.databind.ObjectMapper;
 /** MQTT transport for configuration, credential snapshots and authenticated device events only. */
 @Component
 @ConditionalOnProperty(name="app.settings-mqtt.enabled",havingValue="true")
-public class SettingsMqttBridge implements OutboxTransport {
+public class SettingsMqttBridge implements OutboxTransport, com.smartdoor.backend.control.service.UnlockTransport {
     private static final Logger log=LoggerFactory.getLogger(SettingsMqttBridge.class);
     private final AppProperties.Mqtt settings;
     private final SettingsMqttProperties properties;
@@ -70,7 +70,7 @@ public class SettingsMqttBridge implements OutboxTransport {
             @Override public void connectComplete(boolean reconnect,String serverURI) {
                 connectionGeneration.incrementAndGet();
                 try {
-                    client.subscribe(new String[]{eventTopic("sync-ack"),eventTopic("alert"),eventTopic("heartbeat")},new int[]{1,1,1});
+                    client.subscribe(new String[]{eventTopic("sync-ack"),eventTopic("alert"),eventTopic("heartbeat"),eventTopic("command-ack")},new int[]{1,1,1,1});
                     log.info("Settings MQTT connected and subscribed.");
                 } catch (MqttException e) { log.warn("Settings MQTT subscription failed (reason {}).",e.getReasonCode()); }
             }
@@ -118,6 +118,16 @@ public class SettingsMqttBridge implements OutboxTransport {
     }
 
     @Override public boolean supports(String kind) { return "CONFIGURATION".equals(kind) || "CREDENTIALS".equals(kind); }
+
+    @Override public boolean connected() { return client.isConnected(); }
+
+    @Override public void publishUnlock(Long doorId,String deviceCode,String commandId,String expiresAt) throws Exception {
+        if (!client.isConnected()) throw new IllegalStateException("MQTT disconnected");
+        byte[] payload=mapper.writeValueAsString(java.util.Map.of("schemaVersion",1,"commandId",commandId,
+                "action","UNLOCK","expiresAt",expiresAt)).getBytes(StandardCharsets.UTF_8);
+        client.publish("smart-door/v1/doors/"+doorId+"/devices/"+deviceCode+"/commands/unlock",payload,1,false)
+            .waitForCompletion(2000);
+    }
 
     @Override @Transactional
     public void deliver(OutboxDelivery message) throws Exception {

@@ -1,5 +1,8 @@
 import 'dart:async';
 
+import '../door_control/data/unlock_repository.dart';
+import '../door_control/presentation/unlock_sheet.dart';
+
 import 'package:flutter/material.dart';
 
 import 'door_overview_card.dart';
@@ -35,6 +38,7 @@ class DashboardScreen extends StatefulWidget {
     this.alertRepository,
     this.credentialRepository,
     this.notificationRepository,
+    this.unlockRepository,
   });
   final AuthSession session;
   final DoorRepository repository;
@@ -42,6 +46,7 @@ class DashboardScreen extends StatefulWidget {
   final AlertRepository? alertRepository;
   final CredentialRepository? credentialRepository;
   final NotificationRepository? notificationRepository;
+  final UnlockRepository? unlockRepository;
   final VoidCallback onToggleTheme;
   @override
   State<DashboardScreen> createState() => _DashboardScreenState();
@@ -57,6 +62,7 @@ class _DashboardScreenState extends State<DashboardScreen>
   Object? _error;
   Object? _deviceError;
   DoorConfiguration? _configurationValue;
+  UnlockCommand? _latestCommand;
   Object? _configurationError;
   int _request = 0;
   int _unreadCount = 0;
@@ -140,6 +146,7 @@ class _DashboardScreenState extends State<DashboardScreen>
         await Future.wait([
           _loadDevices(_selectedId!),
           _loadConfiguration(_selectedId!),
+          _loadCommand(_selectedId!),
         ]);
       }
     } catch (error) {
@@ -164,6 +171,30 @@ class _DashboardScreenState extends State<DashboardScreen>
       if (mounted && _selectedId == id) setState(() => _loadingDevices = false);
     }
   }
+
+  Future<void> _loadCommand(int id) async {
+    setState(() => _latestCommand = null);
+    final repository = widget.unlockRepository;
+    if (repository == null) return;
+    try {
+      final command = await repository.latest(id);
+      if (mounted && _selectedId == id) {
+        setState(() => _latestCommand = command);
+      }
+    } catch (_) {
+      /* Unknown command state is not a physical lock state. */
+    }
+  }
+
+  String? get _commandLabel => _latestCommand == null
+      ? null
+      : switch (_latestCommand!.status) {
+          'EXECUTED' => 'Lệnh gần nhất: Mở khóa (đã xác nhận)',
+          'PENDING' || 'SENT' => 'Lệnh mở khóa: Chờ xác nhận',
+          'REJECTED' => 'Lệnh mở khóa: Bị từ chối',
+          'FAILED' => 'Lệnh mở khóa: Gửi thất bại',
+          _ => 'Lệnh mở khóa: Chưa rõ kết quả',
+        };
 
   Future<void> _loadConfiguration(int id) async {
     final repository = widget.settingsRepository;
@@ -214,6 +245,27 @@ class _DashboardScreenState extends State<DashboardScreen>
       alertRepository: widget.alertRepository,
     ),
   );
+
+  Future<void> _control() async {
+    final door = _selected;
+    final repository = widget.unlockRepository;
+    if (door == null || repository == null) {
+      await _detail();
+      return;
+    }
+    await showModalBottomSheet<void>(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: Colors.transparent,
+      builder: (_) => UnlockSheet(
+        door: door,
+        repository: repository,
+        onSettings: _detail,
+        onSignIn: _signIn,
+      ),
+    );
+    if (mounted && widget.session.signedIn) await _load();
+  }
 
   Future<void> _history() => _open(
     LifecycleHistoryScreen(
@@ -405,6 +457,7 @@ class _DashboardScreenState extends State<DashboardScreen>
             setState(() => _selectedId = id);
             _loadDevices(id);
             _loadConfiguration(id);
+            _loadCommand(id);
           },
         ),
         const SizedBox(height: 10),
@@ -803,7 +856,11 @@ class _DashboardScreenState extends State<DashboardScreen>
                       else if (door != null) ...[
                         _picker(),
                         const SizedBox(height: 14),
-                        DoorOverviewCard(door: door, onTap: _detail),
+                        DoorOverviewCard(
+                          door: door,
+                          onTap: _control,
+                          commandLabel: _commandLabel,
+                        ),
                         const SizedBox(height: 14),
                         _devicePill(),
                         _heading('Quản lý truy cập'),

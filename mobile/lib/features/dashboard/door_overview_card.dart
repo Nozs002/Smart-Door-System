@@ -4,9 +4,15 @@ import '../doors/data/door_models.dart';
 
 /// Dashboard reference layout. Lifecycle never implies physical lock state.
 class DoorOverviewCard extends StatelessWidget {
-  const DoorOverviewCard({super.key, required this.door, required this.onTap});
+  const DoorOverviewCard({
+    super.key,
+    required this.door,
+    required this.onTap,
+    this.commandLabel,
+  });
   final DoorView door;
   final VoidCallback onTap;
+  final String? commandLabel;
 
   @override
   Widget build(BuildContext context) {
@@ -85,7 +91,8 @@ class DoorOverviewCard extends StatelessWidget {
                                   const SizedBox(width: 4),
                                   Expanded(
                                     child: Text(
-                                      'Lệnh gần nhất: Chưa có dữ liệu',
+                                      commandLabel ??
+                                          'Lệnh gần nhất: Chưa có dữ liệu',
                                       style: TextStyle(
                                         color: muted,
                                         fontSize: 13,

@@ -28,7 +28,8 @@ import tools.jackson.databind.ObjectMapper;
 @Service
 public class SignedDeviceMessageService {
     private static final long MAX_QUEUED_EVENT_AGE_SECONDS=86400;
-    private static final Pattern TOPIC=Pattern.compile("smart-door/v1/doors/([1-9][0-9]*)/devices/([A-Za-z0-9][A-Za-z0-9._-]{0,99})/events/(sync-ack|alert|heartbeat)");
+    private static final Pattern TOPIC=Pattern.compile("smart-door/v1/doors/([1-9][0-9]*)/devices/([A-Za-z0-9][A-Za-z0-9._-]{0,99})/events/(sync-ack|alert|heartbeat|command-ack)");
+    private final com.smartdoor.backend.control.service.UnlockService unlocks;
     private final DeviceRepository devices;
     private final DoorRepository doors;
     private final DeviceTransportCredentialRepository keys;
@@ -44,10 +45,10 @@ public class SignedDeviceMessageService {
     public SignedDeviceMessageService(DeviceRepository devices,DoorRepository doors,DeviceTransportCredentialRepository keys,
             DeviceTransportCredentialService secrets,ProcessedDeviceMessageRepository processed,
             SyncAckMessageHandler acknowledgements,HardwareAlertService alerts,DeviceHeartbeatService heartbeats,
-            SettingsMqttProperties properties,ObjectMapper mapper,Clock clock) {
+            SettingsMqttProperties properties,ObjectMapper mapper,Clock clock,com.smartdoor.backend.control.service.UnlockService unlocks) {
         this.devices=devices; this.doors=doors; this.keys=keys; this.secrets=secrets; this.processed=processed;
         this.acknowledgements=acknowledgements; this.alerts=alerts; this.heartbeats=heartbeats;
-        this.properties=properties; this.mapper=mapper; this.clock=clock;
+        this.properties=properties; this.mapper=mapper; this.clock=clock; this.unlocks=unlocks;
     }
 
     @Transactional
@@ -81,6 +82,7 @@ public class SignedDeviceMessageService {
         if (payload.length>properties.maxPayloadBytes()) throw invalid();
         AuthenticatedDeviceIdentity identity=new AuthenticatedDeviceIdentity(device.getDeviceCode(),doorId,device.getNodeType());
         switch (match.group(3)) {
+            case "command-ack" -> unlocks.acknowledge(identity,parse(payload,com.smartdoor.backend.control.service.UnlockService.Ack.class));
             case "sync-ack" -> acknowledgements.handle(identity,parse(payload,SyncAckMessageHandler.SyncAckMessage.class));
             case "alert" -> {
                 AlertPayload alert=parse(payload,AlertPayload.class);

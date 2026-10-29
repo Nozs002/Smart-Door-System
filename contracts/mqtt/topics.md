@@ -1,6 +1,6 @@
 # MQTT Topics
 
-Contract v1 cho cấu hình, đồng bộ credential và cảnh báo. Mọi topic đều chứa cả
+Contract v1 cho mở khóa, cấu hình, đồng bộ credential và cảnh báo. Mọi topic đều chứa cả
 `doorId` và `deviceCode`; Broker ACL phải ràng buộc credential thiết bị với đúng
 hai giá trị này. Backend luôn đối chiếu lại danh tính đã xác thực với bảng
 `devices`, lifecycle và `node_type`; không tin ID trong payload. Cảnh báo nghiệp
@@ -8,6 +8,33 @@ vụ yêu cầu `ACTIVE`. Kênh setup cấu hình/ACK chấp nhận `PROVISIONED
 `DISABLED` sau claim và luôn từ chối `RETIRED`.
 
 ## Topics
+
+### Mở khóa từ App
+
+Backend publish `smart-door/v1/doors/{doorId}/devices/{deviceCode}/commands/unlock`
+đến đúng Node 2 ACTIVE, QoS 1, **retain=false**:
+
+```json
+{"schemaVersion":1,"commandId":"d5c20718-119c-4a96-9931-ef829244e1d0","action":"UNLOCK","expiresAt":"2026-10-29T03:00:15Z"}
+```
+
+Node cần đồng hồ UTC tin cậy; từ chối lệnh hết hạn, schema/action sai và message
+retained. Lưu bền vững commandId/kết quả; nhận trùng chỉ gửi lại kết quả, không
+tác động relay lần hai. Không replay unlock khi reconnect.
+
+Node 2 gửi `events/command-ack`, QoS 1, retain=false, dùng signed envelope HMAC
+hiện có. Payload bên trong Base64:
+
+```json
+{"schemaVersion":1,"commandId":"d5c20718-119c-4a96-9931-ef829244e1d0","result":"EXECUTED"}
+```
+
+result: EXECUTED hoặc REJECTED. Backend kiểm tra đúng Door/Node 2 ACTIVE, chủ
+cửa hiện tại và hạn lệnh. ACK trùng không đổi kết quả cuối, ACK muộn không đổi
+TIMED_OUT thành thành công. EXECUTED không khẳng định trạng thái vật lý cửa.
+ACL hiện có commands/+ và events/+ bao phủ topic mới. Firmware chưa tích hợp.
+
+### Cấu hình, đồng bộ và sự kiện
 
 | Topic | Chiều | QoS | Retained | Nội dung |
 | --- | --- | ---: | --- | --- |
