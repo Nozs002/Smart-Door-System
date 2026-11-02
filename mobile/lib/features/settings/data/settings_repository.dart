@@ -10,6 +10,9 @@ abstract interface class SettingsRepository {
     required int lockoutSeconds,
     required double temperatureThreshold,
     int? openTimeoutSeconds,
+    String? operatingMode,
+    bool? fireAlarmEnabled,
+    bool? doorOpenAlertEnabled,
   });
 }
 
@@ -38,6 +41,9 @@ class RestSettingsRepository implements SettingsRepository {
     required int lockoutSeconds,
     required double temperatureThreshold,
     int? openTimeoutSeconds,
+    String? operatingMode,
+    bool? fireAlarmEnabled,
+    bool? doorOpenAlertEnabled,
   }) async => DoorConfiguration.fromJson(
     await client.request(
       'PUT',
@@ -47,6 +53,9 @@ class RestSettingsRepository implements SettingsRepository {
         'lockoutSeconds': lockoutSeconds,
         'temperatureThreshold': temperatureThreshold,
         'openTimeoutSeconds': openTimeoutSeconds,
+        'operatingMode': ?operatingMode,
+        'fireAlarmEnabled': ?fireAlarmEnabled,
+        'doorOpenAlertEnabled': ?doorOpenAlertEnabled,
       },
     ) as Map<String, dynamic>,
   );

@@ -9,7 +9,8 @@ public interface DeviceCommandPublisher {
 
 	record ConfigurationCommand(Long doorId, String deviceCode, Long version,
 			Integer maxFailedAttempts, Integer lockoutSeconds, BigDecimal temperatureThreshold,
-			Integer openTimeoutSeconds) { }
+			Integer openTimeoutSeconds, com.smartdoor.backend.door.entity.Door.OperatingMode operatingMode,
+            boolean fireAlarmEnabled, boolean doorOpenAlertEnabled) { }
 
 	record CredentialsCommand(Long doorId, String deviceCode, Long version, ChangeReason reason) { }
 

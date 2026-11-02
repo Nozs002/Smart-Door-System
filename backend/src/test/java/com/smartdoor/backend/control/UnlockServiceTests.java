@@ -26,7 +26,7 @@ class UnlockServiceTests {
     final UnlockTransport transport=mock(UnlockTransport.class);
     @SuppressWarnings("unchecked") final ObjectProvider<UnlockTransport> provider=mock(ObjectProvider.class);
     final Clock clock=Clock.fixed(Instant.parse("2026-10-29T03:00:00Z"),ZoneOffset.UTC);
-    final UnlockService service=new UnlockService(new DoorOwnershipService(doors),doors,devices,commands,provider,clock,new DeviceConnectionPolicy(clock,90));
+    final UnlockService service=new UnlockService(new DoorOwnershipService(doors),doors,devices,commands,provider,clock,new DeviceConnectionPolicy(clock,90),mock(com.smartdoor.backend.access.service.AccessJournalService.class));
     final Door door=new Door();
     final Device node=new Device();
     final UUID id=UUID.randomUUID();

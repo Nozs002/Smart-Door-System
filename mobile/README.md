@@ -87,7 +87,8 @@ Tài khoản local: **test / 123456789**. Nạp
 [SQL và hướng dẫn](../infrastructure/mysql/README.md) trước khi đăng nhập.
 Dữ liệu gồm ba cửa, thiết bị ở nhiều trạng thái và lịch sử lifecycle.
 Đã có màn người giữ thẻ, RFID theo cửa, PIN theo cửa, cấu hình, đồng bộ,
-cảnh báo và hộp thư thông báo. Lịch sử xác thực/điều khiển cửa thuộc Người 3.
+cảnh báo, hộp thư và lịch sử xác thực/điều khiển cửa. Xem
+[luồng truy cập và giám sát](../docs/06-frontend/access-monitoring.md).
 
 Thiết bị Android thật qua USB: chạy adb reverse tcp:8080 tcp:8080, rồi
 flutter run -t lib/main.dart -d DEVICE_ID --dart-define=API_BASE_URL=http://127.0.0.1:8080.
@@ -166,8 +167,8 @@ qua REST. Mỗi Node hiển thị lifecycle tách khỏi kết nối. Có tải 
 trạng thái chưa có cửa và liên kết hồ sơ, quản lý cửa, chi tiết, lịch sử thiết bị.
 Đăng xuất/hết phiên xóa các route cần xác thực và trở về đăng nhập.
 
-Dữ liệu nhiệt độ/độ ẩm/trạng thái khóa vật lý/cấu hình chưa có trong contract
-hiện tại được ghi Chưa có dữ liệu. Các ô RFID, PIN và người giữ thẻ mở màn hình
+Dữ liệu nhiệt độ/độ ẩm/trạng thái cửa/chốt đọc qua API monitoring; thiếu mẫu hoặc
+mẫu cũ được ghi rõ, không suy từ ACK mở khóa. Các ô RFID, PIN và người giữ thẻ mở màn hình
 quản lý qua API thật. Không sao chép số liệu, ảnh avatar, vân tay hoặc lệnh mở
 khóa mô phỏng của HTML vào App thật.
 
@@ -175,18 +176,19 @@ Source: lib/features/dashboard/dashboard_screen.dart và lib/core/theme/app_them
 
 Thẻ tổng quan cửa dùng một khối cao tối thiểu 240 px, bo góc 28 px, ảnh khóa
 bên phải với mask chuyển trong suốt. Tên/lệnh khóa ở trên, chỉ số ở đáy thẻ.
-Chưa có API sensor/lệnh khóa nên chỉ số hiển thị — và lệnh ghi Chưa có dữ liệu;
-không suy trạng thái khóa từ lifecycle. Thẻ tự tăng chiều cao khi chữ lớn/tên dài.
+Có API sensor và mở khóa; chỉ số hiển thị — khi thiếu mẫu mới. Dashboard cập nhật
+mỗi 10 giây khi App hoạt động. Không suy trạng thái khóa từ lifecycle hoặc ACK.
+Thẻ tự tăng chiều cao khi chữ lớn/tên dài.
 
 Phần còn lại của dashboard bám bố cục dashboard.html: giới hạn chiều rộng 430 px,
 lề 16 px, nút tròn hồ sơ/thông báo/theme; bộ chọn cửa kính mờ, thanh thiết bị
-bo tròn, nhóm truy cập lưới 2×2 và bảng cấu hình có các công tắc chưa khả dụng.
+bo tròn, nhóm truy cập lưới 2×2 và bảng cấu hình có các công tắc nối API.
 Bộ chọn và bảng cấu hình dùng blur 15, nền trắng 70% (tối: đen 50%).
 Thanh thiết bị dùng số lượng/trạng thái thật; danh sách Node nằm trong mục
 Trạng thái thiết bị có thể mở rộng. Ô Lịch sử thiết bị mở lịch sử cửa đang chọn.
 Ô Người giữ thẻ thay phần quản lý người dùng cũ; không triển khai vân tay.
-Các mục chưa khả dụng mở thông báo; công tắc minh họa không có trong hợp đồng API
-vẫn bị vô hiệu hóa. Cài đặt cửa mở màn hình ngưỡng và đồng bộ của cửa đang chọn.
+Các công tắc bảo mật/báo cháy/cửa mở lâu lưu cấu hình qua API và theo dõi ACK.
+Cài đặt cửa mở màn hình ngưỡng và đồng bộ của cửa đang chọn.
 
 ## Tài khoản và thông tin truy cập — Người 1
 

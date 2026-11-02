@@ -32,6 +32,9 @@ class _DoorSettingsScreenState extends State<DoorSettingsScreen> {
   Object? _error;
   bool _loading = true;
   bool _saving = false;
+  bool _security = true;
+  bool _fireAlarm = true;
+  bool _openAlert = false;
 
   @override
   void initState() {
@@ -67,6 +70,9 @@ class _DoorSettingsScreenState extends State<DoorSettingsScreen> {
 
   void _setValue(DoorConfiguration value) {
     setState(() => _configuration = value);
+    _security = value.operatingMode == 'SECURITY';
+    _fireAlarm = value.fireAlarmEnabled;
+    _openAlert = value.doorOpenAlertEnabled;
     _attempts.text = '${value.maxFailedAttempts}';
     _lockout.text = '${value.lockoutSeconds}';
     _temperature.text = value.temperatureThreshold.toStringAsFixed(1);
@@ -87,6 +93,9 @@ class _DoorSettingsScreenState extends State<DoorSettingsScreen> {
     try {
       final value = await widget.repository.updateConfiguration(
         widget.doorId,
+        operatingMode: _security ? 'SECURITY' : 'AUTOMATIC',
+        fireAlarmEnabled: _fireAlarm,
+        doorOpenAlertEnabled: _openAlert,
         maxFailedAttempts: int.parse(_attempts.text),
         lockoutSeconds: int.parse(_lockout.text),
         temperatureThreshold: double.parse(_temperature.text),
@@ -166,6 +175,38 @@ class _DoorSettingsScreenState extends State<DoorSettingsScreen> {
                         'Ngưỡng theo cửa',
                         style: Theme.of(context).textTheme.titleMedium,
                       ),
+                      SwitchListTile(
+                        contentPadding: EdgeInsets.zero,
+                        title: const Text('Chế độ bảo mật'),
+                        value: _security,
+                        onChanged: _saving
+                            ? null
+                            : (v) => setState(() => _security = v),
+                      ),
+                      SwitchListTile(
+                        contentPadding: EdgeInsets.zero,
+                        title: const Text('Báo cháy'),
+                        value: _fireAlarm,
+                        onChanged: _saving
+                            ? null
+                            : (v) => setState(() => _fireAlarm = v),
+                      ),
+                      SwitchListTile(
+                        contentPadding: EdgeInsets.zero,
+                        title: const Text('Cảnh báo cửa mở quá lâu'),
+                        subtitle: const Text(
+                          'Mặc định 30 giây khi bật lần đầu.',
+                        ),
+                        value: _openAlert,
+                        onChanged: _saving
+                            ? null
+                            : (v) => setState(() {
+                                _openAlert = v;
+                                if (v && _openTimeout.text.trim().isEmpty) {
+                                  _openTimeout.text = '30';
+                                }
+                              }),
+                      ),
                       const SizedBox(height: 16),
                       TextFormField(
                         enabled: !_saving,
@@ -214,7 +255,8 @@ class _DoorSettingsScreenState extends State<DoorSettingsScreen> {
                           labelText: 'Cửa mở quá lâu (giây, không bắt buộc)',
                         ),
                         keyboardType: TextInputType.number,
-                        validator: (raw) => raw == null || raw.trim().isEmpty
+                        validator: (raw) =>
+                            (raw == null || raw.trim().isEmpty) && !_openAlert
                             ? null
                             : _integer(raw, 5, 3600, 'giây'),
                       ),

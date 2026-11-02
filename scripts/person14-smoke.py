@@ -61,6 +61,9 @@ class SimulatedNode:
     def __init__(self, mqtt, credential, host, port):
         self.credential = credential
         self.snapshots = {}
+        self.unlock_results = {}
+        self.access_results = {}
+        self.alarms = set()
         self.connected = threading.Event()
         self.prefix = f'smart-door/v1/doors/{credential["doorId"]}/devices/{credential["deviceCode"]}'
         self.client = mqtt.Client(mqtt.CallbackAPIVersion.VERSION2, client_id="smoke-" + credential["credentialId"], clean_session=True)
@@ -80,6 +83,21 @@ class SimulatedNode:
 
     def on_message(self, client, userdata, message):
         kind = message.topic.rsplit("/", 1)[-1]
+        if kind in ("unlock", "access-result", "alarm"):
+            value = json.loads(message.payload)
+            if message.retain or value.get("schemaVersion") != 1 or datetime.fromisoformat(value["expiresAt"].replace("Z", "+00:00")) <= datetime.now(timezone.utc):
+                return
+            if kind == "unlock" and self.credential["nodeType"] == "NODE_2":
+                command_id = str(uuid.UUID(value["commandId"]))
+                if value.get("action") != "UNLOCK":
+                    return
+                result = self.unlock_results.setdefault(command_id, "EXECUTED")
+                self.publish("command-ack", {"schemaVersion": 1, "commandId": command_id, "result": result})
+            elif kind == "access-result" and self.credential["nodeType"] == "NODE_1":
+                self.access_results[value["eventId"]] = value
+            elif kind == "alarm" and self.credential["nodeType"] == "NODE_2":
+                self.alarms.add(value["eventId"])
+            return
         if kind not in ("configuration", "credentials"):
             return
         snapshot = json.loads(message.payload)
@@ -237,9 +255,49 @@ def main():
             request("PATCH", f'/api/v1/alerts/{alert["id"]}/status', {"status": "ACKNOWLEDGED"}, token, 400)
             request("GET", f'/api/v1/alerts/{alert["id"]}', token=other_token, expected=404)
             print("PASS alert deduplication, role checks, owner inbox, read and resolve rules", flush=True)
+            wait_for("Node 2 heartbeat is online", lambda: any(d["nodeType"] == "NODE_2" and d["connectionStatus"] == "ONLINE"
+                for d in request("GET", door_path + "/devices", token=token)))
+            def access_attempt(method, value, duplicate=False):
+                attempt = {"schemaVersion": 1, "eventId": str(uuid.uuid4()), "method": method,
+                    "value": value, "occurredAt": datetime.now(timezone.utc).isoformat()}
+                node1.publish("access-request", attempt)
+                if duplicate:
+                    node1.publish("access-request", attempt)
+                decision = wait_for("access decision " + method, lambda: node1.access_results.get(attempt["eventId"]))
+                return attempt["eventId"], decision
+            for method, value in (("PIN", pin), ("RFID", uid)):
+                attempt_id, decision = access_attempt(method, value, duplicate=True)
+                assert decision["result"] == "GRANTED" and decision["reason"] == "QUEUED"
+                wait_for("Node 2 confirms " + method + " unlock", lambda: request("GET", door_path + "/commands/" + attempt_id, token=token)["status"] == "EXECUTED")
+                history = request("GET", door_path + "/access-logs?size=100", token=token)["items"]
+                assert len([row for row in history if row["correlationId"] == attempt_id]) == 2
+                assert all("value" not in row and "uid" not in row for row in history)
+            latest = request("GET", door_path + "/access-summary", token=token)
+            assert latest["cardholderCount"] == 1 and latest["latestAccess"]["cardholderName"] == "E2E cardholder"
+            wrong_pin = "000000" if pin != "000000" else "111111"
+            for _ in range(desired["maxFailedAttempts"]):
+                failed_id, decision = access_attempt("PIN", wrong_pin, duplicate=True)
+                assert decision["result"] == "DENIED"
+            wait_for("wrong attempts trigger one alarm", lambda: failed_id in node2.alarms)
+            blocked_id, blocked = access_attempt("PIN", pin)
+            assert blocked["reason"] == "LOCKED_OUT" and blocked["lockedUntil"]
+            request("GET", door_path + "/commands/" + blocked_id, token=token, expected=404)
+            denied = request("GET", door_path + "/access-logs?method=PIN&result=DENIED", token=token)
+            assert denied["totalElements"] == desired["maxFailedAttempts"] + 1
+            print("PASS RFID/PIN -> unlock ACK -> attributed history, duplicate attempts and lockout alarm", flush=True)
+            sample = {"schemaVersion": 1, "eventId": str(uuid.uuid4()), "observedAt": datetime.now(timezone.utc).isoformat(),
+                "temperature": 28.5, "humidity": 65, "doorState": "CLOSED", "lockState": "LOCKED"}
+            node2.publish("telemetry", sample)
+            node2.publish("telemetry", sample)
+            observed = wait_for("signed telemetry is visible", lambda: request("GET", door_path + "/monitoring", token=token))
+            assert observed["fresh"] and observed["temperature"] == 28.5 and observed["doorState"] == "CLOSED"
+            for resource in ("monitoring", "access-logs", "access-summary"):
+                request("GET", door_path + "/" + resource, token=other_token, expected=404)
+            print("PASS sensor telemetry and monitoring/access owner isolation", flush=True)
             delivery = request("GET", door_path + "/delivery-status?size=100", token=token)
             assert all("payload" not in row for row in delivery["items"])
             report["mqttTested"] = True
+            report["accessMonitoringTested"] = True
             report["alertId"] = alert["id"]
         second_token = login(username, password)
         request("POST", "/api/v1/auth/logout", token=second_token)

@@ -28,19 +28,32 @@ public class UnlockService {
     private final ObjectProvider<UnlockTransport> transport;
     private final Clock clock;
     private final DeviceConnectionPolicy connections;
+    private final com.smartdoor.backend.access.service.AccessJournalService journal;
     public UnlockService(DoorOwnershipService ownership,DoorRepository doors,DeviceRepository devices,
-            ControlCommandRepository commands,ObjectProvider<UnlockTransport> transport,Clock clock,DeviceConnectionPolicy connections) {
+            ControlCommandRepository commands,ObjectProvider<UnlockTransport> transport,Clock clock,DeviceConnectionPolicy connections,
+            com.smartdoor.backend.access.service.AccessJournalService journal) {
         this.ownership=ownership; this.doors=doors; this.devices=devices;
         this.commands=commands; this.transport=transport; this.clock=clock; this.connections=connections;
+        this.journal=journal;
     }
     private LocalDateTime now() { return LocalDateTime.ofInstant(clock.instant(),ZoneOffset.UTC).truncatedTo(ChronoUnit.MILLIS); }
     @Transactional
     public CommandView unlock(Long accountId,Long doorId,UUID requestId) {
+        return create(accountId,doorId,requestId,"APP");
+    }
+    /** Called only after trusted Node 1 authentication; conflicts are recorded without rolling back the attempt. */
+    @Transactional
+    public String unlockFromAccess(Long accountId,Long doorId,UUID requestId,String method) {
+        if (!List.of("RFID","PIN").contains(method)) throw new BadRequestException("Phương thức không hợp lệ.");
+        try { create(accountId,doorId,requestId,method); return "QUEUED"; }
+        catch (ConflictException unavailable) { return "CONTROL_UNAVAILABLE"; }
+    }
+    private CommandView create(Long accountId,Long doorId,UUID requestId,String method) {
         Door door=ownership.requireOwnerForUpdate(accountId,doorId);
         var previous=commands.findById(requestId.toString());
         if (previous.isPresent()) {
             var value=previous.get();
-            if (!doorId.equals(value.getDoorId()) || !accountId.equals(value.getAccountId())) throw new ConflictException("Mã lệnh đã được sử dụng.");
+            if (!doorId.equals(value.getDoorId()) || !accountId.equals(value.getAccountId()) || !method.equals(value.getAccessMethod())) throw new ConflictException("Mã lệnh đã được sử dụng.");
             return view(value);
         }
         if (door.getStatus()!=Door.Status.ACTIVE) throw new ConflictException("Cửa chưa hoạt động.");
@@ -54,8 +67,11 @@ public class UnlockService {
         var command=new ControlCommand();
         command.setId(requestId.toString()); command.setDoorId(doorId); command.setAccountId(accountId);
         command.setDeviceCode(nodes.get(0).getDeviceCode()); command.setStatus("PENDING");
+        command.setAccessMethod(method);
         command.setCreatedAt(now()); command.setExpiresAt(now().plusSeconds(15));
-        return view(commands.save(command));
+        commands.save(command);
+        if ("APP".equals(method)) journal.command(command);
+        return view(command);
     }
     @Transactional
     public CommandView latest(Long accountId,Long doorId) {
@@ -78,14 +94,14 @@ public class UnlockService {
         var node=devices.findByDeviceCode(c.getDeviceCode()).orElse(null);
         if (door.getStatus()!=Door.Status.ACTIVE || !c.getAccountId().equals(door.getOwnerAccountId())
             || node==null || !c.getDoorId().equals(node.getDoorId()) || node.getNodeType()!=Device.NodeType.NODE_2
-            || node.getLifecycleStatus()!=Device.LifecycleStatus.ACTIVE || !online(node)) { c.setStatus("FAILED"); return; }
+            || node.getLifecycleStatus()!=Device.LifecycleStatus.ACTIVE || !online(node)) { c.setStatus("FAILED"); journal.command(c); return; }
         // Never automatically retry an unlock after an ambiguous delivery.
         c.setStatus("SENT");
         try {
             var channel=transport.getIfAvailable();
             if (channel==null) throw new IllegalStateException();
             channel.publishUnlock(c.getDoorId(),c.getDeviceCode(),c.getId(),c.getExpiresAt().toInstant(ZoneOffset.UTC).toString());
-        } catch (Exception e) { c.setStatus("UNKNOWN"); }
+        } catch (Exception e) { c.setStatus("UNKNOWN"); journal.command(c); }
     }
     @Transactional
     public void acknowledge(AuthenticatedDeviceIdentity identity,Ack ack) {
@@ -103,6 +119,7 @@ public class UnlockService {
         expire(c);
         if (!("SENT".equals(c.getStatus()) || "UNKNOWN".equals(c.getStatus()))) return;
         c.setStatus(ack.result());
+        journal.command(c);
         if ("EXECUTED".equals(ack.result())) door.setCommandedLockState(Door.LockState.UNLOCKED);
     }
     public List<String> waiting() {
@@ -110,7 +127,7 @@ public class UnlockService {
     }
     private boolean online(Device node) { return connections.status(node.getLastHeartbeatAt())==ConnectionStatus.ONLINE; }
     private boolean pending(ControlCommand c) { return List.of("PENDING","SENT","UNKNOWN").contains(c.getStatus()); }
-    private void expire(ControlCommand c) { if (pending(c) && !c.getExpiresAt().isAfter(now())) c.setStatus("TIMED_OUT"); }
+    private void expire(ControlCommand c) { if (pending(c) && !c.getExpiresAt().isAfter(now())) { c.setStatus("TIMED_OUT"); journal.command(c); } }
     private CommandView view(ControlCommand c) { return new CommandView(c.getId(),c.getDoorId(),"UNLOCK",c.getStatus(),c.getCreatedAt().toInstant(ZoneOffset.UTC),c.getExpiresAt().toInstant(ZoneOffset.UTC)); }
     public record CommandView(String id,Long doorId,String action,String status,Instant createdAt,Instant expiresAt) { }
     public record Ack(int schemaVersion,String commandId,String result) { }

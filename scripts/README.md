@@ -47,3 +47,11 @@ Nếu đổi `MQTT_HOST_PORT`, truyền cùng giá trị bằng `--port` của s
 `--mqtt-port` của smoke test. Có thể chẩn đoán một cửa bằng
 `python scripts/db-check.py --expect-version 6 --door-id <id>`; script không in
 payload chứa credentials.
+
+Luồng RFID/PIN, lịch sử ra vào và telemetry: xem
+[hướng dẫn thử trên App](../docs/06-frontend/access-monitoring.md).
+`person14-smoke.py --mqtt` kiểm tra thêm mở khóa bằng PIN/RFID, ACK thực thi,
+log theo correlationId, chống trùng yêu cầu, khóa tạm/còi mô phỏng và quyền đọc
+sensor/history. `device-simulator.py --access-method PIN` hỏi giá trị qua input
+ẩn; `--retry-access` thử gửi trùng, `--attempts` tạo các lần thử độc lập.
+Không truyền thông tin xác thực vào dòng lệnh hoặc công khai `.local/`.

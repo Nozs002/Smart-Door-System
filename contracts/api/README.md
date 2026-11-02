@@ -1,5 +1,7 @@
 # REST API Contract
 
+- [Xác thực RFID/PIN, lịch sử ra vào và giám sát cửa](access-monitoring.md)
+
 - [Mở khóa từ App](door-unlock.md)
 
 - [Cấu hình, đồng bộ và cảnh báo](settings-alerts.md)

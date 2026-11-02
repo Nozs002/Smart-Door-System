@@ -1,5 +1,11 @@
 # MQTT Topics
 
+Luồng RFID/PIN (`events/access-request`, `commands/access-result`), còi khóa tạm
+(`commands/alarm`) và cảm biến (`events/telemetry`) được đặc tả tại
+[truy cập và giám sát](../api/access-monitoring.md). Các event mới dùng cùng
+signed envelope phía dưới; Broker ACL giới hạn đúng Door/deviceCode và Backend
+kiểm tra thêm vai trò Node. Không retained các event hoặc kết quả/còi này.
+
 Contract v1 cho mở khóa, cấu hình, đồng bộ credential và cảnh báo. Mọi topic đều chứa cả
 `doorId` và `deviceCode`; Broker ACL phải ràng buộc credential thiết bị với đúng
 hai giá trị này. Backend luôn đối chiếu lại danh tính đã xác thực với bảng
@@ -57,7 +63,10 @@ retained. Consumer phải xử lý QoS 1 idempotent bằng `eventId`.
   "maxFailedAttempts": 3,
   "lockoutSeconds": 60,
   "temperatureThreshold": 50.0,
-  "openTimeoutSeconds": 30
+  "openTimeoutSeconds": 30,
+  "operatingMode": "SECURITY",
+  "fireAlarmEnabled": true,
+  "doorOpenAlertEnabled": true
 }
 ```
 
@@ -210,3 +219,11 @@ idempotent. Tham khảo [API manual ACK của Paho](https://eclipse.dev/paho/fil
   Backend chạy từ IDE thay vì Docker cần đặt `MQTT_PORT=1884`, host localhost.
 - TCP chỉ dùng local; production bật `MQTT_TLS=true`, Broker TLS và certificate
   tin cậy. Không vô hiệu hóa kiểm tra certificate/hostname để thử cho qua.
+
+### Cờ cảnh báo V8
+
+Snapshot configuration gửi cả `operatingMode`, `fireAlarmEnabled`, `doorOpenAlertEnabled` cho hai Node.
+Node 2 chỉ phát HIGH_TEMPERATURE khi fireAlarmEnabled và nhiệt độ vượt temperatureThreshold;
+chỉ phát DOOR_OPEN_TOO_LONG khi doorOpenAlertEnabled, có openTimeoutSeconds và thời gian mở vượt ngưỡng.
+Hai cảnh báo độc lập với operatingMode. Backend từ chối cảnh báo mới đã tắt; lịch sử không bị xóa.
+Node ACK sau khi áp dụng toàn bộ snapshot. Simulator lưu snapshot, xét mẫu cảm biến giả theo ngưỡng, không điều khiển phần cứng.

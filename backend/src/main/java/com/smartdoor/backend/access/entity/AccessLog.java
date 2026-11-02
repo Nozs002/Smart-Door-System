@@ -47,6 +47,12 @@ public class AccessLog {
 	@Column(name = "rfid_credential_id", nullable = true, columnDefinition = "bigint unsigned")
 	private Long rfidCredentialId;
 
+	@Column(name = "cardholder_id", columnDefinition = "bigint unsigned")
+	private Long cardholderId;
+
+	@Column(name = "locked_until", columnDefinition = "datetime(3)")
+	private LocalDateTime lockedUntil;
+
 	@Column(name = "source_device_id", nullable = true, columnDefinition = "bigint unsigned")
 	private Long sourceDeviceId;
 

@@ -96,3 +96,38 @@ cho mật khẩu demo 123456789, dùng để kiểm thử đăng nhập qua back
 Không seed mã claim hoặc MQTT credential. [CLI provision](../05-backend/door-device-handoff.md)
 hiện cấp mã claim mới; credential/ACL MQTT vẫn cần tích hợp riêng. Seed nhiều
 cửa không chứng minh đã kết nối firmware nhiều cửa.
+
+## V8: cấu hình báo cháy và cửa mở lâu
+
+Flyway `V8__door_safety_settings.sql` thêm hai cờ vào `door_configs`:
+`fire_alarm_enabled` mặc định true, `door_open_alert_enabled` mặc định false.
+Các cửa đã có `open_timeout_seconds` được bật cảnh báo cửa mở khi chuyển đổi.
+CHECK yêu cầu timeout khi bật cảnh báo. `doors.operating_mode` tiếp tục giữ chế độ bảo mật/tự động.
+Migration tăng version cấu hình để ACK phiên bản cũ không bị hiển thị là đã áp dụng các cờ mới.
+Sau nâng cấp, lưu cấu hình hoặc dùng **Yêu cầu đồng bộ lại** để đưa snapshot mới vào hàng đợi.
+Không sửa bootstrap V1/init.sql: database Docker bootstrap được baseline và chạy các migration tiếp theo.
+Khởi động backend mới bằng `docker compose up -d --build --no-deps backend` để Flyway nâng cấp volume hiện có; không xóa volume.
+
+Kiểm thử simulator sau khi cấu hình đã gửi và Node 2 ACTIVE:
+
+```powershell
+python scripts/device-simulator.py <private-node2.json> --temperature 55 --duration 30
+python scripts/device-simulator.py <private-node2.json> --door-open-seconds 31 --duration 30
+python -m unittest discover -s scripts/tests -p 'test_*simulator.py'
+```
+
+Với ngưỡng mặc định 50°C và 30 giây, bật hai cờ sẽ tạo HIGH_TEMPERATURE và DOOR_OPEN_TOO_LONG.
+Tắt từng cờ rồi gửi lại snapshot: simulator không phát cảnh báo tương ứng.
+Xem cảnh báo và thông báo trong App. Đây là cảm biến giả lập, không mở khóa hay bật còi thật.
+
+## V9: lịch sử xác thực và số đo cảm biến
+
+`V9__access_monitoring.sql` thêm `access_logs.cardholder_id` (FK giữ hồ sơ người
+giữ thẻ), `access_logs.locked_until`, `control_commands.access_method` (mặc định
+APP cho lệnh cũ), và bảng `door_telemetry` với số đo, trạng thái quan sát, thời
+điểm nguồn/nhận cùng FK Door/Device. Hàng đợi bổ sung trạng thái EXPIRED cho
+kết quả/còi đã hết hạn, không coi thông báo chưa gửi là SENT. Không xóa hoặc
+ghi lại lịch sử hiện có.
+Flyway áp dụng khi Backend mới khởi động; không chạy lại init.sql trên DB cũ.
+Kiểm tra: `python scripts/db-check.py --expect-version 9`.
+Xem [hướng dẫn truy cập/giám sát](../06-frontend/access-monitoring.md).

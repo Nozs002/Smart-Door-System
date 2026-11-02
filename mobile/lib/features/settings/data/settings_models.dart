@@ -45,6 +45,9 @@ class DoorConfiguration {
     required this.lockoutSeconds,
     required this.temperatureThreshold,
     this.openTimeoutSeconds,
+    this.operatingMode = 'SECURITY',
+    this.fireAlarmEnabled = true,
+    this.doorOpenAlertEnabled = false,
     required this.version,
     required this.credentialsVersion,
     required this.devices,
@@ -58,6 +61,9 @@ class DoorConfiguration {
         lockoutSeconds: (json['lockoutSeconds'] as num).toInt(),
         temperatureThreshold: (json['temperatureThreshold'] as num).toDouble(),
         openTimeoutSeconds: (json['openTimeoutSeconds'] as num?)?.toInt(),
+        operatingMode: json['operatingMode'] as String,
+        fireAlarmEnabled: json['fireAlarmEnabled'] as bool,
+        doorOpenAlertEnabled: json['doorOpenAlertEnabled'] as bool,
         version: (json['version'] as num).toInt(),
         credentialsVersion: (json['credentialsVersion'] as num).toInt(),
         devices: (json['devices'] as List<dynamic>? ?? const [])
@@ -73,6 +79,9 @@ class DoorConfiguration {
   final int lockoutSeconds;
   final double temperatureThreshold;
   final int? openTimeoutSeconds;
+  final String operatingMode;
+  final bool fireAlarmEnabled;
+  final bool doorOpenAlertEnabled;
   final int version;
   final int credentialsVersion;
   final List<DeviceSyncStatus> devices;

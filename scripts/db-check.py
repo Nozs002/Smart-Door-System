@@ -26,6 +26,10 @@ CHECKS = {
     "retired_device_timestamp": "SELECT COUNT(*) FROM devices WHERE lifecycle_status='RETIRED' AND retired_at IS NULL",
 }
 MIGRATED_CHECKS = {
+    "door_telemetry": {
+        "telemetry_device_scope": "SELECT COUNT(*) FROM door_telemetry t JOIN devices d ON d.id=t.source_device_id WHERE t.door_id<>d.door_id OR d.node_type<>'NODE_2'",
+        "telemetry_value_shape": "SELECT COUNT(*) FROM door_telemetry WHERE (temperature IS NOT NULL AND (temperature < -40 OR temperature > 125)) OR (humidity IS NOT NULL AND (humidity < 0 OR humidity > 100)) OR door_state NOT IN ('OPEN','CLOSED','UNKNOWN') OR lock_state NOT IN ('LOCKED','UNLOCKED','UNKNOWN')",
+    },
     "revoked_access_tokens": {
         "revocation_account_scope": "SELECT COUNT(*) FROM revoked_access_tokens r LEFT JOIN accounts a ON a.id=r.account_id WHERE a.id IS NULL",
     },

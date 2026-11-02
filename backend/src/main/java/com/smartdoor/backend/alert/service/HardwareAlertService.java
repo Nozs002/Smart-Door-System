@@ -99,10 +99,18 @@ public class HardwareAlertService {
 	}
 
 	private void validateNewEvent(OperationalDevice source, HardwareAlertEvent event) {
+        if (event.type() == Alert.Type.DOOR_OPEN_TOO_LONG) {
+            DoorConfig config = configs.findById(source.doorId())
+                    .orElseThrow(() -> new ResourceNotFoundException("Không tìm thấy cấu hình cửa."));
+            if (!config.isDoorOpenAlertEnabled() || config.getOpenTimeoutSeconds() == null) {
+                throw new ConflictException("Cảnh báo cửa mở đang tắt hoặc chưa có thời gian cấu hình.");
+            }
+        }
 		if (event.type() == Alert.Type.HIGH_TEMPERATURE) {
 			DoorConfig config = configs.findById(source.doorId())
 					.orElseThrow(() -> new ResourceNotFoundException("Không tìm thấy cấu hình cửa."));
-			if (event.observedTemperature().compareTo(config.getTemperatureThreshold()) <= 0) {
+			if (!config.isFireAlarmEnabled()) throw new ConflictException("Cảnh báo nhiệt độ đang tắt.");
+            if (event.observedTemperature().compareTo(config.getTemperatureThreshold()) <= 0) {
 				throw new BadRequestException("Nhiệt độ chưa vượt ngưỡng đang cấu hình.");
 			}
 		}

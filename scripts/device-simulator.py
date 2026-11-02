@@ -8,6 +8,8 @@ import hmac
 import json
 from pathlib import Path
 import signal
+import getpass
+import math
 import ssl
 import sys
 import threading
@@ -16,6 +18,18 @@ import uuid
 from datetime import datetime, timezone
 
 ROOT = Path(__file__).resolve().parents[1]
+
+
+def simulated_alert(config: dict, *, temperature=None, open_seconds=None, failures=False):
+    """Evaluate simulated sensors against the applied configuration, never physical hardware."""
+    if temperature is not None and config.get("fireAlarmEnabled", True) and temperature > config["temperatureThreshold"]:
+        return {"type": "HIGH_TEMPERATURE", "observedTemperature": temperature}
+    timeout = config.get("openTimeoutSeconds")
+    if open_seconds is not None and config.get("doorOpenAlertEnabled", False) and timeout is not None and open_seconds > timeout:
+        return {"type": "DOOR_OPEN_TOO_LONG"}
+    if failures:
+        return {"type": "TOO_MANY_FAILURES"}
+    return None
 
 
 def main() -> None:
@@ -27,9 +41,17 @@ def main() -> None:
     parser.add_argument("--cafile", type=Path)
     parser.add_argument("--duration", type=int, default=120)
     parser.add_argument("--temperature", type=float, help="Emit one Node 2 HIGH_TEMPERATURE event after connecting; activate the Node first.")
+    parser.add_argument("--door-open-seconds", type=int, help="Simulate Node 2 door-open duration against applied timeout.")
     parser.add_argument("--failures", action="store_true", help="Emit one Node 1 TOO_MANY_FAILURES test event; activate the Node first.")
     parser.add_argument("--event-id", help="Repeat an event ID to verify alert deduplication (keep the same payload).")
     parser.add_argument("--unlock-result", choices=("EXECUTED", "REJECTED", "silent"), default="EXECUTED", help="Node 2 simulated outcome; silent tests timeouts.")
+    parser.add_argument("--access-method", choices=("RFID", "PIN"), help="Node 1: read credential interactively; it is never printed or passed in command arguments.")
+    parser.add_argument("--attempts", type=int, default=1, help="Number of distinct access attempts, separated by --attempt-interval.")
+    parser.add_argument("--attempt-interval", type=float, default=2)
+    parser.add_argument("--retry-access", action="store_true", help="Publish each access attempt twice with the same eventId to test idempotency.")
+    parser.add_argument("--humidity", type=float)
+    parser.add_argument("--door-state", choices=("OPEN", "CLOSED", "UNKNOWN"), default="UNKNOWN")
+    parser.add_argument("--lock-state", choices=("LOCKED", "UNLOCKED", "UNKNOWN"), default="UNKNOWN")
     args = parser.parse_args()
     try:
         import paho.mqtt.client as mqtt
@@ -41,9 +63,23 @@ def main() -> None:
         raise RuntimeError("Invalid private device signing key.")
     if args.temperature is not None and credential["nodeType"] != "NODE_2":
         parser.error("--temperature requires a Node 2 credential")
+    if args.door_open_seconds is not None and (credential["nodeType"] != "NODE_2" or args.door_open_seconds < 0):
+        parser.error("--door-open-seconds requires Node 2 and a nonnegative duration")
     if args.failures and credential["nodeType"] != "NODE_1":
         parser.error("--failures requires a Node 1 credential")
+    if args.access_method and credential["nodeType"] != "NODE_1":
+        parser.error("--access-method requires Node 1")
+    if not 1 <= args.attempts <= 100 or not math.isfinite(args.attempt_interval) or args.attempt_interval < 1:
+        parser.error("attempts must be 1..100; attempt-interval must be finite and >=1 second")
+    if args.temperature is not None and (not math.isfinite(args.temperature) or not -40 <= args.temperature <= 125):
+        parser.error("temperature must be -40..125")
+    if args.humidity is not None and (not math.isfinite(args.humidity) or not 0 <= args.humidity <= 100):
+        parser.error("humidity must be 0..100")
+    if credential["nodeType"] != "NODE_2" and (args.humidity is not None or args.door_state != "UNKNOWN" or args.lock_state != "UNKNOWN"):
+        parser.error("telemetry requires Node 2")
+    access_value = getpass.getpass("Credential (hidden): ") if args.access_method else None
     prefix = f'smart-door/v1/doors/{credential["doorId"]}/devices/{credential["deviceCode"]}'
+    configuration_ready = threading.Event()
     connected = threading.Event()
     stopping = threading.Event()
     state_lock = threading.Lock()
@@ -78,6 +114,28 @@ def main() -> None:
 
     def on_message(client, userdata, message):
         kind = message.topic.rsplit("/", 1)[-1]
+        if kind in ("access-result", "alarm"):
+            try:
+                value = json.loads(message.payload)
+                expires = datetime.fromisoformat(value["expiresAt"].replace("Z", "+00:00"))
+                if message.retain or value.get("schemaVersion") != 1 or expires <= datetime.now(timezone.utc):
+                    return
+                if kind == "access-result" and credential["nodeType"] == "NODE_1":
+                    print("Access result:", value.get("result"), value.get("reason"), "locked until", value.get("lockedUntil"), flush=True)
+                elif kind == "alarm" and credential["nodeType"] == "NODE_2":
+                    event_id = str(uuid.UUID(value["eventId"]))
+                    with state_lock:
+                        alarms = state.setdefault("alarmEvents", [])
+                        if event_id in alarms:
+                            return
+                        alarms.append(event_id)
+                        state_file.parent.mkdir(parents=True, exist_ok=True)
+                        state_file.write_text(json.dumps(state), encoding="utf-8")
+                        state_file.chmod(0o600)
+                    print("Simulated alarm (no physical buzzer).", flush=True)
+            except (ValueError, TypeError, KeyError):
+                print("Rejected malformed access/alarm message.", flush=True)
+            return
         if kind == "unlock":
             if credential["nodeType"] != "NODE_2" or message.retain:
                 return
@@ -123,9 +181,13 @@ def main() -> None:
                 if version < state[kind]:
                     return
                 state[kind] = version
+                if kind == "configuration":
+                    state["appliedConfiguration"] = value
                 state_file.parent.mkdir(parents=True, exist_ok=True)
                 state_file.write_text(json.dumps(state), encoding="utf-8")
                 state_file.chmod(0o600)
+            if kind == "configuration":
+                configuration_ready.set()
             publish("sync-ack", {"eventId": uuid.uuid4().hex, "kind": kind.upper(), "version": version})
             print("Applied and ACK:", kind, "version", version, flush=True)
         except (ValueError, TypeError, KeyError):
@@ -141,21 +203,39 @@ def main() -> None:
     try:
         if not connected.wait(15):
             raise RuntimeError("Device did not connect to Broker within 15s.")
-        if args.temperature is not None or args.failures:
-            payload = {"eventId": args.event_id or uuid.uuid4().hex,
-                       "type": "HIGH_TEMPERATURE" if args.temperature is not None else "TOO_MANY_FAILURES"}
-            if args.temperature is not None:
-                payload["observedTemperature"] = args.temperature
-            result = publish("alert", payload)
-            result.wait_for_publish(timeout=10)
-            if not result.is_published():
-                raise RuntimeError("Broker did not acknowledge the test alert.")
-            print("Test alert delivered to Broker; check Backend/App for business acceptance.", flush=True)
-        deadline, next_heartbeat = time.monotonic() + max(1, args.duration), 0.0
+        if args.temperature is not None or args.door_open_seconds is not None or args.failures:
+            if not configuration_ready.wait(15):
+                raise RuntimeError("No configuration received; use App configuration sync/retry.")
+            with state_lock:
+                payload = simulated_alert(state["appliedConfiguration"], temperature=args.temperature,
+                                          open_seconds=args.door_open_seconds, failures=args.failures)
+            if payload is None:
+                print("No alert: disabled or sensor did not exceed configured threshold.", flush=True)
+            else:
+                payload["eventId"] = args.event_id or uuid.uuid4().hex
+                result = publish("alert", payload)
+                result.wait_for_publish(timeout=10)
+                if not result.is_published():
+                    raise RuntimeError("Broker did not acknowledge the test alert.")
+                print("Test alert delivered to Broker; check Backend/App for business acceptance.", flush=True)
+        deadline, next_heartbeat, next_attempt, attempts_sent = time.monotonic() + max(1, args.duration), 0.0, 0.0, 0
+        # Heartbeat first so Node 2 is ready before a separate Node 1 requests access.
         while time.monotonic() < deadline and not stopping.is_set():
             if connected.is_set() and time.monotonic() >= next_heartbeat:
                 publish("heartbeat", {"firmwareVersion": "person1-4-simulator-1"})
+                if credential["nodeType"] == "NODE_2":
+                    publish("telemetry", {"schemaVersion": 1, "eventId": str(uuid.uuid4()),
+                        "observedAt": datetime.now(timezone.utc).isoformat(), "temperature": args.temperature,
+                        "humidity": args.humidity, "doorState": args.door_state, "lockState": args.lock_state})
                 next_heartbeat = time.monotonic() + 15
+            if connected.is_set() and access_value is not None and attempts_sent < args.attempts and time.monotonic() >= next_attempt:
+                request = {"schemaVersion": 1, "eventId": str(uuid.uuid4()), "method": args.access_method,
+                    "value": access_value, "occurredAt": datetime.now(timezone.utc).isoformat()}
+                publish("access-request", request)
+                if args.retry_access:
+                    publish("access-request", request)
+                attempts_sent += 1
+                next_attempt = time.monotonic() + args.attempt_interval
             stopping.wait(0.25)
     finally:
         client.disconnect()

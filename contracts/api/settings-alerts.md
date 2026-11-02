@@ -30,7 +30,7 @@ thông báo. Hai thao tác này độc lập. Chưa có cơ chế tự giải qu
 
 `configuration`, `sync-status` và `sync/retry` trả cùng cấu trúc `DoorConfigView`:
 `doorId`, `maxFailedAttempts`, `lockoutSeconds`, `temperatureThreshold`,
-`openTimeoutSeconds`, `version`, `credentialsVersion`, `updatedAt`, `devices`.
+`openTimeoutSeconds`, `operatingMode`, `fireAlarmEnabled`, `doorOpenAlertEnabled`, `version`, `credentialsVersion`, `updatedAt`, `devices`.
 Mỗi thiết bị có `configState`, `credentialsState`, các version đã ACK và lifecycle.
 `SYNCED` yêu cầu phiên bản đã ACK bằng phiên bản mong muốn; thiếu ACK là `UNKNOWN`,
 khác phiên bản là `PENDING`. Credential không áp dụng cho Node 2.
@@ -87,3 +87,15 @@ màn hình hoặc refresh. Một cảnh báo tạo tối đa một thông báo c
 Danh sách nằm trong `data.items` của envelope API chuẩn. `unread=true` chỉ trả
 bản ghi chưa đọc. Đánh dấu đã đọc lặp lại giữ nguyên `readAt`; truy cập thông báo
 của Account khác trả `404`. Các thời điểm không có offset là UTC theo quy ước DB.
+
+## Ba công tắc theo cửa (V8)
+
+- `operatingMode`: `SECURITY` hoặc `AUTOMATIC`, lưu ở `doors.operating_mode`.
+- `fireAlarmEnabled`: boolean, mặc định true, lưu ở `door_configs.fire_alarm_enabled`.
+- `doorOpenAlertEnabled`: boolean, mặc định false, lưu ở `door_configs.door_open_alert_enabled`.
+- PUT bỏ qua một trong ba trường mới thì giữ giá trị hiện tại. Ngưỡng và giới hạn cũ vẫn bắt buộc như trước.
+- Bật cảnh báo cửa mở yêu cầu `openTimeoutSeconds` 5–3600. App dùng 30 giây nếu bật lần đầu chưa có ngưỡng.
+- Cả ba cấu hình được lưu và xếp hàng đồng bộ cùng transaction, tăng `version` chung. Chỉ ACK mới xác nhận thiết bị đã áp dụng.
+- Backend từ chối sự kiện nhiệt độ mới khi báo cháy tắt; khi bật, nhiệt độ phải vượt ngưỡng. Cảnh báo cửa mở mới yêu cầu cờ bật và có timeout; Node 2 chịu trách nhiệm đo thời gian và so sánh ngưỡng. Backend không suy ra thời gian mở từ trạng thái lệnh khóa.
+- Hai cảnh báo độc lập với `operatingMode`. Không tự đóng cảnh báo ACTIVE cũ khi tắt tính năng. Retry sự kiện đã ghi vẫn trả bản ghi cũ, không tạo thông báo lặp.
+- Phạm vi hiện tại là cấu hình app/backend/MQTT và Node giả lập; chưa triển khai tác động relay/còi/cảm biến thật.

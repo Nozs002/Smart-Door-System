@@ -1,5 +1,8 @@
 import 'dart:async';
 
+import '../access_logs/data/access_repository.dart';
+import '../access_logs/presentation/access_log_screen.dart';
+
 import '../door_control/data/unlock_repository.dart';
 import '../door_control/presentation/unlock_sheet.dart';
 
@@ -39,6 +42,7 @@ class DashboardScreen extends StatefulWidget {
     this.credentialRepository,
     this.notificationRepository,
     this.unlockRepository,
+    this.accessRepository,
   });
   final AuthSession session;
   final DoorRepository repository;
@@ -47,6 +51,7 @@ class DashboardScreen extends StatefulWidget {
   final CredentialRepository? credentialRepository;
   final NotificationRepository? notificationRepository;
   final UnlockRepository? unlockRepository;
+  final AccessRepository? accessRepository;
   final VoidCallback onToggleTheme;
   @override
   State<DashboardScreen> createState() => _DashboardScreenState();
@@ -67,7 +72,14 @@ class _DashboardScreenState extends State<DashboardScreen>
   int _request = 0;
   int _unreadCount = 0;
   bool _loadingUnread = false;
+  bool _savingConfiguration = false;
   Timer? _notificationTimer;
+  Timer? _liveTimer;
+  DoorMonitoring? _monitoring;
+  AccessSummary? _accessSummary;
+  Object? _liveError;
+  int _liveRequest = 0;
+  bool _liveLoading = false;
   DoorView? get _selected =>
       _doors.where((d) => d.id == _selectedId).firstOrNull;
 
@@ -77,12 +89,14 @@ class _DashboardScreenState extends State<DashboardScreen>
     WidgetsBinding.instance.addObserver(this);
     _load();
     _startNotifications();
+    _startLive();
   }
 
   @override
   void dispose() {
     WidgetsBinding.instance.removeObserver(this);
     _notificationTimer?.cancel();
+    _liveTimer?.cancel();
     super.dispose();
   }
 
@@ -90,8 +104,10 @@ class _DashboardScreenState extends State<DashboardScreen>
   void didChangeAppLifecycleState(AppLifecycleState state) {
     if (state == AppLifecycleState.resumed) {
       _startNotifications();
+      _startLive();
     } else {
       _notificationTimer?.cancel();
+      _liveTimer?.cancel();
     }
   }
 
@@ -104,6 +120,58 @@ class _DashboardScreenState extends State<DashboardScreen>
       (_) => _loadUnread(),
     );
   }
+
+  void _startLive() {
+    _liveTimer?.cancel();
+    if (widget.accessRepository == null) return;
+    _liveTimer = Timer.periodic(const Duration(seconds: 10), (_) {
+      final id = _selectedId;
+      if (id != null && !_liveLoading && widget.session.signedIn) {
+        _loadLive(id);
+        _loadDevices(id);
+        _loadCommand(id);
+      }
+    });
+    if (_selectedId != null) _loadLive(_selectedId!);
+  }
+
+  Future<void> _loadLive(int id) async {
+    final repository = widget.accessRepository;
+    if (repository == null) return;
+    final request = ++_liveRequest;
+    _liveLoading = true;
+    try {
+      final values = await Future.wait<Object?>([
+        repository.monitoring(id),
+        repository.summary(id),
+      ]);
+      if (!mounted || _selectedId != id || request != _liveRequest) return;
+      setState(() {
+        _monitoring = values[0] as DoorMonitoring?;
+        _accessSummary = values[1] as AccessSummary;
+        _liveError = null;
+      });
+    } catch (error) {
+      if (mounted && _selectedId == id && request == _liveRequest) {
+        setState(() {
+          _liveError = error;
+          _monitoring = null;
+          _accessSummary = null;
+        });
+      }
+    } finally {
+      if (request == _liveRequest) _liveLoading = false;
+    }
+  }
+
+  Future<void> _accessHistory() => _open(
+    AccessLogScreen(
+      repository: widget.accessRepository!,
+      doorId: _selectedId!,
+      doorName: _selected!.name,
+      onSignInRequested: _signIn,
+    ),
+  );
 
   Future<void> _loadUnread() async {
     final repository = widget.notificationRepository;
@@ -147,6 +215,7 @@ class _DashboardScreenState extends State<DashboardScreen>
           _loadDevices(_selectedId!),
           _loadConfiguration(_selectedId!),
           _loadCommand(_selectedId!),
+          _loadLive(_selectedId!),
         ]);
       }
     } catch (error) {
@@ -455,9 +524,15 @@ class _DashboardScreenState extends State<DashboardScreen>
           onChanged: (id) {
             if (id == null) return;
             setState(() => _selectedId = id);
+            setState(() {
+              _monitoring = null;
+              _accessSummary = null;
+              _liveError = null;
+            });
             _loadDevices(id);
             _loadConfiguration(id);
             _loadCommand(id);
+            _loadLive(id);
           },
         ),
         const SizedBox(height: 10),
@@ -545,7 +620,9 @@ class _DashboardScreenState extends State<DashboardScreen>
                         const SizedBox(width: 10),
                         Expanded(
                           child: Text(
-                            'Chưa có dữ liệu',
+                            _accessSummary == null
+                                ? 'Chưa có dữ liệu'
+                                : '${_accessSummary!.cardholderCount} người giữ thẻ đang hoạt động',
                             style: Theme.of(context).textTheme.bodySmall,
                           ),
                         ),
@@ -619,21 +696,99 @@ class _DashboardScreenState extends State<DashboardScreen>
     ],
   );
 
+  Future<void> _saveConfiguration({
+    String? operatingMode,
+    bool? fireAlarmEnabled,
+    bool? doorOpenAlertEnabled,
+  }) async {
+    final config = _configurationValue;
+    final id = _selectedId;
+    if (config == null || id == null || _savingConfiguration) return;
+    setState(() => _savingConfiguration = true);
+    try {
+      final result = await widget.settingsRepository!.updateConfiguration(
+        id,
+        maxFailedAttempts: config.maxFailedAttempts,
+        lockoutSeconds: config.lockoutSeconds,
+        temperatureThreshold: config.temperatureThreshold,
+        openTimeoutSeconds: doorOpenAlertEnabled == true
+            ? config.openTimeoutSeconds ?? 30
+            : config.openTimeoutSeconds,
+        operatingMode: operatingMode ?? config.operatingMode,
+        fireAlarmEnabled: fireAlarmEnabled ?? config.fireAlarmEnabled,
+        doorOpenAlertEnabled:
+            doorOpenAlertEnabled ?? config.doorOpenAlertEnabled,
+      );
+      if (!mounted || _selectedId != id) return;
+      setState(() => _configurationValue = result);
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Đã lưu, chờ thiết bị xác nhận.')),
+      );
+    } catch (error) {
+      if (mounted && _selectedId == id) {
+        ScaffoldMessenger.of(context)
+            .showSnackBar(SnackBar(content: Text(errorMessage(error))));
+      }
+    } finally {
+      if (mounted) setState(() => _savingConfiguration = false);
+    }
+  }
+
   Widget _configuration() => DashboardGlassPanel(
     child: Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
-        const DashboardConfigurationRow(
+        DashboardConfigurationRow(
+          value: _configurationValue == null
+              ? null
+              : _configurationValue?.operatingMode == 'SECURITY',
+          pending:
+              _configurationValue?.devices.any(
+                (d) => d.configState != 'SYNCED',
+              ) ??
+              false,
+          onChanged:
+              _configurationValue == null ||
+                  _savingConfiguration ||
+                  widget.settingsRepository == null
+              ? null
+              : (value) => _saveConfiguration(
+                  operatingMode: value ? 'SECURITY' : 'AUTOMATIC',
+                ),
           title: 'Chế độ bảo mật',
           icon: Icons.shield_outlined,
         ),
         const Divider(height: 1),
-        const DashboardConfigurationRow(
+        DashboardConfigurationRow(
+          value: _configurationValue?.fireAlarmEnabled,
+          pending:
+              _configurationValue?.devices.any(
+                (d) => d.configState != 'SYNCED',
+              ) ??
+              false,
+          onChanged:
+              _configurationValue == null ||
+                  _savingConfiguration ||
+                  widget.settingsRepository == null
+              ? null
+              : (value) => _saveConfiguration(fireAlarmEnabled: value),
           title: 'Báo cháy',
           icon: Icons.local_fire_department_outlined,
         ),
         const Divider(height: 1),
-        const DashboardConfigurationRow(
+        DashboardConfigurationRow(
+          value: _configurationValue?.doorOpenAlertEnabled,
+          pending:
+              _configurationValue?.devices.any(
+                (d) => d.configState != 'SYNCED',
+              ) ??
+              false,
+          onChanged:
+              _configurationValue == null ||
+                  _savingConfiguration ||
+                  widget.settingsRepository == null
+              ? null
+              : (value) => _saveConfiguration(doorOpenAlertEnabled: value),
           title: 'Cảnh báo cửa mở quá lâu',
           icon: Icons.timer_outlined,
         ),
@@ -860,11 +1015,31 @@ class _DashboardScreenState extends State<DashboardScreen>
                           door: door,
                           onTap: _control,
                           commandLabel: _commandLabel,
+                          monitoring: _monitoring,
+                          monitoringError: _liveError != null,
                         ),
                         const SizedBox(height: 14),
                         _devicePill(),
                         _heading('Quản lý truy cập'),
                         _access(),
+                        if (widget.accessRepository != null) ...[
+                          const SizedBox(height: 12),
+                          Card(
+                            child: ListTile(
+                              leading: const Icon(Icons.history),
+                              title: const Text('Lịch sử ra vào'),
+                              subtitle: Text(
+                                _liveError != null
+                                    ? 'Không tải được dữ liệu. Chạm để thử lại.'
+                                    : _accessSummary?.latestAccess == null
+                                    ? 'Chưa có lượt truy cập'
+                                    : '${accessMethodLabel(_accessSummary!.latestAccess!.method)} · ${accessResultLabel(_accessSummary!.latestAccess!.result)}',
+                              ),
+                              trailing: const Icon(Icons.chevron_right),
+                              onTap: _accessHistory,
+                            ),
+                          ),
+                        ],
                         _heading('Cấu hình cửa', doorName: door.name),
                         _configuration(),
                         const SizedBox(height: 16),

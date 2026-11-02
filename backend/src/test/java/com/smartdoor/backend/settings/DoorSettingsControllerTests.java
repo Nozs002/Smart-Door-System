@@ -39,7 +39,7 @@ class DoorSettingsControllerTests {
 	@Test
 	void returnsConfigurationForAuthenticatedOwner() throws Exception {
 		when(settings.get(7L, 3L)).thenReturn(new DoorConfigView(3L, 3, 60,
-				new BigDecimal("50.00"), null, 2L, 4L, null, List.of()));
+				new BigDecimal("50.00"), null, 2L, 4L, null, List.of(), com.smartdoor.backend.door.entity.Door.OperatingMode.SECURITY, true, false));
 		mvc.perform(get("/api/v1/doors/3/configuration"))
 				.andExpect(status().isOk())
 				.andExpect(jsonPath("$.data.version").value(2))

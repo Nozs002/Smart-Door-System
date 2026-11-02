@@ -168,7 +168,7 @@ void main() {
       expect(request.uri.path, '/api/v1/doors/12/sync/retry');
       expect(await utf8.decoder.bind(request).join(), isEmpty);
       request.response.write(
-        '{"data":{"doorId":12,"maxFailedAttempts":5,"lockoutSeconds":60,"temperatureThreshold":50,"version":4,"credentialsVersion":8,"devices":[]}}',
+        '{"data":{"doorId":12,"maxFailedAttempts":5,"lockoutSeconds":60,"temperatureThreshold":50,"version":4,"credentialsVersion":8,"operatingMode":"SECURITY","fireAlarmEnabled":true,"doorOpenAlertEnabled":false,"devices":[]}}',
       );
       await request.response.close();
       expect((await result).version, 4);

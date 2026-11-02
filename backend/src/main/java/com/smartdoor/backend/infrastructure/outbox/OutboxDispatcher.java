@@ -18,7 +18,7 @@ public class OutboxDispatcher {
 
 	@Scheduled(fixedDelayString = "${app.outbox.dispatch-interval-ms:1000}")
 	public void dispatch() {
-		List<String> kinds = List.of(OutboxService.CONFIGURATION, OutboxService.CREDENTIALS).stream()
+		List<String> kinds = List.of(OutboxService.CONFIGURATION, OutboxService.CREDENTIALS, "ACCESS_RESULT", "ALARM").stream()
 				.filter(kind -> transports.stream().anyMatch(t -> t.supports(kind))).toList();
 		if (kinds.isEmpty()) return; // No MQTT transport: queued messages remain honestly PENDING.
 		for (OutboxService.Claim claim : outbox.claim(kinds, 10)) {
@@ -26,6 +26,8 @@ public class OutboxDispatcher {
 				OutboxTransport transport = transports.stream().filter(t -> t.supports(claim.delivery().kind())).findFirst().orElseThrow();
 				transport.deliver(claim.delivery());
 				outbox.delivered(claim);
+			} catch (ExpiredDeliveryException expired) {
+				outbox.expired(claim);
 			} catch (Exception error) {
 				outbox.failed(claim, error);
 			}
