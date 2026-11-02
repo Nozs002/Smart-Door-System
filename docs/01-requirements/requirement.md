@@ -11,7 +11,7 @@ Phạm vi sở hữu và quản lý thiết bị tuân theo [năm quyết địn
 yêu cầu mục tiêu, không xác nhận chức năng đã được triển khai.
 
 - **Thiết bị IoT (Phần cứng)**: Sử dụng vi điều khiển ESP32 (lập trình C/C++ qua PlatformIO/Arduino).
-  - **Ngoại vi**: Module RFID (RC522), Bàn phím số (Keypad), Cảm biến siêu âm (JSN-SR04T), Cảm biến nhiệt độ (DHT11), Màn hình OLED, Còi báo động (Buzzer), Động cơ (Servo/Solenoid khóa chốt).
+  - **Ngoại vi**: Module RFID (RC522), Bàn phím số (Keypad), Cảm biến nhiệt độ (DHT11), Màn hình OLED, Còi báo động (Buzzer), Động cơ (Servo/Solenoid khóa chốt).
 - **Giao thức Mạng**: Kết nối Wi-Fi, giao tiếp thời gian thực qua MQTT (Mosquitto Broker) bằng định dạng JSON. Gửi tín hiệu "Heartbeat" định kỳ để báo trạng thái online/offline.
 - **Backend & Cơ sở dữ liệu**: RESTful API viết bằng Spring Boot (Java). Cơ sở dữ liệu quan hệ MySQL. API bảo mật bằng JWT và mật khẩu băm Bcrypt.
 - **Frontend (Mobile App)**: Sử dụng Flutter cho ứng dụng Android để tối ưu trải nghiệm người dùng, điều khiển từ xa và nhận thông báo đẩy. iOS, Web và Desktop không thuộc phạm vi hiện tại.
@@ -37,7 +37,6 @@ yêu cầu mục tiêu, không xác nhận chức năng đã được triển kh
 - **Phạm vi từng cửa**: Cấu hình, PIN, RFID, bộ đếm sai, thiết bị, lịch sử và cảnh báo thuộc Door tương ứng. Danh tính thiết bị và MQTT ACL phải khớp Door/Node; lệnh và thông báo không tác động cửa hoặc khách hàng khác.
 - **Xác thực tại chỗ**: Mở cửa bằng thẻ từ RFID và mật khẩu (Mã PIN).
 - **Điều khiển từ xa**: Nút "Mở cửa khẩn cấp" và xem trạng thái đóng/mở trực tiếp trên Mobile App.
-- **Đánh thức thông minh (Wake-up)**: Cảm biến siêu âm phát hiện người đến gần (40-60cm) kích hoạt hệ thống/bật sáng màn hình để tiết kiệm điện.
 - **Bảo mật & Cảnh báo**:
   - Nhập sai mật khẩu/thẻ 3 lần: Mặc định khóa bàn phím tạm thời 60 giây, bật còi hú và gửi cảnh báo lên App. Người dùng có quyền cấu hình có thể thay đổi ngưỡng số lần sai và thời gian khóa.
   - Cửa mở quá lâu (ví dụ: 30s) hoặc có lực cạy phá: Bật còi hú.
@@ -46,6 +45,10 @@ yêu cầu mục tiêu, không xác nhận chức năng đã được triển kh
 - **Cơ chế Offline**: Rớt mạng Wi-Fi, hệ thống cửa vẫn hoạt động bình thường với thẻ RFID và Keypad. Tự động kết nối lại khi có mạng.
 
 ## Giới hạn hệ thống (Out of Scope)
+
+- **Không sử dụng cảm biến khoảng cách**: Theo quyết định cập nhật ngày 02/11/2026,
+  bỏ phần cứng đo khoảng cách, đánh thức khi có người đến gần và mở cửa dựa trên
+  khoảng cách khỏi phạm vi dự án.
 
 - **Không vân tay**: Không có cảm biến, dữ liệu, API, MQTT hoặc màn hình vân tay.
 - **Không Admin nền tảng**: Không xây tài khoản/dashboard Admin nền tảng, chia sẻ cửa giữa các Account hoặc chuyển chủ cửa. Provision thực hiện qua công cụ kỹ thuật nội bộ/CLI.
@@ -67,7 +70,7 @@ Bốn thành viên chia việc theo cụm tính năng từ dưới lên trên:
   - Viết Backend API đăng nhập Account (JWT), kiểm tra quyền sở hữu cửa và tính hợp lệ của RFID/PIN đúng cửa bằng MySQL; tách Account và Cardholder.
 - **Minh (Điều khiển & Cảnh báo - Kỹ sư phần cứng)**:
   - Đi dây, làm sa bàn.
-  - Lập trình điều khiển Relay/Khóa, cảm biến nhiệt độ và cảm biến siêu âm.
+  - Lập trình điều khiển Relay/Khóa và cảm biến nhiệt độ.
   - Viết Backend API lưu Log lịch sử và Rule-engine đếm số lần sai mật khẩu.
 - **Hà (Mobile App UI/UX)**:
   - Thiết lập màn hình OLED hiển thị thông báo.
@@ -96,9 +99,7 @@ với các node của cửa đang hoạt động.
   - Đầu đọc thẻ từ RFID (RC522)
   - Bàn phím số (Keypad)
   - Màn hình OLED
-  - Cảm biến khoảng cách siêu âm (JSN-SR04T)
 - **Nhiệm vụ chính**:
-  - Dùng cảm biến siêu âm quét liên tục. Khi có người đến gần (40-60cm), ESP32 "thức dậy", bật sáng màn hình và bàn phím.
   - Thu thập mã thẻ RFID hoặc dãy mật khẩu.
   - Đóng gói dữ liệu thành JSON và gửi MQTT về Backend kiểm tra; topic/payload và danh tính kết nối phải xác định đúng Door/Node theo contract, không dùng topic chung cho tất cả cửa.
 
