@@ -1,0 +1,39 @@
+@startuml
+!theme plain
+skinparam shadowing false
+skinparam defaultFontName Arial
+skinparam backgroundColor white
+left to right direction
+title 12. Khung đấu nối chờ xác nhận — CHƯA phải sơ đồ thi công
+node "ESP32 Node 1\nModel board / GPIO: TBD" as N1
+component "RC522\nSPI + CS + RST\nGPIO / nguồn: TBD" as RFID
+component "Keypad\nHàng / cột: TBD" as Key
+component "OLED\nVí dụ SSD1306 I2C\nModel / SDA / SCL / nguồn: TBD" as OLED
+N1 <--> RFID : Tín hiệu theo module thật
+Key --> N1 : GPIO hàng / cột TBD
+N1 --> OLED : Giao tiếp theo model thật
+node "ESP32 Node 2\nModel board / GPIO: TBD" as N2
+component "Cảm biến nhiệt độ\nModel / chân DATA / nguồn: TBD" as Temp
+component "Nút Exit\nGPIO / pull-up / debounce: TBD" as Exit
+component "Cảm biến cửa / chốt\nLoại / cách đo: TBD" as State
+component "Driver / relay\nIN / mức kích / COM-NO-NC: TBD" as Relay
+component "Khóa\nLoại / điện áp / dòng / trạng thái mất nguồn: TBD" as Lock
+component "Driver + Buzzer\nLoại / nguồn / GPIO: TBD" as Buzzer
+Temp --> N2
+Exit --> N2
+State ..> N2
+N2 --> Relay : GPIO điều khiển TBD
+Relay --> Lock : Tiếp điểm / mạch tải TBD
+N2 --> Buzzer : GPIO điều khiển TBD
+component "Nguồn + ổn áp + bảo vệ\nĐiện áp / dòng / cách ly: TBD" as Power
+Power --> N1 : Nhánh logic theo board
+Power --> N2 : Nhánh logic theo board
+Power --> Relay : Nhánh nguồn khóa theo loại tải
+legend bottom
+  Cần BOM thực tế, bảng GPIO và nguồn để hoàn thiện.
+  GND chung / cách ly, mạch bảo vệ tải và mức tín hiệu phải khớp module thực tế.
+  Không dùng sơ đồ tham chiếu này để đấu điện khi các mục TBD chưa được xác nhận.
+  Cảm biến khoảng cách đã bỏ khỏi phạm vi.
+endlegend
+footer Cập nhật 06/11/2026 | Schema V10 | Offline còn thuộc phạm vi
+@enduml

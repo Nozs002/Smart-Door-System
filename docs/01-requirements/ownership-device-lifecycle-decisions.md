@@ -3,7 +3,7 @@ title: Quyết định sở hữu cửa và vòng đời thiết bị
 type: requirements
 lang: vi
 tags: [scope, ownership, device-lifecycle]
-updated: 2026-11-02
+updated: 2026-11-06
 ---
 
 # Quyết định sở hữu cửa và vòng đời thiết bị
@@ -87,9 +87,14 @@ cho transition và lịch sử. Timeout heartbeat và workflow thực thi còn p
 
 ## Nội dung còn phải đặc tả
 
-Cần hiện thực transition lifecycle, chốt cách provision credential/MQTT ACL, chính
-sách mã kích hoạt, timeout heartbeat, đồng bộ cấu hình và phản hồi áp dụng,
-kênh offline giữa hai Node, migration và thời hạn giữ lịch sử.
+Backend hiện đã có transition lifecycle, provision/claim, mã 8 ký tự hạn 7 ngày,
+credential/MQTT ACL, timeout heartbeat mặc định 90 giây, đồng bộ cấu hình/PIN/RFID
+và ACK có xác thực. Database hiện đến V10. Thay Node vẫn cần workflow chứng minh
+thu hồi quyền Broker của Node cũ; thời hạn giữ lịch sử chưa chốt.
+
+Offline vẫn cần đặc tả riêng kênh hai Node, cache quyền/PIN, thu hồi, chống
+replay, đồng bộ khi có mạng lại và hành vi reboot/mất nguồn. Có snapshot
+credentials trong contract không tự chứng minh firmware offline đã hoạt động.
 
 ## Cập nhật phạm vi ngày 02/11/2026
 
@@ -98,6 +103,15 @@ Dự án không sử dụng cảm biến khoảng cách. Các chức năng đo k
 Node 1 phụ trách RFID, Keypad và OLED theo [yêu cầu hệ thống](requirement.md).
 Quyết định này bổ sung phạm vi hiện tại, không thay đổi nội dung năm quyết định
 về sở hữu cửa và vòng đời thiết bị đã thống nhất ngày 13/10/2026.
+
+## Xác nhận phạm vi ngày 06/11/2026
+
+Nhóm xác nhận **tiếp tục làm offline**, gồm mục tiêu xác thực tại cửa khi mất
+mạng; không loại bỏ yêu cầu này. Chưa chốt công nghệ giao tiếp trực tiếp giữa
+hai Node hoặc cách thực thi offline. Trong đợt cập nhật hồ sơ thiết kế này,
+**tạm chưa làm sơ đồ 6 (cảnh báo và mất kết nối)** theo yêu cầu của nhóm.
+Các sơ đồ online được cập nhật theo hiện trạng, ghi rõ ranh giới firmware/TBD.
+Xem [hồ sơ sơ đồ hệ thống](../03-technical-reference/system-design-review.md).
 
 ## Tài liệu liên quan
 

@@ -1,19 +1,23 @@
 ---
 title: Database ERD
 type: technical-reference
-version: 3.0
+version: 4.0
 lang: vi
 tags: [database, erd, mysql, ownership, device-lifecycle]
-updated: 2026-11-02
+updated: 2026-11-06
 ---
 
 # Database ERD
 
-Bản hiện tại dùng **Flyway V1–V6**, gồm 17 bảng nghiệp vụ và bảng lịch sử Flyway.
+Bản hiện tại dùng **Flyway V1–V10**, gồm 19 bảng nghiệp vụ và bảng lịch sử Flyway,
+với 31 khóa ngoại. V10 sửa CHECK của `integration_outbox.kind`, không thêm bảng/cột.
 `init.sql` vẫn là bootstrap 12 bảng gốc; Backend áp dụng các migration tiếp theo.
 Các bảng mới và sơ đồ quan hệ cập nhật nằm tại mục 5 cuối tài liệu. Xem
 [bàn giao Người 1, Người 4](../05-backend/person1-person4-completion.md) để chạy
 kiểm tra phiên bản và tính toàn vẹn trên database thực tế.
+
+Xem [hồ sơ sơ đồ, mục ERD](system-design-review.md#diagram-07) để có SVG đầy đủ,
+bản slide và bảng PK/unique/CHECK/FK được đối chiếu metadata MySQL V10.
 
 Schema khởi tạo mới cho MySQL 8.4 ở [init.sql](../../infrastructure/mysql/init/init.sql).
 [Dữ liệu mẫu](../../infrastructure/mysql/init/mockdata.sql) chỉ dành cho local/demo.

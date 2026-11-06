@@ -1,0 +1,66 @@
+@startuml
+!theme plain
+skinparam shadowing false
+skinparam defaultFontName Arial
+skinparam backgroundColor white
+hide methods
+skinparam classAttributeIconSize 0
+title 3. Mô hình miền và sở hữu — Account / Door / Cardholder
+class Account {
+  id / username
+  password_hash / auth_version
+  status
+}
+class Door {
+  id / owner_account_id : nullable
+  name / location / status
+}
+class Device {
+  id / device_code / door_id
+  node_type : NODE_1 | NODE_2
+  lifecycle_status
+  last_heartbeat_at
+}
+class Cardholder {
+  id / account_id
+  display_name / status
+}
+class RFIDCredential {
+  id / door_id / account_id
+  cardholder_id / uid_lookup_value
+  status / expires_at
+}
+class DoorConfig {
+  door_id / version
+  credentials_version
+  thresholds / alert flags
+}
+class SystemPin {
+  door_id / pin_hash
+  status / version
+}
+Account "0..1" -- "0..*" Door : sở hữu
+Account "1" -- "0..*" Cardholder : quản lý
+Door "1" -- "0..*" Device : hiện tại và lịch sử
+Door "1" -- "0..*" RFIDCredential : cấp quyền
+Cardholder "1" -- "0..*" RFIDCredential : được cấp thẻ
+Door "1" -- "0..1" DoorConfig : cấu hình (SQL cho phép thiếu)
+Door "1" -- "0..1" SystemPin : PIN chung
+note bottom of Account
+  Account đăng nhập App; Cardholder không cần tài khoản đăng nhập.
+  Một bảng cardholders dùng chung; API lọc account_id từ JWT.
+  Chủ cửa có thể tạo hồ sơ Cardholder cho chính mình.
+end note
+note bottom of RFIDCredential
+  Cardholder.account_id = Door.owner_account_id.
+  Composite FK bảo vệ phạm vi Account / Door.
+  UID duy nhất theo Door, có thể được cấp tại nhiều cửa.
+  PIN cửa khác mật khẩu Account.
+end note
+note bottom of Device
+  Provision tạo hai Node; tổng Device có thể nhiều hơn do giữ lịch sử.
+  UNIQUE active slot: tối đa một ACTIVE cho mỗi Door / node_type.
+  Door UNCLAIMED không có chủ; sau claim có đúng một chủ.
+end note
+footer Cập nhật 06/11/2026 | Schema V10 | Offline còn thuộc phạm vi
+@enduml

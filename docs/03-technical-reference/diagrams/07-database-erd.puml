@@ -1,0 +1,279 @@
+@startuml
+!theme plain
+skinparam shadowing false
+skinparam defaultFontName Arial
+skinparam classAttributeIconSize 0
+skinparam nodesep 55
+skinparam ranksep 75
+hide methods
+hide circle
+title 7a. ERD MySQL V10 — 19 bảng nghiệp vụ + lịch sử Flyway, đủ 31 FK
+entity access_logs {
+  {field} * id : BIGINT UNSIGNED <<PK>>
+  {field} * event_id : VARCHAR(100) <<UQ>>
+  {field} correlation_id : VARCHAR(100) NULL
+  {field} * door_id : BIGINT UNSIGNED <<FK>>
+  {field} actor_account_id : BIGINT UNSIGNED NULL <<FK>>
+  {field} rfid_credential_id : BIGINT UNSIGNED NULL <<FK>>
+  {field} source_device_id : BIGINT UNSIGNED NULL <<FK>>
+  {field} * method : ENUM
+  {field} * result : ENUM
+  {field} reason : VARCHAR(500) NULL
+  {field} occurred_at : DATETIME(3) NULL
+  {field} * received_at : DATETIME(3)
+  {field} cardholder_id : BIGINT UNSIGNED NULL <<FK>>
+  {field} locked_until : DATETIME(3) NULL
+}
+entity accounts {
+  {field} * id : BIGINT UNSIGNED <<PK>>
+  {field} * display_name : VARCHAR(100)
+  {field} * username : VARCHAR(100) <<UQ>>
+  {field} * password_hash : VARCHAR(255)
+  {field} * auth_version : BIGINT UNSIGNED
+  {field} * status : ENUM
+  {field} * created_at : DATETIME(3)
+}
+entity alerts {
+  {field} * id : BIGINT UNSIGNED <<PK>>
+  {field} event_id : VARCHAR(100) NULL <<UQ>>
+  {field} * door_id : BIGINT UNSIGNED <<FK>>
+  {field} source_device_id : BIGINT UNSIGNED NULL <<FK>>
+  {field} * type : ENUM
+  {field} * severity : ENUM
+  {field} * status : ENUM
+  {field} observed_temperature : DECIMAL(5,2) NULL
+  {field} * triggered_at : DATETIME(3)
+  {field} resolved_at : DATETIME(3) NULL
+  --
+  {field} UQ(id, door_id)
+}
+entity cardholders {
+  {field} * id : BIGINT UNSIGNED <<PK>>
+  {field} * account_id : BIGINT UNSIGNED <<FK>>
+  {field} * display_name : VARCHAR(100)
+  {field} * status : ENUM
+  {field} * created_at : DATETIME(3)
+  --
+  {field} UQ(id, account_id)
+}
+entity control_commands {
+  {field} * id : VARCHAR(36) <<PK>>
+  {field} * door_id : BIGINT UNSIGNED <<FK>>
+  {field} * account_id : BIGINT UNSIGNED <<FK>>
+  {field} * device_code : VARCHAR(100)
+  {field} * status : VARCHAR(16)
+  {field} * created_at : DATETIME(3)
+  {field} * expires_at : DATETIME(3)
+  {field} * access_method : VARCHAR(24)
+}
+entity device_lifecycle_events {
+  {field} * id : BIGINT UNSIGNED <<PK>>
+  {field} * event_id : VARCHAR(100) <<UQ>>
+  {field} * device_id : BIGINT UNSIGNED <<FK>>
+  {field} * door_id : BIGINT UNSIGNED <<FK>>
+  {field} actor_account_id : BIGINT UNSIGNED NULL <<FK>>
+  {field} * event_type : ENUM
+  {field} from_status : ENUM NULL
+  {field} * to_status : ENUM
+  {field} replacement_device_id : BIGINT UNSIGNED NULL <<FK>>
+  {field} reason : VARCHAR(500) NULL
+  {field} * occurred_at : DATETIME(3)
+}
+entity device_transport_credentials {
+  {field} * device_id : BIGINT UNSIGNED <<PK,FK>>
+  {field} * credential_id : VARCHAR(36) <<UQ>>
+  {field} verified_at : DATETIME(3) NULL
+  {field} revoked_at : DATETIME(3) NULL
+  {field} * created_at : DATETIME(3)
+}
+entity devices {
+  {field} * id : BIGINT UNSIGNED <<PK>>
+  {field} * door_id : BIGINT UNSIGNED <<FK>>
+  {field} * device_code : VARCHAR(100) <<UQ>>
+  {field} * node_type : ENUM
+  {field} * lifecycle_status : ENUM
+  {field} active_node_type : VARCHAR(6) NULL <<GENERATED>>
+  {field} firmware_version : VARCHAR(50) NULL
+  {field} last_heartbeat_at : DATETIME(3) NULL
+  {field} applied_config_version : BIGINT UNSIGNED NULL
+  {field} applied_pin_version : BIGINT UNSIGNED NULL
+  {field} * registered_at : DATETIME(3)
+  {field} activated_at : DATETIME(3) NULL
+  {field} retired_at : DATETIME(3) NULL
+  {field} * version : BIGINT UNSIGNED
+  --
+  {field} UQ(door_id, active_node_type)
+  {field} UQ(id, door_id)
+}
+entity door_activation_codes {
+  {field} * id : BIGINT UNSIGNED <<PK>>
+  {field} * door_id : BIGINT UNSIGNED <<FK>>
+  {field} * code_hash : VARCHAR(255) <<UQ>>
+  {field} * expires_at : DATETIME(3)
+  {field} * created_at : DATETIME(3)
+  {field} consumed_at : DATETIME(3) NULL
+  {field} consumed_by_account_id : BIGINT UNSIGNED NULL <<FK>>
+  {field} revoked_at : DATETIME(3) NULL
+}
+entity door_configs {
+  {field} * door_id : BIGINT UNSIGNED <<PK,FK>>
+  {field} * max_failed_attempts : INT UNSIGNED
+  {field} * lockout_seconds : INT UNSIGNED
+  {field} * temperature_threshold : DECIMAL(5,2)
+  {field} open_timeout_seconds : INT UNSIGNED NULL
+  {field} * version : BIGINT UNSIGNED
+  {field} * credentials_version : BIGINT UNSIGNED
+  {field} * updated_at : DATETIME(3)
+  {field} * fire_alarm_enabled : TINYINT(1)
+  {field} * door_open_alert_enabled : TINYINT(1)
+}
+entity door_telemetry {
+  {field} * id : BIGINT UNSIGNED <<PK>>
+  {field} * event_id : VARCHAR(36) <<UQ>>
+  {field} * door_id : BIGINT UNSIGNED <<FK>>
+  {field} * source_device_id : BIGINT UNSIGNED <<FK>>
+  {field} temperature : DOUBLE NULL
+  {field} humidity : DOUBLE NULL
+  {field} * door_state : VARCHAR(16)
+  {field} * lock_state : VARCHAR(16)
+  {field} * observed_at : DATETIME(3)
+  {field} * received_at : DATETIME(3)
+}
+entity doors {
+  {field} * id : BIGINT UNSIGNED <<PK>>
+  {field} owner_account_id : BIGINT UNSIGNED NULL <<FK>>
+  {field} * name : VARCHAR(100)
+  {field} location : VARCHAR(255) NULL
+  {field} * status : ENUM
+  {field} * operating_mode : ENUM
+  {field} commanded_lock_state : ENUM NULL
+  {field} * created_at : DATETIME(3)
+  {field} * updated_at : DATETIME(3)
+  {field} * version : BIGINT UNSIGNED
+  --
+  {field} UQ(id, owner_account_id)
+}
+entity flyway_schema_history {
+  {field} * installed_rank : INT <<PK>>
+  {field} version : VARCHAR(50) NULL
+  {field} * description : VARCHAR(200)
+  {field} * type : VARCHAR(20)
+  {field} * script : VARCHAR(1000)
+  {field} checksum : INT NULL
+  {field} * installed_by : VARCHAR(100)
+  {field} * installed_on : TIMESTAMP
+  {field} * execution_time : INT
+  {field} * success : TINYINT(1)
+}
+entity integration_outbox {
+  {field} * id : BIGINT UNSIGNED <<PK>>
+  {field} * kind : VARCHAR(32)
+  {field} * door_id : BIGINT UNSIGNED <<FK>>
+  {field} * device_id : BIGINT UNSIGNED <<FK>>
+  {field} * device_code : VARCHAR(100)
+  {field} * payload : LONGTEXT
+  {field} * status : ENUM
+  {field} * attempts : INT
+  {field} * next_attempt_at : DATETIME(3)
+  {field} lease_until : DATETIME(3) NULL
+  {field} lease_token : VARCHAR(36) NULL
+  {field} last_error : VARCHAR(200) NULL
+  {field} * created_at : DATETIME(3)
+  {field} sent_at : DATETIME(3) NULL
+  {field} * version : BIGINT UNSIGNED
+}
+entity lockout_statuses {
+  {field} * door_id : BIGINT UNSIGNED <<PK,FK>>
+  {field} * method : ENUM <<PK>>
+  {field} * failed_count : INT UNSIGNED
+  {field} locked_until : DATETIME(3) NULL
+  {field} * updated_at : DATETIME(3)
+  --
+  {field} PK(door_id, method)
+}
+entity owner_notifications {
+  {field} * id : BIGINT UNSIGNED <<PK>>
+  {field} * account_id : BIGINT UNSIGNED <<FK>>
+  {field} * alert_id : BIGINT UNSIGNED <<FK>>
+  {field} * door_id : BIGINT UNSIGNED <<FK>>
+  {field} * title : VARCHAR(120)
+  {field} * body : VARCHAR(500)
+  {field} * created_at : DATETIME(3)
+  {field} read_at : DATETIME(3) NULL
+  --
+  {field} UQ(alert_id, account_id)
+}
+entity processed_device_messages {
+  {field} * id : VARCHAR(64) <<PK>>
+  {field} * device_id : BIGINT UNSIGNED <<FK>>
+  {field} * received_at : DATETIME(3)
+}
+entity revoked_access_tokens {
+  {field} * token_id : VARCHAR(100) <<PK>>
+  {field} * account_id : BIGINT UNSIGNED <<FK>>
+  {field} * expires_at : DATETIME(3)
+  {field} * revoked_at : DATETIME(3)
+}
+entity rfid_credentials {
+  {field} * id : BIGINT UNSIGNED <<PK>>
+  {field} * door_id : BIGINT UNSIGNED <<FK>>
+  {field} * account_id : BIGINT UNSIGNED <<FK>>
+  {field} * cardholder_id : BIGINT UNSIGNED <<FK>>
+  {field} * uid_lookup_value : VARCHAR(128)
+  {field} * status : ENUM
+  {field} * issued_at : DATETIME(3)
+  {field} revoked_at : DATETIME(3) NULL
+  {field} expires_at : DATETIME(3) NULL
+  --
+  {field} UQ(door_id, uid_lookup_value)
+  {field} UQ(id, door_id)
+}
+entity system_pins {
+  {field} * door_id : BIGINT UNSIGNED <<PK,FK>>
+  {field} * pin_hash : VARCHAR(255)
+  {field} * status : ENUM
+  {field} * version : BIGINT UNSIGNED
+  {field} * changed_at : DATETIME(3)
+}
+doors ||--o{ access_logs : door_id
+doors |o--o{ access_logs : door_id, actor_account_id
+rfid_credentials |o--o{ access_logs : rfid_credential_id, door_id
+devices |o--o{ access_logs : source_device_id, door_id
+cardholders |o--o{ access_logs : cardholder_id
+doors ||--o{ alerts : door_id
+devices |o--o{ alerts : source_device_id, door_id
+accounts ||--o{ cardholders : account_id
+doors ||--o{ control_commands : door_id, account_id
+devices ||--o{ device_lifecycle_events : device_id, door_id
+devices |o--o{ device_lifecycle_events : replacement_device_id, door_id
+doors |o--o{ device_lifecycle_events : door_id, actor_account_id
+devices ||--o| device_transport_credentials : device_id
+doors ||--o{ devices : door_id
+doors ||--o{ door_activation_codes : door_id
+accounts |o--o{ door_activation_codes : consumed_by_account_id
+doors ||--o| door_configs : door_id
+doors ||--o{ door_telemetry : door_id
+devices ||--o{ door_telemetry : source_device_id
+accounts |o--o{ doors : owner_account_id
+doors ||--o{ integration_outbox : door_id
+devices ||--o{ integration_outbox : device_id, door_id
+doors ||--o{ lockout_statuses : door_id
+accounts ||--o{ owner_notifications : account_id
+alerts ||--o{ owner_notifications : alert_id, door_id
+doors ||--o{ owner_notifications : door_id, account_id
+devices ||--o{ processed_device_messages : device_id
+accounts ||--o{ revoked_access_tokens : account_id
+doors ||--o{ rfid_credentials : door_id, account_id
+cardholders ||--o{ rfid_credentials : cardholder_id, account_id
+doors ||--o| system_pins : door_id
+legend bottom
+  * = NOT NULL; PK = khóa chính; FK = khóa ngoại; UQ = duy nhất.
+  Quan hệ vẽ theo khả năng của SQL; provision/service có thể yêu cầu chặt hơn.
+  Tất cả FK dùng DELETE RESTRICT; giữ lịch sử thiết bị / thẻ / truy cập.
+  V10: kind outbox = CONFIGURATION | CREDENTIALS | ACCESS_RESULT | ALARM.
+  Composite FK bảo vệ phạm vi; telemetry Device/Door là hai FK độc lập, Backend kiểm tra cùng cửa.
+  control_commands.device_code không có FK trực tiếp; Backend kiểm tra mapping Node 2.
+  flyway_schema_history là bảng kỹ thuật, không tính trong 19 bảng nghiệp vụ.
+endlegend
+footer Metadata V10 kiểm tra ngày 06/11/2026; không chứa dữ liệu người dùng
+@enduml

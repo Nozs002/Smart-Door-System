@@ -1,0 +1,47 @@
+@startuml
+!theme plain
+skinparam shadowing false
+skinparam defaultFontName Arial
+skinparam backgroundColor white
+left to right direction
+title 2. Khối phần cứng — phân vai đã rõ; BOM và nguồn còn cần xác nhận
+rectangle "NGOÀI CỬA — NODE 1" {
+  component "RC522 / RFID" as RFID
+  component "Keypad ma trận\nKích thước thực tế: TBD" as Key
+  component "OLED\nVí dụ SSD1306 I2C\nModel thực tế: TBD" as OLED
+  node "ESP32 Node 1\nThu thập UID/PIN\nHiển thị kết quả" as N1
+  RFID --> N1 : UID
+  Key --> N1 : Phím / PIN
+  N1 --> OLED : Nội dung hiển thị
+}
+rectangle "TRONG CỬA — NODE 2" {
+  component "Cảm biến nhiệt độ / độ ẩm\nYêu cầu đang ghi DHT11\nModel và dải đo cần xác nhận" as Temp
+  component "Nút Exit" as Exit
+  component "Cảm biến trạng thái cửa / chốt\nChưa chốt linh kiện / cách đo" as State
+  node "ESP32 Node 2\nThực thi lệnh / đọc cảm biến\nFirmware cần triển khai" as N2
+  component "Driver / relay\nMức kích và định mức: TBD" as Relay
+  component "Khóa\nLoại, điện áp và dòng: TBD" as Lock
+  component "Driver + Buzzer\nModel / nguồn: TBD" as Buzzer
+  Temp --> N2 : Số đo
+  Exit --> N2 : Yêu cầu thoát
+  State ..> N2 : Trạng thái quan sát (khi có cảm biến)
+  N2 --> Relay : Điều khiển
+  Relay --> Lock : Đóng / cắt nguồn tải
+  N2 --> Buzzer : Báo động
+}
+component "Nguồn DC + nhánh ổn áp / bảo vệ\nĐiện áp và công suất: TBD" as Power
+Power --> N1 : Nguồn logic theo board
+Power --> N2 : Nguồn logic theo board
+Power --> Relay : Nhánh nguồn khóa
+N1 .. N2 : Kênh offline: TBD\nCache / thu hồi / chống replay chưa thiết kế
+note bottom of N2
+  Exit và phản ứng nhiệt độ tại chỗ là yêu cầu firmware,
+  chưa được kiểm chứng bằng chương trình ESP32.
+  ACK thực thi không thay phép đo vị trí cửa / chốt.
+end note
+legend bottom
+  Đây là sơ đồ khối, chưa phải bản đấu dây thi công.
+  Không còn cảm biến khoảng cách hoặc chức năng wake-up theo khoảng cách.
+endlegend
+footer Cập nhật 06/11/2026 | Schema V10 | Offline còn thuộc phạm vi
+@enduml
