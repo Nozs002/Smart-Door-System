@@ -1,0 +1,50 @@
+@startuml
+!theme plain
+skinparam shadowing false
+skinparam defaultFontName Arial
+skinparam backgroundColor white
+title 9. Lifecycle và kết nối thiết bị — hai trục độc lập
+state "Device đã đăng ký" as D {
+  state "LIFECYCLE — lưu trong MySQL" as L {
+    [*] --> PROVISIONED : CLI provision / đăng ký Node thay thế
+    PROVISIONED --> ACTIVE : ACTIVATE\nChủ cửa + readiness + slot trống
+    ACTIVE --> DISABLED : DISABLE\nLý do tùy chọn
+    DISABLED --> ACTIVE : REACTIVATE\nKiểm tra lại readiness / slot
+    ACTIVE --> RETIRED : RETIRE\nBắt buộc lý do
+    DISABLED --> RETIRED : RETIRE\nBắt buộc lý do
+    note bottom of PROVISIONED
+      Danh tính đã verified, chưa revoked.
+      Hai Node: applied_config = desired config.
+      Node 1 thêm PIN ACTIVE và ACK credentials mới nhất.
+      Setup ACK không tự ACTIVE; chủ cửa gọi ACTIVATE.
+      Hiện không có RETIRE trực tiếp từ PROVISIONED.
+    end note
+    note bottom of RETIRED
+      Không kích hoạt lại; giữ lịch sử.
+      Nhánh thay Node hiện trả 409:
+      canReplace() chưa có bằng chứng thu hồi Broker cũ.
+      Không vẽ thay Node như luồng đã hoạt động.
+    end note
+  }
+  --
+  state "KẾT NỐI — suy ra khi đọc dữ liệu" as C {
+    [*] --> UNKNOWN : Chưa có heartbeat
+    UNKNOWN --> ONLINE : Heartbeat hợp lệ đầu tiên
+    ONLINE --> ONLINE : Heartbeat mới (giờ nhận Backend)
+    ONLINE --> OFFLINE : Quá ngưỡng, mặc định > 90 giây
+    OFFLINE --> ONLINE : Heartbeat hợp lệ mới
+    note bottom of OFFLINE
+      Mất kết nối không tự DISABLE / RETIRE.
+      ONLINE không tự cấp quyền nghiệp vụ.
+      RETIRED không được gửi heartbeat mới.
+      Không suy ra Node còn lại offline từ một Node.
+    end note
+  }
+}
+legend bottom
+  ACTIVATE / REACTIVATE không yêu cầu nhập lý do trên App.
+  Khi lifecycle đổi, Backend tính lại trạng thái Door theo các Node ACTIVE.
+  Offline vẫn là yêu cầu firmware; không thay đổi lifecycle trên Backend.
+endlegend
+footer Cập nhật 06/11/2026 | Schema V10 | Offline còn thuộc phạm vi
+@enduml

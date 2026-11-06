@@ -9,7 +9,8 @@ thăm dò mỗi giây khi chờ; lỗi mạng cho kiểm tra lại, không tự 
 
 ## Kiểm thử
 
-1. Build backend mới: `docker compose up -d --build`; Flyway áp dụng V7.
+1. Build backend mới: `docker compose up -d --build`; Flyway áp dụng đến V10.
+   V10 bổ sung CHECK nhận kết quả RFID/PIN và lệnh còi trong hàng đợi.
 2. Theo [hướng dẫn thiết bị](../05-backend/person1-person4-completion.md), cấp
    credential, đồng bộ cấu hình và activate Node 2 của cửa cần kiểm thử.
 3. Chạy `python scripts/device-simulator.py <credential-file> --duration 600`.
@@ -21,6 +22,8 @@ thăm dò mỗi giây khi chờ; lỗi mạng cho kiểm tra lại, không tự 
    ngắt: không được báo mở khóa thành công.
 
 Xem [REST](../../contracts/api/door-unlock.md), [MQTT](../../contracts/mqtt/topics.md).
+Sơ đồ luồng quyền, ACK, timeout và giới hạn firmware tại
+[hồ sơ hệ thống](../03-technical-reference/system-design-review.md#diagram-05).
 Firmware thật chưa triển khai; cần tích hợp contract, chống trùng và kiểm tra
 hạn lệnh trước khi thử phần cứng.
 

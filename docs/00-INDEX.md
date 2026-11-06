@@ -31,6 +31,7 @@ Tài liệu của dự án Smart Door System được tổ chức theo các nhó
 - [Mô tả chức năng đăng nhập Account](04-srs-specs/account-login.md)
 - [Quyết định sở hữu cửa và vòng đời thiết bị](01-requirements/ownership-device-lifecycle-decisions.md)
 - [Kiến trúc hệ thống](03-technical-reference/architecture.md)
+- [Hồ sơ sơ đồ hệ thống V10 (sơ đồ 6 tạm hoãn)](03-technical-reference/system-design-review.md)
 - [Database ERD](03-technical-reference/database-erd.md)
 - [Khởi tạo và chuyển đổi database](03-technical-reference/database-setup.md)
 - [Sơ đồ kết nối phần cứng](03-technical-reference/hardware-wiring.md)

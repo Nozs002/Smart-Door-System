@@ -1,0 +1,52 @@
+@startuml
+!theme plain
+skinparam shadowing false
+skinparam defaultFontName Arial
+skinparam backgroundColor white
+left to right direction
+title 11. Triển khai local — Android + Docker Desktop + ESP32 / giả lập
+node "Điện thoại Android\nFlutter APK" as Phone
+node "Tại cửa — LAN / Wi-Fi" {
+  node "ESP32 Node 1\nFirmware chưa hoàn chỉnh" as N1
+  node "ESP32 Node 2\nFirmware chưa hoàn chỉnh" as N2
+  node "Router / AP" as AP
+  N1 <--> AP : Wi-Fi
+  N2 <--> AP : Wi-Fi
+  N1 .. N2 : Kênh offline TBD
+}
+node "Máy tính Windows / Docker Desktop" {
+  component "adb reverse tcp:8080 tcp:8080\nDebug qua USB" as ADB
+  component "Python Node simulator\nCredential riêng trong .local" as Sim
+  rectangle "Compose network" {
+    node "backend\nJava 21 / Spring Boot\nContainer :8080" as BE
+    database "mysql:8.4\nContainer :3306" as SQL
+    queue "mosquitto\nContainer :1883\nUser + ACL" as MQTT
+    node "phpmyadmin\nContainer :80" as PMA
+    artifact "MySQL named volume\n/var/lib/mysql" as Data
+    artifact "MQTT persistence / backend session\nVolumes theo Compose" as MqData
+    BE --> SQL : JDBC mysql:3306
+    BE <--> MQTT : MQTT mosquitto:1883
+    PMA --> SQL : mysql:3306
+    SQL --> Data : Dữ liệu bền vững
+    MQTT --> MqData
+  }
+  ADB --> BE : Host :8080 → container :8080
+  Sim <--> MQTT : localhost:1884 mặc định
+}
+Phone --> ADB : USB; API_BASE_URL=http://127.0.0.1:8080
+Phone --> BE : Phương án LAN: HTTP IP máy tính :8080
+AP <--> MQTT : MQTT TCP IP máy tính :1884 mặc định
+note bottom of SQL
+  MySQL host: 127.0.0.1:${MYSQL_HOST_PORT:-3306} → 3306.
+  Máy local đang dùng 3307; không hardcode thành cổng chung.
+  phpMyAdmin: host 8081 → container 80.
+  MQTT host: ${MQTT_HOST_PORT:-1884} → container 1883.
+end note
+legend bottom
+  Bản local hiện dùng HTTP / MQTT TCP; Compose chưa có TLS proxy / listener TLS.
+  Chưa chốt triển khai Internet, hostname và nơi kết thúc TLS.
+  App không chạy trong Docker; ESP32 cần nạp firmware riêng.
+  MySQL volume không tự đi theo Git; không xóa volume khi nâng migration.
+endlegend
+footer Cập nhật 06/11/2026 | Schema V10 | Offline còn thuộc phạm vi
+@enduml
