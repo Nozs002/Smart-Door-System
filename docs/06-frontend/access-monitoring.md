@@ -27,8 +27,10 @@ Không có mẫu hoặc cảm biến tương ứng thì hiển thị chưa có d
 ## Chạy thử
 
 1. Khởi động Docker Desktop. Build Backend: `docker compose up -d --build`.
-   Flyway tự áp dụng V9 sau V8; không xóa volume. Với DB có dữ liệu quan trọng,
+   Flyway tự áp dụng đến V10; không xóa volume. V10 sửa ràng buộc hàng đợi để
+   nhận kết quả RFID/PIN và lệnh còi. Với DB có dữ liệu quan trọng,
    sao lưu theo [hướng dẫn database](../03-technical-reference/database-setup.md).
+   Kiểm tra bằng `python scripts/db-check.py --expect-version 10`.
 2. Nếu đã cấp credential trước đó, chạy `python scripts/setup-mqtt.py configure`
    để bổ sung ACL cho access-request, telemetry và command-ack. Lệnh này restart
    Broker; không cấp lại/rotate credential chỉ để sửa ACL.
@@ -84,3 +86,14 @@ chứng minh chức năng thoát hiểm hoặc trạng thái phần cứng thự
 - Chưa kiểm tra giao diện trên Android thật/emulator: `adb devices` không có
   thiết bị. Widget test đã kiểm tra lịch sử, bộ lọc, phân trang, dữ liệu cũ và
   dừng polling khi App vào nền.
+
+## Kiểm chứng bổ sung ngày 03/11/2026
+
+- V10 sửa CHECK loại thông điệp của outbox, vốn khiến MySQL từ chối kết quả
+  xác thực và lệnh còi dù test H2 đạt. Đã tái hiện lỗi V9 và kiểm tra V10 giữ
+  dữ liệu cũ cùng các ràng buộc khác bằng `scripts/db-fresh-check.py`.
+- Đã chạy `person14-smoke.py --mqtt` thành công qua MySQL/Mosquitto thật:
+  PIN/RFID → ACK thực thi → lịch sử, chống trùng, khóa tạm/còi, telemetry,
+  cảnh báo/inbox và quyền sở hữu. Log: `.local/migration-v10-smoke.log`.
+- Backend local đã áp dụng V10 và health UP. Đây vẫn là Node giả lập;
+  kiểm thử firmware/phần cứng và thao tác Android thật là bước riêng.
