@@ -1,0 +1,9 @@
+target/
+.git/
+.gitignore
+.gitattributes
+README.md
+HELP.md
+*.log
+.env
+
