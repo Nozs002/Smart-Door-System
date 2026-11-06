@@ -1,6 +1,12 @@
 # MQTT Topics
 
-Contract v1 cho cấu hình, đồng bộ credential và cảnh báo. Mọi topic đều chứa cả
+Luồng RFID/PIN (`events/access-request`, `commands/access-result`), còi khóa tạm
+(`commands/alarm`) và cảm biến (`events/telemetry`) được đặc tả tại
+[truy cập và giám sát](../api/access-monitoring.md). Các event mới dùng cùng
+signed envelope phía dưới; Broker ACL giới hạn đúng Door/deviceCode và Backend
+kiểm tra thêm vai trò Node. Không retained các event hoặc kết quả/còi này.
+
+Contract v1 cho mở khóa, cấu hình, đồng bộ credential và cảnh báo. Mọi topic đều chứa cả
 `doorId` và `deviceCode`; Broker ACL phải ràng buộc credential thiết bị với đúng
 hai giá trị này. Backend luôn đối chiếu lại danh tính đã xác thực với bảng
 `devices`, lifecycle và `node_type`; không tin ID trong payload. Cảnh báo nghiệp
@@ -8,6 +14,33 @@ vụ yêu cầu `ACTIVE`. Kênh setup cấu hình/ACK chấp nhận `PROVISIONED
 `DISABLED` sau claim và luôn từ chối `RETIRED`.
 
 ## Topics
+
+### Mở khóa từ App
+
+Backend publish `smart-door/v1/doors/{doorId}/devices/{deviceCode}/commands/unlock`
+đến đúng Node 2 ACTIVE, QoS 1, **retain=false**:
+
+```json
+{"schemaVersion":1,"commandId":"d5c20718-119c-4a96-9931-ef829244e1d0","action":"UNLOCK","expiresAt":"2026-10-29T03:00:15Z"}
+```
+
+Node cần đồng hồ UTC tin cậy; từ chối lệnh hết hạn, schema/action sai và message
+retained. Lưu bền vững commandId/kết quả; nhận trùng chỉ gửi lại kết quả, không
+tác động relay lần hai. Không replay unlock khi reconnect.
+
+Node 2 gửi `events/command-ack`, QoS 1, retain=false, dùng signed envelope HMAC
+hiện có. Payload bên trong Base64:
+
+```json
+{"schemaVersion":1,"commandId":"d5c20718-119c-4a96-9931-ef829244e1d0","result":"EXECUTED"}
+```
+
+result: EXECUTED hoặc REJECTED. Backend kiểm tra đúng Door/Node 2 ACTIVE, chủ
+cửa hiện tại và hạn lệnh. ACK trùng không đổi kết quả cuối, ACK muộn không đổi
+TIMED_OUT thành thành công. EXECUTED không khẳng định trạng thái vật lý cửa.
+ACL hiện có commands/+ và events/+ bao phủ topic mới. Firmware chưa tích hợp.
+
+### Cấu hình, đồng bộ và sự kiện
 
 | Topic | Chiều | QoS | Retained | Nội dung |
 | --- | --- | ---: | --- | --- |
@@ -30,7 +63,10 @@ retained. Consumer phải xử lý QoS 1 idempotent bằng `eventId`.
   "maxFailedAttempts": 3,
   "lockoutSeconds": 60,
   "temperatureThreshold": 50.0,
-  "openTimeoutSeconds": 30
+  "openTimeoutSeconds": 30,
+  "operatingMode": "SECURITY",
+  "fireAlarmEnabled": true,
+  "doorOpenAlertEnabled": true
 }
 ```
 
@@ -183,3 +219,11 @@ idempotent. Tham khảo [API manual ACK của Paho](https://eclipse.dev/paho/fil
   Backend chạy từ IDE thay vì Docker cần đặt `MQTT_PORT=1884`, host localhost.
 - TCP chỉ dùng local; production bật `MQTT_TLS=true`, Broker TLS và certificate
   tin cậy. Không vô hiệu hóa kiểm tra certificate/hostname để thử cho qua.
+
+### Cờ cảnh báo V8
+
+Snapshot configuration gửi cả `operatingMode`, `fireAlarmEnabled`, `doorOpenAlertEnabled` cho hai Node.
+Node 2 chỉ phát HIGH_TEMPERATURE khi fireAlarmEnabled và nhiệt độ vượt temperatureThreshold;
+chỉ phát DOOR_OPEN_TOO_LONG khi doorOpenAlertEnabled, có openTimeoutSeconds và thời gian mở vượt ngưỡng.
+Hai cảnh báo độc lập với operatingMode. Backend từ chối cảnh báo mới đã tắt; lịch sử không bị xóa.
+Node ACK sau khi áp dụng toàn bộ snapshot. Simulator lưu snapshot, xét mẫu cảm biến giả theo ngưỡng, không điều khiển phần cứng.

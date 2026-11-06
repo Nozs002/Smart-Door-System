@@ -96,3 +96,85 @@ cho mật khẩu demo 123456789, dùng để kiểm thử đăng nhập qua back
 Không seed mã claim hoặc MQTT credential. [CLI provision](../05-backend/door-device-handoff.md)
 hiện cấp mã claim mới; credential/ACL MQTT vẫn cần tích hợp riêng. Seed nhiều
 cửa không chứng minh đã kết nối firmware nhiều cửa.
+
+## V8: cấu hình báo cháy và cửa mở lâu
+
+Flyway `V8__door_safety_settings.sql` thêm hai cờ vào `door_configs`:
+`fire_alarm_enabled` mặc định true, `door_open_alert_enabled` mặc định false.
+Các cửa đã có `open_timeout_seconds` được bật cảnh báo cửa mở khi chuyển đổi.
+CHECK yêu cầu timeout khi bật cảnh báo. `doors.operating_mode` tiếp tục giữ chế độ bảo mật/tự động.
+Migration tăng version cấu hình để ACK phiên bản cũ không bị hiển thị là đã áp dụng các cờ mới.
+Sau nâng cấp, lưu cấu hình hoặc dùng **Yêu cầu đồng bộ lại** để đưa snapshot mới vào hàng đợi.
+Không sửa bootstrap V1/init.sql: database Docker bootstrap được baseline và chạy các migration tiếp theo.
+Khởi động backend mới bằng `docker compose up -d --build --no-deps backend` để Flyway nâng cấp volume hiện có; không xóa volume.
+
+Kiểm thử simulator sau khi cấu hình đã gửi và Node 2 ACTIVE:
+
+```powershell
+python scripts/device-simulator.py <private-node2.json> --temperature 55 --duration 30
+python scripts/device-simulator.py <private-node2.json> --door-open-seconds 31 --duration 30
+python -m unittest discover -s scripts/tests -p 'test_*simulator.py'
+```
+
+Với ngưỡng mặc định 50°C và 30 giây, bật hai cờ sẽ tạo HIGH_TEMPERATURE và DOOR_OPEN_TOO_LONG.
+Tắt từng cờ rồi gửi lại snapshot: simulator không phát cảnh báo tương ứng.
+Xem cảnh báo và thông báo trong App. Đây là cảm biến giả lập, không mở khóa hay bật còi thật.
+
+## V9: lịch sử xác thực và số đo cảm biến
+
+`V9__access_monitoring.sql` thêm `access_logs.cardholder_id` (FK giữ hồ sơ người
+giữ thẻ), `access_logs.locked_until`, `control_commands.access_method` (mặc định
+APP cho lệnh cũ), và bảng `door_telemetry` với số đo, trạng thái quan sát, thời
+điểm nguồn/nhận cùng FK Door/Device. Hàng đợi bổ sung trạng thái EXPIRED cho
+kết quả/còi đã hết hạn, không coi thông báo chưa gửi là SENT. Không xóa hoặc
+ghi lại lịch sử hiện có.
+Flyway áp dụng khi Backend mới khởi động; không chạy lại init.sql trên DB cũ.
+Kiểm tra: `python scripts/db-check.py --expect-version 9`.
+Xem [hướng dẫn truy cập/giám sát](../06-frontend/access-monitoring.md).
+
+## V10: sửa ràng buộc loại thông điệp trong hàng đợi
+
+V5 chỉ cho `integration_outbox.kind` nhận `CONFIGURATION` và `CREDENTIALS`.
+Luồng truy cập mới ghi thêm `ACCESS_RESULT` (kết quả RFID/PIN) và `ALARM`
+(lệnh còi), nhưng V9 chưa mở rộng CHECK. Vì vậy MySQL từ chối ghi hai loại này
+và giao dịch xử lý xác thực bị rollback. Test H2 tạo bảng từ entity, tắt Flyway,
+nên không kiểm tra được ràng buộc SQL này.
+
+`V10__outbox_access_message_kinds.sql` thay đúng CHECK loại thông điệp bằng
+`chk_outbox_kind`, cho phép cả bốn giá trị. Thực hiện DROP/ADD trong cùng một
+ALTER TABLE; giữ nguyên dữ liệu, FK, ràng buộc lease, số lần thử và thời điểm gửi.
+Tên CHECK cũ `integration_outbox_chk_1` do MySQL sinh cho CHECK đầu tiên của V5;
+xem [quy tắc đặt tên CHECK của MySQL](https://dev.mysql.com/doc/refman/8.4/en/create-table-check-constraints.html).
+Không sửa V5/V9 đã áp dụng hoặc chạy Flyway repair để bỏ qua checksum.
+
+Khi MySQL đang chạy, thực hiện từ root repo:
+
+```powershell
+python scripts/db-check.py --backup
+docker compose build backend
+python scripts/db-fresh-check.py
+docker compose up -d --no-deps backend
+python scripts/db-check.py --expect-version 10
+```
+
+`db-fresh-check.py` dùng schema riêng để tái hiện lỗi ở V9, giữ hai bản ghi cũ,
+nâng lên V10 và thử ghi cả bốn loại thông điệp. Loại lạ và dữ liệu vi phạm các
+ràng buộc khác phải tiếp tục bị từ chối. Database sau V10 vẫn có 19 bảng
+nghiệp vụ và 31 FK. Sau khi Backend sẵn sàng, có thể chạy
+`.\.local\tools\Scripts\python.exe scripts/person14-smoke.py --mqtt` để thử
+luồng RFID/PIN, khóa tạm và ACK qua API/MQTT thật bằng Node giả lập.
+
+Kiểm chứng ngày 03/11/2026: tái hiện lỗi V9 và kiểm tra nâng cấp V10 trên schema
+riêng đều đạt; database local đã backup, lên V10 và vượt 25 kiểm tra bất biến.
+Smoke qua MySQL/Mosquitto thật đạt: PIN/RFID hợp lệ → ACK mở khóa, yêu cầu trùng,
+khóa tạm và lệnh còi, telemetry, cảnh báo/inbox và phân quyền theo chủ cửa.
+Log local: `.local/migration-v10-smoke.log`. Node là giả lập; chưa kiểm thử
+relay hoặc firmware ESP32 thật. Bản sửa giữ nguyên migration V1–V9.
+
+Kiểm tra lại ngày 06/11/2026 trước bàn giao: Maven `verify` đạt 182 test;
+Flutter analyze không có vấn đề, 65 test đạt; 7 test Python đạt. Audit DB V10
+và hồi quy nâng cấp V9 → V10 trên schema riêng đạt, dữ liệu ứng dụng được giữ.
+Smoke API/MQTT qua MySQL/Mosquitto thật cũng đạt: PIN/RFID, ACK mở khóa, yêu
+cầu trùng, khóa tạm/còi, telemetry, cảnh báo/inbox và quyền sở hữu. Log riêng
+nằm tại `.local/final-v10-smoke.log`, không đưa credential/báo cáo riêng lên Git.
+Kết quả Node giả lập không thay thế kiểm thử firmware và khóa vật lý.

@@ -96,6 +96,32 @@ class HardwareAlertServiceTests {
 				.isInstanceOf(IllegalStateException.class);
 	}
 
+    @Test void disabledFireAlarmDoesNotStoreOrNotify() {
+        config.setFireAlarmEnabled(false);
+        assertThatThrownBy(() -> service.receive(identity, event("disabled-fire", "60")))
+                .isInstanceOf(ConflictException.class);
+        verify(alerts, never()).saveAndFlush(any());
+        verifyNoInteractions(notifier);
+    }
+
+    @Test void doorOpenAlertRequiresEnabledFlagAndTimeout() {
+        var event = new HardwareAlertEvent("open", Alert.Type.DOOR_OPEN_TOO_LONG, null, occurred);
+        assertThatThrownBy(() -> service.receive(identity, event)).isInstanceOf(ConflictException.class);
+        config.setDoorOpenAlertEnabled(true);
+        assertThatThrownBy(() -> service.receive(identity, event)).isInstanceOf(ConflictException.class);
+        config.setOpenTimeoutSeconds(30);
+        var view = service.receive(identity, event);
+        assertThat(view.type()).isEqualTo(Alert.Type.DOOR_OPEN_TOO_LONG);
+        verify(notifier).notifyOwner(7L, view);
+    }
+
+    @Test void replayRemainsIdempotentAfterFireAlarmDisabled() {
+        when(alerts.findByEventId("old")).thenReturn(Optional.of(stored("old", "55.50")));
+        config.setFireAlarmEnabled(false);
+        assertThat(service.receive(identity, event("old", "55.50")).id()).isEqualTo(11L);
+        verifyNoInteractions(notifier);
+    }
+
 	private HardwareAlertEvent event(String id, String temperature) {
 		return new HardwareAlertEvent(id, Alert.Type.HIGH_TEMPERATURE, new BigDecimal(temperature), occurred);
 	}

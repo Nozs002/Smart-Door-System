@@ -31,7 +31,7 @@ import tools.jackson.databind.ObjectMapper;
 /** MQTT transport for configuration, credential snapshots and authenticated device events only. */
 @Component
 @ConditionalOnProperty(name="app.settings-mqtt.enabled",havingValue="true")
-public class SettingsMqttBridge implements OutboxTransport {
+public class SettingsMqttBridge implements OutboxTransport, com.smartdoor.backend.control.service.UnlockTransport {
     private static final Logger log=LoggerFactory.getLogger(SettingsMqttBridge.class);
     private final AppProperties.Mqtt settings;
     private final SettingsMqttProperties properties;
@@ -70,7 +70,7 @@ public class SettingsMqttBridge implements OutboxTransport {
             @Override public void connectComplete(boolean reconnect,String serverURI) {
                 connectionGeneration.incrementAndGet();
                 try {
-                    client.subscribe(new String[]{eventTopic("sync-ack"),eventTopic("alert"),eventTopic("heartbeat")},new int[]{1,1,1});
+                    client.subscribe(new String[]{eventTopic("sync-ack"),eventTopic("alert"),eventTopic("heartbeat"),eventTopic("command-ack"),eventTopic("access-request"),eventTopic("telemetry")},new int[]{1,1,1,1,1,1});
                     log.info("Settings MQTT connected and subscribed.");
                 } catch (MqttException e) { log.warn("Settings MQTT subscription failed (reason {}).",e.getReasonCode()); }
             }
@@ -88,7 +88,10 @@ public class SettingsMqttBridge implements OutboxTransport {
 
     private void receive(String topic,MqttMessage message,long generation) {
         try {
-            try { incoming.receive(topic,message.getPayload()); }
+            try {
+                if (message.isRetained()) throw new com.smartdoor.backend.shared.error.BadRequestException("Retained events are not accepted.");
+                incoming.receive(topic,message.getPayload());
+            }
             catch (com.smartdoor.backend.shared.error.ApplicationException invalid) {
                 log.warn("Rejected unauthenticated or invalid device event on {}.",topic);
             }
@@ -117,7 +120,17 @@ public class SettingsMqttBridge implements OutboxTransport {
         } catch (MqttException e) { log.warn("Settings MQTT connection pending (reason {}).",e.getReasonCode()); }
     }
 
-    @Override public boolean supports(String kind) { return "CONFIGURATION".equals(kind) || "CREDENTIALS".equals(kind); }
+    @Override public boolean supports(String kind) { return java.util.List.of("CONFIGURATION","CREDENTIALS","ACCESS_RESULT","ALARM").contains(kind); }
+
+    @Override public boolean connected() { return client.isConnected(); }
+
+    @Override public void publishUnlock(Long doorId,String deviceCode,String commandId,String expiresAt) throws Exception {
+        if (!client.isConnected()) throw new IllegalStateException("MQTT disconnected");
+        byte[] payload=mapper.writeValueAsString(java.util.Map.of("schemaVersion",1,"commandId",commandId,
+                "action","UNLOCK","expiresAt",expiresAt)).getBytes(StandardCharsets.UTF_8);
+        client.publish("smart-door/v1/doors/"+doorId+"/devices/"+deviceCode+"/commands/unlock",payload,1,false)
+            .waitForCompletion(2000);
+    }
 
     @Override @Transactional
     public void deliver(OutboxDelivery message) throws Exception {
@@ -127,6 +140,19 @@ public class SettingsMqttBridge implements OutboxTransport {
         if (!device.getDoorId().equals(door.getId()) || door.getOwnerAccountId()==null
                 || device.getLifecycleStatus()==Device.LifecycleStatus.RETIRED)
             throw new IllegalStateException("Device is no longer eligible for delivery");
+        if ("ACCESS_RESULT".equals(message.kind()) || "ALARM".equals(message.kind())) {
+            var event=mapper.readTree(message.payload());
+            var expires=java.time.Instant.parse(event.get("expiresAt").asText());
+            // Record expiration honestly; never label an unsent event as delivered.
+            if (!expires.isAfter(java.time.Instant.now())) throw new com.smartdoor.backend.infrastructure.outbox.ExpiredDeliveryException();
+            if (device.getLifecycleStatus()!=Device.LifecycleStatus.ACTIVE || door.getStatus()!=com.smartdoor.backend.door.entity.Door.Status.ACTIVE
+                || ("ACCESS_RESULT".equals(message.kind()) && device.getNodeType()!=Device.NodeType.NODE_1)
+                || ("ALARM".equals(message.kind()) && device.getNodeType()!=Device.NodeType.NODE_2))
+                throw new IllegalStateException("Device cannot receive access result/alarm");
+            client.publish("smart-door/v1/doors/"+door.getId()+"/devices/"+device.getDeviceCode()+"/commands/"
+                +("ALARM".equals(message.kind())?"alarm":"access-result"),message.payload().getBytes(StandardCharsets.UTF_8),1,false).waitForCompletion(2000);
+            return;
+        }
         var config=configs.findById(door.getId()).orElseThrow();
         var payload=new LinkedHashMap<String,Object>();
         payload.put("schemaVersion",1);
@@ -138,6 +164,9 @@ public class SettingsMqttBridge implements OutboxTransport {
             payload.put("lockoutSeconds",config.getLockoutSeconds());
             payload.put("temperatureThreshold",config.getTemperatureThreshold());
             payload.put("openTimeoutSeconds",config.getOpenTimeoutSeconds());
+            payload.put("operatingMode",door.getOperatingMode());
+            payload.put("fireAlarmEnabled",config.isFireAlarmEnabled());
+            payload.put("doorOpenAlertEnabled",config.isDoorOpenAlertEnabled());
         } else if ("CREDENTIALS".equals(message.kind()) && device.getNodeType()==Device.NodeType.NODE_1) {
             command="credentials";
             var snapshot=credentials.snapshot(door.getId());

@@ -22,6 +22,12 @@ import lombok.Setter;
 @NoArgsConstructor
 public class DoorConfig {
 
+	@Column(name = "fire_alarm_enabled", nullable = false)
+	private boolean fireAlarmEnabled = true;
+
+	@Column(name = "door_open_alert_enabled", nullable = false)
+	private boolean doorOpenAlertEnabled = false;
+
 	@Id
 	@Column(name = "door_id", nullable = false, columnDefinition = "bigint unsigned")
 	private Long doorId;

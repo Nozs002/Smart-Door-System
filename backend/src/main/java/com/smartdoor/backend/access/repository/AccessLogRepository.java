@@ -7,7 +7,10 @@ import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.repository.JpaRepository;
 
 /** Chỉ service của module sở hữu sử dụng; truy vấn không thay thế authorization. */
-public interface AccessLogRepository extends JpaRepository<AccessLog, Long> {
+public interface AccessLogRepository extends JpaRepository<AccessLog, Long>, org.springframework.data.jpa.repository.JpaSpecificationExecutor<AccessLog> {
+
+    java.util.Optional<AccessLog> findByEventId(String eventId);
+    java.util.Optional<AccessLog> findFirstByDoorIdOrderByReceivedAtDescIdDesc(Long doorId);
 
 	boolean existsByEventId(String eventId);
 

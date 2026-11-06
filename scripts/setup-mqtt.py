@@ -95,7 +95,10 @@ def configure(devices_file: Path | None) -> None:
         acl += ["user " + user, "topic read " + prefix + "/commands/+",
                 "topic write " + prefix + "/events/sync-ack",
                 "topic write " + prefix + "/events/heartbeat",
-                "topic write " + prefix + "/events/alert", ""]
+                "topic write " + prefix + "/events/alert",
+                "topic write " + prefix + "/events/command-ack",
+                "topic write " + prefix + "/events/access-request",
+                "topic write " + prefix + "/events/telemetry", ""]
     try:
         plaintext.write_text("\n".join(lines) + "\n", encoding="utf-8")
         plaintext.chmod(0o600)

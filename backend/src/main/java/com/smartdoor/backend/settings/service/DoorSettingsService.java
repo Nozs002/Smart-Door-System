@@ -14,6 +14,7 @@ import com.smartdoor.backend.settings.service.DeviceCommandPublisher.ChangeReaso
 import com.smartdoor.backend.settings.service.DeviceCommandPublisher.ConfigurationCommand;
 import com.smartdoor.backend.settings.service.DeviceCommandPublisher.CredentialsCommand;
 import com.smartdoor.backend.shared.error.ResourceNotFoundException;
+import com.smartdoor.backend.shared.error.BadRequestException;
 import java.util.List;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -34,15 +35,23 @@ public class DoorSettingsService {
 	}
 
 	public DoorConfigView get(Long accountId, Long doorId) {
-		ownership.requireOwner(accountId, doorId);
+		var door = ownership.getOwnedDoor(accountId, doorId);
 		DoorConfig config = config(doorId);
-		return DoorConfigView.from(config, syncViews(config));
+		return DoorConfigView.from(config, syncViews(config), door.getOperatingMode());
 	}
 
 	@Transactional
 	public DoorConfigView update(Long accountId, Long doorId, UpdateDoorConfigRequest request) {
-		ownership.requireOwnerForUpdate(accountId, doorId);
+		var door = ownership.requireOwnerForUpdate(accountId, doorId);
 		DoorConfig config = config(doorId);
+		boolean openEnabled = request.doorOpenAlertEnabled() == null
+				? config.isDoorOpenAlertEnabled() : request.doorOpenAlertEnabled();
+		if (openEnabled && request.openTimeoutSeconds() == null) {
+			throw new BadRequestException("Bật cảnh báo cửa mở cần thời gian từ 5 đến 3600 giây.");
+		}
+		if (request.operatingMode() != null) door.setOperatingMode(request.operatingMode());
+		if (request.fireAlarmEnabled() != null) config.setFireAlarmEnabled(request.fireAlarmEnabled());
+		config.setDoorOpenAlertEnabled(openEnabled);
 		config.setMaxFailedAttempts(request.maxFailedAttempts());
 		config.setLockoutSeconds(request.lockoutSeconds());
 		config.setTemperatureThreshold(request.temperatureThreshold());
@@ -52,15 +61,16 @@ public class DoorSettingsService {
 		for (Device device : setupDevices(doorId)) {
 			publisher.publishConfiguration(new ConfigurationCommand(doorId, device.getDeviceCode(),
 					config.getVersion(), config.getMaxFailedAttempts(), config.getLockoutSeconds(),
-					config.getTemperatureThreshold(), config.getOpenTimeoutSeconds()));
+					config.getTemperatureThreshold(), config.getOpenTimeoutSeconds(),
+					door.getOperatingMode(), config.isFireAlarmEnabled(), config.isDoorOpenAlertEnabled()));
 		}
-		return DoorConfigView.from(config, syncViews(config));
+		return DoorConfigView.from(config, syncViews(config), door.getOperatingMode());
 	}
 
 	/** Integration point cho module credentials sau khi đổi PIN/thu hồi RFID thành công. */
 	@Transactional
 	public DoorConfigView requestCredentialsSync(Long accountId, Long doorId, ChangeReason reason) {
-		ownership.requireOwnerForUpdate(accountId, doorId);
+		var door = ownership.requireOwnerForUpdate(accountId, doorId);
 		DoorConfig config = config(doorId);
 		config.setCredentialsVersion(config.getCredentialsVersion() + 1);
 		config = configs.saveAndFlush(config);
@@ -70,25 +80,26 @@ public class DoorSettingsService {
 						config.getCredentialsVersion(), reason));
 			}
 		}
-		return DoorConfigView.from(config, syncViews(config));
+		return DoorConfigView.from(config, syncViews(config), door.getOperatingMode());
 	}
 
 	/** Resend the current desired state without inventing a new configuration version. */
 	@Transactional
 	public DoorConfigView retrySync(Long accountId, Long doorId) {
-		ownership.requireOwnerForUpdate(accountId, doorId);
+		var door = ownership.requireOwnerForUpdate(accountId, doorId);
 		outbox.retry(accountId, doorId);
 		DoorConfig config = config(doorId);
 		for (Device device : setupDevices(doorId)) {
 			publisher.publishConfiguration(new ConfigurationCommand(doorId, device.getDeviceCode(),
 					config.getVersion(), config.getMaxFailedAttempts(), config.getLockoutSeconds(),
-					config.getTemperatureThreshold(), config.getOpenTimeoutSeconds()));
+					config.getTemperatureThreshold(), config.getOpenTimeoutSeconds(),
+					door.getOperatingMode(), config.isFireAlarmEnabled(), config.isDoorOpenAlertEnabled()));
 			if (device.getNodeType() == Device.NodeType.NODE_1) {
 				publisher.publishCredentials(new CredentialsCommand(doorId, device.getDeviceCode(),
 						config.getCredentialsVersion(), ChangeReason.FULL_REFRESH));
 			}
 		}
-		return DoorConfigView.from(config, syncViews(config));
+		return DoorConfigView.from(config, syncViews(config), door.getOperatingMode());
 	}
 
 	private DoorConfig config(Long doorId) {

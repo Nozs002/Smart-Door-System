@@ -39,7 +39,7 @@ public class OutboxService {
 	/** Must participate in the transaction that changes the desired state. */
 	@Transactional(propagation = Propagation.MANDATORY)
 	public void enqueue(String kind, Long doorId, String deviceCode, String payload) {
-		if (!List.of(CONFIGURATION, CREDENTIALS).contains(kind)) throw new IllegalArgumentException("Unknown message kind");
+		if (!List.of(CONFIGURATION, CREDENTIALS, "ACCESS_RESULT", "ALARM").contains(kind)) throw new IllegalArgumentException("Unknown message kind");
 		Device device = devices.findByDeviceCode(deviceCode)
 				.filter(d -> doorId.equals(d.getDoorId()))
 				.orElseThrow(() -> new ResourceNotFoundException("Không tìm thấy thiết bị nhận cấu hình."));
@@ -92,6 +92,14 @@ public class OutboxService {
 			message.setLeaseUntil(null); message.setLeaseToken(null);
 			// Transport exceptions may contain credentials or payload; never persist their text.
 			message.setLastError("Gửi chưa thành công (" + error.getClass().getSimpleName() + ").");
+		});
+	}
+
+	@Transactional
+	public void expired(Claim claim) {
+		messages.lock(claim.delivery().id()).filter(message -> owns(message, claim)).ifPresent(message -> {
+			message.setStatus(OutboxMessage.Status.EXPIRED); message.setLeaseUntil(null); message.setLeaseToken(null);
+			message.setLastError("Thông báo đã hết hạn; không gửi đến thiết bị.");
 		});
 	}
 

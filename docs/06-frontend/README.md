@@ -14,6 +14,8 @@ Phạm vi hiện tại chỉ hỗ trợ Android; iOS, Web và Desktop chưa đư
 
 ## Tài liệu
 
+- [Mở khóa cửa từ dashboard](door-unlock.md)
+
 - [Thiết lập và phát triển Flutter Android](android-development.md)
 - [Đăng ký và hồ sơ Account](account-registration-profile.md)
 - [HTML Mobile UI Mockups](mockups/README.md)

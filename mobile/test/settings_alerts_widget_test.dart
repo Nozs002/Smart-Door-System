@@ -18,14 +18,23 @@ import 'support/fake_door_repository.dart';
 class _Settings implements SettingsRepository {
   final retries = <int>[];
   int saves = 0;
-  DoorConfiguration get value => const DoorConfiguration(
+  String mode = 'SECURITY';
+  bool fire = true;
+  bool open = false;
+  int? timeout;
+  bool failSave = false;
+  DoorConfiguration get value => DoorConfiguration(
+    operatingMode: mode,
+    fireAlarmEnabled: fire,
+    doorOpenAlertEnabled: open,
+    openTimeoutSeconds: timeout,
     doorId: 12,
     maxFailedAttempts: 5,
     lockoutSeconds: 60,
     temperatureThreshold: 50,
     version: 4,
     credentialsVersion: 8,
-    devices: [
+    devices: const [
       DeviceSyncStatus(
         deviceId: 1,
         deviceCode: 'NODE-1',
@@ -53,8 +62,16 @@ class _Settings implements SettingsRepository {
     required int lockoutSeconds,
     required double temperatureThreshold,
     int? openTimeoutSeconds,
+    String? operatingMode,
+    bool? fireAlarmEnabled,
+    bool? doorOpenAlertEnabled,
   }) async {
     saves++;
+    if (failSave) throw Exception('Save failed');
+    mode = operatingMode ?? mode;
+    fire = fireAlarmEnabled ?? fire;
+    open = doorOpenAlertEnabled ?? open;
+    timeout = openTimeoutSeconds;
     return value;
   }
 }
@@ -124,6 +141,55 @@ class _Notifications implements NotificationRepository {
 }
 
 void main() {
+  testWidgets(
+    'dashboard persists all three switches and keeps state on failure',
+    (tester) async {
+      tester.view.physicalSize = const Size(430, 1200);
+      tester.view.devicePixelRatio = 1;
+      addTearDown(tester.view.resetPhysicalSize);
+      addTearDown(tester.view.resetDevicePixelRatio);
+      final session = testSession();
+      addTearDown(session.dispose);
+      await session.login('test', '123456789');
+      final settings = _Settings();
+      await tester.pumpWidget(
+        SmartDoorApp(
+          session: session,
+          repository: FakeDoorRepository(),
+          settingsRepository: settings,
+        ),
+      );
+      await tester.pumpAndSettle();
+      await tester.scrollUntilVisible(
+        find.text('Báo cháy'),
+        250,
+        scrollable: find.byType(Scrollable).first,
+      );
+      await tester.pumpAndSettle();
+      final switches = find.byType(Switch);
+      expect(tester.widget<Switch>(switches.at(0)).value, isTrue);
+      expect(tester.widget<Switch>(switches.at(1)).value, isTrue);
+      expect(tester.widget<Switch>(switches.at(2)).value, isFalse);
+      tester.widget<Switch>(switches.at(0)).onChanged!(false);
+      await tester.pumpAndSettle();
+      expect(settings.mode, 'AUTOMATIC');
+      tester.widget<Switch>(switches.at(1)).onChanged!(false);
+      await tester.pumpAndSettle();
+      expect(settings.fire, isFalse);
+      tester.widget<Switch>(switches.at(2)).onChanged!(true);
+      await tester.pumpAndSettle();
+      expect(settings.open, isTrue);
+      expect(settings.timeout, 30);
+      settings.failSave = true;
+      tester.widget<Switch>(switches.at(1)).onChanged!(true);
+      await tester.pumpAndSettle();
+      expect(tester.widget<Switch>(switches.at(1)).value, isFalse);
+      expect(tester.takeException(), isNull);
+      await session.logout();
+      await tester.pumpWidget(const SizedBox.shrink());
+    },
+  );
+
   testWidgets(
     'notification badge polls while foreground and pauses in background',
     (tester) async {

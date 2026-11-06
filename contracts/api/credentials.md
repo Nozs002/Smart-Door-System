@@ -53,7 +53,8 @@ Sai chủ/tài nguyên không tồn tại trả 404; Account ID không lấy t�
 trả `VerificationResult(allowed,reason,credentialId,cardholderId)` mà không lộ
 hash/credential đầu vào. Service kiểm tra Door ACTIVE, phạm vi Account, trạng
 thái/thời hạn RFID và Cardholder hoặc PIN tương ứng. Đây chỉ là hàm kiểm tra;
-luồng nhận yêu cầu, lockout, mở khóa và access log thuộc module người 3.
+luồng nhận yêu cầu, lockout, mở khóa và access log được nối tại module `access`.
+Xem [contract truy cập/giám sát](access-monitoring.md).
 
 `CredentialSnapshotService.snapshot(doorId)` là cổng **nội bộ nhạy cảm** cho
 adapter đồng bộ Node 1: `{doorId,version,pinVerifier,cards}`. pinVerifier là

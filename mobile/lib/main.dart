@@ -1,5 +1,8 @@
 import 'package:flutter/material.dart';
 
+import 'features/door_control/data/unlock_repository.dart';
+import 'features/access_logs/data/access_repository.dart';
+
 import 'core/api_client.dart';
 import 'features/doors/data/door_repository.dart';
 import 'features/authentication/login_screen.dart';
@@ -26,12 +29,16 @@ class SmartDoorApp extends StatefulWidget {
     this.alertRepository,
     this.credentialRepository,
     this.notificationRepository,
+    this.unlockRepository,
+    this.accessRepository,
   });
   final DoorRepository? repository;
   final SettingsRepository? settingsRepository;
   final AlertRepository? alertRepository;
   final CredentialRepository? credentialRepository;
   final NotificationRepository? notificationRepository;
+  final UnlockRepository? unlockRepository;
+  final AccessRepository? accessRepository;
   final AuthSession? session;
 
   @override
@@ -48,6 +55,8 @@ class _SmartDoorAppState extends State<SmartDoorApp> {
   AlertRepository? alertRepository;
   CredentialRepository? credentialRepository;
   NotificationRepository? notificationRepository;
+  UnlockRepository? unlockRepository;
+  AccessRepository? accessRepository;
   @override
   void initState() {
     super.initState();
@@ -59,6 +68,12 @@ class _SmartDoorAppState extends State<SmartDoorApp> {
       onUnauthorized: session.expire,
     );
     doorRepository = widget.repository ?? RestDoorRepository(client);
+    accessRepository =
+        widget.accessRepository ??
+        (widget.repository == null ? RestAccessRepository(client) : null);
+    unlockRepository =
+        widget.unlockRepository ??
+        (widget.repository == null ? RestUnlockRepository(client) : null);
     settingsRepository =
         widget.settingsRepository ??
         (widget.repository == null ? RestSettingsRepository(client) : null);
@@ -118,6 +133,8 @@ class _SmartDoorAppState extends State<SmartDoorApp> {
               alertRepository: alertRepository,
               credentialRepository: credentialRepository,
               notificationRepository: notificationRepository,
+              unlockRepository: unlockRepository,
+              accessRepository: accessRepository,
               onToggleTheme: () => setState(() {
                 _themeMode = _themeMode == ThemeMode.light
                     ? ThemeMode.dark

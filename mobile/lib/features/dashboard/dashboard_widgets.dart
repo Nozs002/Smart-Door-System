@@ -120,9 +120,15 @@ class DashboardConfigurationRow extends StatelessWidget {
     super.key,
     required this.title,
     required this.icon,
+    this.value,
+    this.onChanged,
+    this.pending = false,
   });
   final String title;
   final IconData icon;
+  final bool? value;
+  final ValueChanged<bool>? onChanged;
+  final bool pending;
   @override
   Widget build(BuildContext context) => LayoutBuilder(
     builder: (context, constraints) {
@@ -156,7 +162,13 @@ class DashboardConfigurationRow extends StatelessWidget {
                   ),
                   const SizedBox(height: 4),
                   Text(
-                    'Chưa có dữ liệu',
+                    value == null
+                        ? 'Chưa có dữ liệu'
+                        : pending
+                        ? 'Chờ thiết bị xác nhận'
+                        : value!
+                        ? 'Đang bật'
+                        : 'Đang tắt',
                     style: Theme.of(context).textTheme.bodySmall,
                   ),
                 ],
@@ -165,13 +177,7 @@ class DashboardConfigurationRow extends StatelessWidget {
             const SizedBox(width: 8),
             Semantics(
               label: title,
-              value: 'Chưa khả dụng',
-              enabled: false,
-              excludeSemantics: true,
-              child: Tooltip(
-                message: 'Chức năng chưa khả dụng',
-                child: Switch(value: false, onChanged: null),
-              ),
+              child: Switch(value: value ?? false, onChanged: onChanged),
             ),
           ],
         ),

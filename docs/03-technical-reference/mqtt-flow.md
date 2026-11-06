@@ -13,4 +13,6 @@ Luồng mục tiêu tuân theo [quyết định sở hữu cửa và vòng đờ
 5. Heartbeat cập nhật kết nối từng Node; không ghi đè lifecycle. Node bị vô
    hiệu hóa/ngừng sử dụng không được xử lý nghiệp vụ dù còn kết nối.
 
-Topic, payload và chính sách QoS/retained chưa được chốt; xem [MQTT contract](../../contracts/mqtt/topics.md).
+Topic, payload và chính sách QoS/retained hiện có tại
+[MQTT contract](../../contracts/mqtt/topics.md). Luồng RFID/PIN, khóa tạm,
+lịch sử và telemetry xem [contract truy cập/giám sát](../../contracts/api/access-monitoring.md).

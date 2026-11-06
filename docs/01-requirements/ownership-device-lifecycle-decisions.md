@@ -3,7 +3,7 @@ title: Quyết định sở hữu cửa và vòng đời thiết bị
 type: requirements
 lang: vi
 tags: [scope, ownership, device-lifecycle]
-updated: 2026-10-13
+updated: 2026-11-02
 ---
 
 # Quyết định sở hữu cửa và vòng đời thiết bị
@@ -89,8 +89,15 @@ cho transition và lịch sử. Timeout heartbeat và workflow thực thi còn p
 
 Cần hiện thực transition lifecycle, chốt cách provision credential/MQTT ACL, chính
 sách mã kích hoạt, timeout heartbeat, đồng bộ cấu hình và phản hồi áp dụng,
-kênh offline giữa hai Node, migration và thời hạn giữ lịch sử. Quyết định bỏ
-khoảng cách/AUTOMATIC hoặc thay đổi cảm biến chưa nằm trong năm điểm này.
+kênh offline giữa hai Node, migration và thời hạn giữ lịch sử.
+
+## Cập nhật phạm vi ngày 02/11/2026
+
+Dự án không sử dụng cảm biến khoảng cách. Các chức năng đo khoảng cách,
+đánh thức khi có người đến gần và mở cửa dựa trên khoảng cách đã được loại bỏ.
+Node 1 phụ trách RFID, Keypad và OLED theo [yêu cầu hệ thống](requirement.md).
+Quyết định này bổ sung phạm vi hiện tại, không thay đổi nội dung năm quyết định
+về sở hữu cửa và vòng đời thiết bị đã thống nhất ngày 13/10/2026.
 
 ## Tài liệu liên quan
 

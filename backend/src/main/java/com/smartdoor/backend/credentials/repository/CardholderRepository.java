@@ -13,6 +13,8 @@ import jakarta.persistence.LockModeType;
 /** Chỉ service của module sở hữu sử dụng; truy vấn không thay thế authorization. */
 public interface CardholderRepository extends JpaRepository<Cardholder, Long> {
 
+	long countByAccountIdAndStatus(Long accountId, Cardholder.Status status);
+
 	Page<Cardholder> findAllByAccountId(Long accountId, Pageable pageable);
 
 	Optional<Cardholder> findByIdAndAccountId(Long id, Long accountId);

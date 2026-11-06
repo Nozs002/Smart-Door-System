@@ -24,7 +24,7 @@ public class OutboxMessage {
 	@Column(nullable = false, columnDefinition = "longtext")
 	private String payload;
 	@Enumerated(EnumType.STRING)
-	@Column(nullable = false, columnDefinition = "ENUM('PENDING','PROCESSING','SENT','FAILED')")
+	@Column(nullable = false, columnDefinition = "ENUM('PENDING','PROCESSING','SENT','FAILED','EXPIRED')")
 	private Status status = Status.PENDING;
 	@Column(nullable = false)
 	private int attempts;
@@ -44,5 +44,5 @@ public class OutboxMessage {
 	@Column(nullable = false, columnDefinition = "bigint unsigned")
 	private Long version;
 
-	public enum Status { PENDING, PROCESSING, SENT, FAILED }
+	public enum Status { PENDING, PROCESSING, SENT, FAILED, EXPIRED }
 }

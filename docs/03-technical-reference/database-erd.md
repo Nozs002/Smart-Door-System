@@ -4,7 +4,7 @@ type: technical-reference
 version: 3.0
 lang: vi
 tags: [database, erd, mysql, ownership, device-lifecycle]
-updated: 2026-10-28
+updated: 2026-11-02
 ---
 
 # Database ERD
@@ -39,9 +39,10 @@ phạm vi đã kiểm chứng. FK không thay thế authorization ở Backend.
 - PROVISIONED nghĩa là Node đã ghép vào bộ cửa nhưng chưa vận hành.
   Kích hoạt khi đã có chủ và điều kiện cấu hình/credential phù hợp.
 - Không có chuyển quyền sở hữu hoặc chuyển Device sang cửa khác trong phạm vi này.
-- Giữ operating_mode/AUTO_PROXIMITY và loại cảnh báo cửa mở lâu từ mô hình cũ:
-  năm quyết định chưa chốt loại bỏ chúng. Có enum không có nghĩa tính năng hoặc
-  cảm biến đã triển khai.
+- Phạm vi chức năng tuân theo [yêu cầu hệ thống](../01-requirements/requirement.md).
+  Các giá trị tương thích cũ trong schema không phải yêu cầu triển khai thêm
+  chức năng. Cấu hình chế độ vận hành và cảnh báo cửa mở lâu vẫn được mô tả
+  theo API hiện có.
 
 ## 2. Giải thích các bảng
 
@@ -83,7 +84,7 @@ created_at DATETIME(3) NOT NULL DEFAULT CURRENT_TIMESTAMP(3)
 
 Một Account sở hữu nhiều cửa. Cửa chưa claim không có chủ.
 
-id: định danh; owner_account_id: FK chủ cửa, NULL trước claim; name/location: tên và vị trí; status: UNCLAIMED/SETUP_PENDING/ACTIVE/DISABLED; operating_mode: chế độ cũ giữ lại vì chưa chốt bỏ khoảng cách/AUTOMATIC; commanded_lock_state: lệnh khóa gần nhất, không phải trạng thái vật lý; created_at/updated_at: thời gian; version: khóa lạc quan.
+id: định danh; owner_account_id: FK chủ cửa, NULL trước claim; name/location: tên và vị trí; status: UNCLAIMED/SETUP_PENDING/ACTIVE/DISABLED; operating_mode: cấu hình chế độ vận hành theo [API cấu hình](../../contracts/api/settings-alerts.md), không tự cấp quyền mở cửa; commanded_lock_state: lệnh khóa gần nhất, không phải trạng thái vật lý; created_at/updated_at: thời gian; version: khóa lạc quan.
 
 Các cột trong SQL:
 
@@ -225,7 +226,7 @@ expires_at DATETIME(3) NULL
 
 Một lần thử có thể có nhiều sự kiện: quyết định xác thực và phản hồi thực thi.
 
-id/event_id: định danh, event_id unique; correlation_id: ghép sự kiện cùng lượt, không unique; door_id: cửa; actor_account_id: chủ yêu cầu từ App, NULL cho RFID/PIN/Exit/nhiệt độ; rfid_credential_id/source_device_id: nguồn nhận diện, đúng cửa, có thể NULL; method: RFID/PIN/APP/EXIT_BUTTON/AUTO_PROXIMITY/FIRE_EMERGENCY; result: GRANTED/DENIED/EXECUTED/FAILED/UNKNOWN; reason: lý do không chứa bí mật; occurred_at: giờ nguồn có thể NULL; received_at: giờ Backend nhận. GRANTED không chứng minh cửa đã mở.
+id/event_id: định danh, event_id unique; correlation_id: ghép sự kiện cùng lượt, không unique; door_id: cửa; actor_account_id: chủ yêu cầu từ App, NULL cho RFID/PIN/Exit/nhiệt độ; rfid_credential_id/source_device_id: nguồn nhận diện, đúng cửa, có thể NULL; method: RFID/PIN/APP/EXIT_BUTTON/FIRE_EMERGENCY trong phạm vi nghiệp vụ hiện tại; result: GRANTED/DENIED/EXECUTED/FAILED/UNKNOWN; reason: lý do không chứa bí mật; occurred_at: giờ nguồn có thể NULL; received_at: giờ Backend nhận. GRANTED không chứng minh cửa đã mở.
 
 Các cột trong SQL:
 
@@ -236,13 +237,19 @@ correlation_id VARCHAR(100) NULL
 door_id BIGINT UNSIGNED NOT NULL
 actor_account_id BIGINT UNSIGNED NULL
 rfid_credential_id BIGINT UNSIGNED NULL
+cardholder_id BIGINT UNSIGNED NULL -- Flyway V9, giữ liên kết hồ sơ đã cấp thẻ
+locked_until DATETIME(3) NULL -- Flyway V9, kết quả khóa tạm của lần thử
 source_device_id BIGINT UNSIGNED NULL
-method ENUM('RFID','PIN','APP','EXIT_BUTTON','AUTO_PROXIMITY','FIRE_EMERGENCY') NOT NULL
 result ENUM('GRANTED','DENIED','EXECUTED','FAILED','UNKNOWN') NOT NULL
 reason VARCHAR(500) NULL
 occurred_at DATETIME(3) NULL
 received_at DATETIME(3) NOT NULL DEFAULT CURRENT_TIMESTAMP(3)
 ```
+
+`method` là cột ENUM bắt buộc. Định nghĩa SQL đầy đủ, bao gồm các giá trị cũ
+được giữ để tương thích, nằm trong [schema bootstrap](../../infrastructure/mysql/init/init.sql).
+Danh sách phương thức nghiệp vụ hiện tại được nêu ở trên; cập nhật tài liệu
+không tự thay đổi schema hoặc dữ liệu lịch sử.
 
 ### 2.11. `lockout_statuses` — Bộ đếm sai
 
@@ -397,3 +404,21 @@ chỉ là snapshot tại thời điểm seed.
 [verify.sql](../../infrastructure/mysql/verify.sql) kiểm tra dữ liệu mẫu, từ chối
 RFID chéo khách hàng, Node ACTIVE trùng slot, log nguồn sai cửa, claim sai
 trạng thái và event trùng. Chỉ chạy trên database thử nghiệm.
+
+## Cấu hình cảnh báo bổ sung (Flyway V8)
+
+`door_configs.fire_alarm_enabled BOOLEAN NOT NULL DEFAULT TRUE` điều khiển cảnh báo nhiệt độ.
+`door_configs.door_open_alert_enabled BOOLEAN NOT NULL DEFAULT FALSE` điều khiển cảnh báo mở quá lâu;
+bật cờ yêu cầu `open_timeout_seconds` khác NULL. Migration bật cờ cho cửa cũ đã có timeout và tăng version.
+Chế độ bảo mật vẫn nằm ở `doors.operating_mode`; hai cờ cảnh báo hoạt động độc lập với chế độ này.
+
+## Lịch sử và telemetry bổ sung (Flyway V9)
+
+`access_logs.cardholder_id` giữ liên kết Cardholder của lần xác thực; không lưu
+UID/PIN trong log. `locked_until` lưu kết quả khóa tạm để trả lại nhất quán khi
+Node gửi trùng yêu cầu. `control_commands.access_method` phân biệt APP/RFID/PIN.
+
+`door_telemetry`: id, event_id (UUID unique), door_id (FK), source_device_id (FK),
+temperature/humidity (nullable), door_state, lock_state, observed_at, received_at.
+Index `(door_id, observed_at, id)` dùng đọc mẫu mới nhất theo thời điểm nguồn;
+mẫu đến trễ không thay mẫu mới. Không dùng commanded_lock_state làm số đo.

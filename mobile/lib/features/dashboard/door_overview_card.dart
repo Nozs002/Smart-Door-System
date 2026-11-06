@@ -1,12 +1,23 @@
 import 'package:flutter/material.dart';
 
 import '../doors/data/door_models.dart';
+import '../access_logs/data/access_repository.dart';
 
 /// Dashboard reference layout. Lifecycle never implies physical lock state.
 class DoorOverviewCard extends StatelessWidget {
-  const DoorOverviewCard({super.key, required this.door, required this.onTap});
+  const DoorOverviewCard({
+    super.key,
+    required this.door,
+    required this.onTap,
+    this.commandLabel,
+    this.monitoring,
+    this.monitoringError = false,
+  });
   final DoorView door;
   final VoidCallback onTap;
+  final String? commandLabel;
+  final DoorMonitoring? monitoring;
+  final bool monitoringError;
 
   @override
   Widget build(BuildContext context) {
@@ -85,7 +96,8 @@ class DoorOverviewCard extends StatelessWidget {
                                   const SizedBox(width: 4),
                                   Expanded(
                                     child: Text(
-                                      'Lệnh gần nhất: Chưa có dữ liệu',
+                                      commandLabel ??
+                                          'Lệnh gần nhất: Chưa có dữ liệu',
                                       style: TextStyle(
                                         color: muted,
                                         fontSize: 13,
@@ -97,7 +109,21 @@ class DoorOverviewCard extends StatelessWidget {
                               ),
                               const SizedBox(height: 5),
                               Text(
-                                'Trạng thái vật lý chưa được xác nhận',
+                                monitoringError
+                                    ? 'Không tải được dữ liệu cảm biến'
+                                    : monitoring == null
+                                    ? 'Trạng thái vật lý chưa được xác nhận'
+                                    : !monitoring!.isCurrent
+                                    ? 'Dữ liệu cảm biến đã cũ · ${monitoring!.observedAt.toLocal().toString().split('.').first}'
+                                    : '${switch (monitoring!.doorState) {
+                                        'OPEN' => 'Cửa đang mở',
+                                        'CLOSED' => 'Cửa đang đóng',
+                                        _ => 'Chưa rõ trạng thái cửa',
+                                      }} · ${switch (monitoring!.lockState) {
+                                        'LOCKED' => 'Chốt đã khóa',
+                                        'UNLOCKED' => 'Chốt đã mở',
+                                        _ => 'Chưa rõ trạng thái chốt',
+                                      }}',
                                 style: TextStyle(
                                   color: muted,
                                   fontSize: 11,
@@ -116,6 +142,11 @@ class DoorOverviewCard extends StatelessWidget {
                               Expanded(
                                 child: _Sensor(
                                   label: 'Nhiệt độ',
+                                  value:
+                                      monitoring?.isCurrent == true &&
+                                          monitoring?.temperature != null
+                                      ? '${monitoring!.temperature!.toStringAsFixed(1)}°C'
+                                      : null,
                                   color: foreground,
                                   muted: muted,
                                 ),
@@ -124,6 +155,11 @@ class DoorOverviewCard extends StatelessWidget {
                               Expanded(
                                 child: _Sensor(
                                   label: 'Độ ẩm',
+                                  value:
+                                      monitoring?.isCurrent == true &&
+                                          monitoring?.humidity != null
+                                      ? '${monitoring!.humidity!.toStringAsFixed(1)}%'
+                                      : null,
                                   color: foreground,
                                   muted: muted,
                                 ),
@@ -149,16 +185,18 @@ class _Sensor extends StatelessWidget {
     required this.label,
     required this.color,
     required this.muted,
+    this.value,
   });
   final String label;
   final Color color;
   final Color muted;
+  final String? value;
   @override
   Widget build(BuildContext context) => Tooltip(
-    message: 'Chưa có dữ liệu $label',
+    message: value ?? 'Chưa có dữ liệu $label',
     child: Semantics(
       label: label,
-      value: 'Chưa có dữ liệu',
+      value: value ?? 'Chưa có dữ liệu',
       excludeSemantics: true,
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -166,7 +204,7 @@ class _Sensor extends StatelessWidget {
           Text(label, style: TextStyle(color: muted, fontSize: 11)),
           const SizedBox(height: 4),
           Text(
-            '—',
+            value ?? '—',
             style: TextStyle(
               color: color,
               fontSize: 16,

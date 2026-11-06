@@ -34,6 +34,9 @@ class DoorSettingsServiceTests {
 
 	@BeforeEach void setup() {
 		config = new DoorConfig(); config.setDoorId(3L);
+        var door = new com.smartdoor.backend.door.entity.Door(); door.setId(3L);
+        when(ownership.getOwnedDoor(7L, 3L)).thenReturn(door);
+        when(ownership.requireOwnerForUpdate(7L, 3L)).thenReturn(door);
 		nodes = List.of(node(1L, Device.NodeType.NODE_1, Device.LifecycleStatus.PROVISIONED),
 				node(2L, Device.NodeType.NODE_2, Device.LifecycleStatus.ACTIVE),
 				node(3L, Device.NodeType.NODE_1, Device.LifecycleStatus.DISABLED),
@@ -73,7 +76,7 @@ class DoorSettingsServiceTests {
 	}
 
 	@Test void anotherOwnerCannotReadOrUpdateConfiguration() {
-		doThrow(new ResourceNotFoundException("Không tìm thấy cửa.")).when(ownership).requireOwner(8L, 3L);
+		doThrow(new ResourceNotFoundException("Không tìm thấy cửa.")).when(ownership).getOwnedDoor(8L, 3L);
 		assertThatThrownBy(() -> service.get(8L, 3L)).isInstanceOf(ResourceNotFoundException.class);
 		verifyNoInteractions(publisher);
 	}
@@ -84,6 +87,29 @@ class DoorSettingsServiceTests {
 		assertThat(view.devices().getFirst().configState()).isEqualTo(DeviceSyncView.SyncState.PENDING);
 		assertThat(view.devices().get(1).configState()).isEqualTo(DeviceSyncView.SyncState.UNKNOWN);
 	}
+
+    @Test void safetyFlagsAndModeAreSavedAndQueuedTogether() {
+        var view = service.update(7L, 3L, new UpdateDoorConfigRequest(4, 120, new BigDecimal("52"), 30,
+                com.smartdoor.backend.door.entity.Door.OperatingMode.AUTOMATIC, false, true));
+        assertThat(view.operatingMode()).isEqualTo(com.smartdoor.backend.door.entity.Door.OperatingMode.AUTOMATIC);
+        assertThat(view.fireAlarmEnabled()).isFalse();
+        assertThat(view.doorOpenAlertEnabled()).isTrue();
+        var commands = org.mockito.ArgumentCaptor.forClass(DeviceCommandPublisher.ConfigurationCommand.class);
+        verify(publisher, times(3)).publishConfiguration(commands.capture());
+        assertThat(commands.getAllValues()).allSatisfy(command -> {
+            assertThat(command.fireAlarmEnabled()).isFalse();
+            assertThat(command.doorOpenAlertEnabled()).isTrue();
+            assertThat(command.operatingMode()).isEqualTo(view.operatingMode());
+        });
+    }
+
+    @Test void openAlertCannotBeEnabledWithoutTimeout() {
+        assertThatThrownBy(() -> service.update(7L, 3L,
+                new UpdateDoorConfigRequest(4, 120, new BigDecimal("52"), null, null, null, true)))
+                .isInstanceOf(com.smartdoor.backend.shared.error.BadRequestException.class);
+        verifyNoInteractions(publisher);
+        verify(configs, never()).saveAndFlush(any());
+    }
 
 	private Device node(Long id, Device.NodeType role, Device.LifecycleStatus status) {
 		Device node = new Device(); node.setId(id); node.setDoorId(3L); node.setDeviceCode("NODE-" + id);
