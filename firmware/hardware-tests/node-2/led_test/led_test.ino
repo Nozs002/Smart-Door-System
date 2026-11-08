@@ -1,14 +1,22 @@
-// Test LED - node-2
-// Dây hiện tại: GPIO2 -> điện trở 220 ohm -> anode; cathode=GND.
-// Thư viện và phiên bản: điền tại đây.
-// Kết quả kiểm tra: điền tại đây.
-// Thay nội dung mẫu bên dưới bằng toàn bộ code test đã chạy thành công.
-// Không điền mật khẩu Wi-Fi, MQTT hoặc khóa thiết bị vào file này.
+// Định nghĩa chân nối với LED
+#define LED_PIN 2
 
 void setup() {
-  // Điền code khởi tạo tại đây.
+  Serial.begin(115200);
+  Serial.println("Bat dau test LED...");
+
+  // Thiết lập chân GPIO 2 làm chân xuất tín hiệu (OUTPUT)
+  pinMode(LED_PIN, OUTPUT);
 }
 
 void loop() {
-  // Điền code kiểm tra tại đây.
+  // Bật đèn LED (Cấp điện áp 3.3V)
+  Serial.println("LED: Sang");
+  digitalWrite(LED_PIN, HIGH);
+  delay(1000); // Sáng trong 1 giây (1000 ms)
+
+  // Tắt đèn LED (Kéo điện áp về 0V)
+  Serial.println("LED: Tat");
+  digitalWrite(LED_PIN, LOW);
+  delay(1000); // Tắt trong 1 giây
 }
