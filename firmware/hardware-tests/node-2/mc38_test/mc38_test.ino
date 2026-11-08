@@ -1,14 +1,27 @@
-// Test MC-38 - node-2
-// Dây hiện tại: Một dây=16, dây còn lại=GND; có thể dùng INPUT_PULLUP.
-// Thư viện và phiên bản: điền tại đây.
-// Kết quả kiểm tra: điền tại đây.
-// Thay nội dung mẫu bên dưới bằng toàn bộ code test đã chạy thành công.
-// Không điền mật khẩu Wi-Fi, MQTT hoặc khóa thiết bị vào file này.
+// Định nghĩa chân nối với cảm biến cửa MC38
+#define DOOR_SENSOR_PIN 16 
 
 void setup() {
-  // Điền code khởi tạo tại đây.
+  Serial.begin(115200);
+  Serial.println("Bat dau test cam bien cua MC38...");
+  
+  // Thiết lập chân GPIO 16 là INPUT_PULLUP
+  // Nếu cửa đóng (nối GND) -> Đọc giá trị LOW (0)
+  // Nếu cửa mở (hở mạch) -> Điện trở nội bộ kéo lên HIGH (1)
+  pinMode(DOOR_SENSOR_PIN, INPUT_PULLUP);
 }
 
 void loop() {
-  // Điền code kiểm tra tại đây.
+  // Đọc trạng thái của cảm biến
+  int doorState = digitalRead(DOOR_SENSOR_PIN);
+
+  // Kiểm tra và in ra Serial Monitor
+  if (doorState == HIGH) {
+    Serial.println("Trang thai: Cua DONG (Nam cham dang o gan)");
+  } else {
+    Serial.println("Trang thai: Cua MO (Nam cham da bi tach ra) !!!");
+  }
+  
+  // Đợi 0.5 giây trước khi đọc lần tiếp theo để tránh trôi màn hình quá nhanh
+  delay(500); 
 }
