@@ -1,4 +1,5 @@
 #include "wifi_manager.h"
+#include <WiFi.h>
 
 void connectWiFi(const char* ssid, const char* password) {
     Serial.println();
