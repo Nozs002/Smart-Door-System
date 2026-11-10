@@ -14,11 +14,11 @@ from unittest.mock import patch
 
 
 class UnlockSimulatorTests(unittest.TestCase):
-    def simulate(self, result="EXECUTED", expired=False, retained=False):
+    def simulate(self, result="EXECUTED", expired=False, retained=False, action="UNLOCK"):
         published = []
         command_id = str(uuid.uuid4())
         expires = datetime.now(timezone.utc) + timedelta(seconds=-1 if expired else 60)
-        payload = json.dumps({"schemaVersion": 1, "commandId": command_id, "action": "UNLOCK", "expiresAt": expires.isoformat()}).encode()
+        payload = json.dumps({"schemaVersion": 1, "commandId": command_id, "action": action, "expiresAt": expires.isoformat()}).encode()
 
         class Client:
             def __init__(self, *args, **kwargs): pass
@@ -29,7 +29,7 @@ class UnlockSimulatorTests(unittest.TestCase):
                 published.append((topic, json.loads(value)))
             def loop_start(self):
                 self.on_connect(self, None, None, types.SimpleNamespace(is_failure=False), None)
-                message = types.SimpleNamespace(topic="test/commands/unlock", payload=payload, retain=retained)
+                message = types.SimpleNamespace(topic="test/commands/" + ("close" if action == "CLOSE" else "unlock"), payload=payload, retain=retained)
                 self.on_message(self, None, message)
                 self.on_message(self, None, message)
             def disconnect(self): pass
@@ -50,7 +50,7 @@ class UnlockSimulatorTests(unittest.TestCase):
             module = runpy.run_path(str(Path(__file__).resolve().parents[1] / "device-simulator.py"))
             module["main"].__globals__["ROOT"] = Path(directory)
             with patch.dict("sys.modules", {"paho": paho, "paho.mqtt": package, "paho.mqtt.client": mqtt}), \
-                 patch("sys.argv", ["device-simulator.py", str(credential), "--duration", "1", "--unlock-result", result]), \
+                 patch("sys.argv", ["device-simulator.py", str(credential), "--duration", "1", "--unlock-result", result, "--close-result", result]), \
                  contextlib.redirect_stdout(io.StringIO()):
                 module["main"]()
             state_file = Path(directory) / ".local/simulator-1.local.json"
@@ -72,6 +72,14 @@ class UnlockSimulatorTests(unittest.TestCase):
     def test_expired_or_retained_commands_are_never_executed(self):
         self.assertEqual(self.simulate(expired=True)[0], [])
         self.assertEqual(self.simulate(retained=True)[0], [])
+
+    def test_close_is_idempotent_and_respects_expiry_retained_and_rejection(self):
+        acks, state, command_id = self.simulate(action="CLOSE")
+        self.assertEqual(acks[0], acks[1])
+        self.assertEqual(state["unlockResults"][command_id], "EXECUTED")
+        self.assertEqual(self.simulate(action="CLOSE", expired=True)[0], [])
+        self.assertEqual(self.simulate(action="CLOSE", retained=True)[0], [])
+        self.assertEqual(self.simulate(action="CLOSE", result="REJECTED")[0][0]["result"], "REJECTED")
 
 
 if __name__ == "__main__":

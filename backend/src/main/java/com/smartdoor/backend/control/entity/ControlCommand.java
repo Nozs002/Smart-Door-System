@@ -13,6 +13,7 @@ public class ControlCommand {
     @Column(nullable=false,length=100) private String deviceCode;
     @Column(nullable=false,length=16) private String status;
     @Column(nullable=false,length=24) private String accessMethod = "APP";
+    @Column(nullable=false,length=16) private String action = "UNLOCK";
     @Column(nullable=false) private LocalDateTime createdAt;
     @Column(nullable=false) private LocalDateTime expiresAt;
 }

@@ -7,8 +7,8 @@ script cần MySQL/MQTT. Các file secret, backup và báo cáo test nằm trong
 | Script | Mục đích | Lệnh |
 | --- | --- | --- |
 | `db-check.py` | Audit chỉ đọc; tùy chọn ghi backup trước khi nâng cấp | `python scripts/db-check.py --backup` |
-| `db-check.py` | Xác nhận migration và quan hệ sau nâng cấp | `python scripts/db-check.py --expect-version 10` |
-| `db-fresh-check.py` | Tạo schema riêng, chạy V1–V9, tái hiện lỗi loại thông điệp rồi kiểm tra V10 giữ dữ liệu/ràng buộc | `python scripts/db-fresh-check.py` |
+| `db-check.py` | Xác nhận migration và quan hệ sau nâng cấp | `python scripts/db-check.py --expect-version 11` |
+| `db-fresh-check.py` | Schema riêng, kiểm tra V9→V10 outbox và V10→V11 giữ lệnh cũ UNLOCK, hỗ trợ CLOSE | `python scripts/db-fresh-check.py` |
 | `setup-mqtt.py init` | Tạo master key còn thiếu, chuẩn bị Broker; giữ cấu hình đã có | `python scripts/setup-mqtt.py init` |
 | `setup-mqtt.py issue` | Cấp/rotate credential riêng của một Node đã provision | `python scripts/setup-mqtt.py issue <deviceId>` |
 | `setup-mqtt.py configure` | Xuất danh tính hiện tại, cập nhật password/ACL, restart Broker | `python scripts/setup-mqtt.py configure` |

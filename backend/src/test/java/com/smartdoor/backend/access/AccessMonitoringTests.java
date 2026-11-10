@@ -90,6 +90,22 @@ class AccessMonitoringTests {
         return devices.saveAndFlush(n);
     }
     AccessAuthenticationService.Request request(String value) { return new AccessAuthenticationService.Request(1,UUID.randomUUID().toString(),LockoutStatusId.Method.PIN,value,clock.instant()); }
+    @Test void holdOpenModeDoesNotGrantCredentialsCountFailuresOrQueueUnlocks() {
+        door.setOperatingMode(Door.OperatingMode.AUTOMATIC); doors.saveAndFlush(door);
+        for (int i=0;i<4;i++) {
+            var r=request(i==0 ? "1234" : "9999");
+            access.receive(identity(auth),r);
+            var logged=logs.findByEventId(r.eventId()).orElseThrow();
+            assertThat(logged.getReason()).isEqualTo("SECURITY_DISABLED");
+            assertThat(logged.getResult()).isEqualTo(AccessLog.Result.DENIED);
+            assertThat(commands.findById(r.eventId())).isEmpty();
+        }
+        assertThat(lockouts.findById(new LockoutStatusId(door.getId(),LockoutStatusId.Method.PIN))).isEmpty();
+        door.setOperatingMode(Door.OperatingMode.SECURITY); doors.saveAndFlush(door);
+        var secured=request("1234"); access.receive(identity(auth),secured);
+        assertThat(commands.findById(secured.eventId())).isPresent();
+        assertThat(logs.findByEventId(secured.eventId()).orElseThrow().getResult()).isEqualTo(AccessLog.Result.GRANTED);
+    }
     @Test void validPinQueuesOneCommandAndAckCreatesSeparateExecutionLog() {
         var r=request("1234"); access.receive(identity(auth),r); access.receive(identity(auth),r);
         assertThat(logs.findAllByDoorIdAndCorrelationIdOrderByReceivedAtAscIdAsc(door.getId(),r.eventId())).hasSize(1);

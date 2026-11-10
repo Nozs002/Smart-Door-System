@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import '../../doors/presentation/door_widgets.dart';
 import '../data/settings_models.dart';
 import '../data/settings_repository.dart';
+import 'security_mode_confirmation.dart';
 
 class DoorSettingsScreen extends StatefulWidget {
   const DoorSettingsScreen({
@@ -89,6 +90,12 @@ class _DoorSettingsScreenState extends State<DoorSettingsScreen> {
 
   Future<void> _save() async {
     if (_saving || !_formKey.currentState!.validate()) return;
+    if (_configuration != null &&
+        (_configuration!.operatingMode == 'SECURITY') != _security) {
+      if (!await confirmSecurityMode(context, enabled: _security) || !mounted) {
+        return;
+      }
+    }
     setState(() => _saving = true);
     try {
       final value = await widget.repository.updateConfiguration(
@@ -178,6 +185,9 @@ class _DoorSettingsScreenState extends State<DoorSettingsScreen> {
                       SwitchListTile(
                         contentPadding: EdgeInsets.zero,
                         title: const Text('Chế độ bảo mật'),
+                        subtitle: const Text(
+                          'Bật: yêu cầu thẻ/PIN. Tắt: mở và giữ cửa mở, không tự đóng.',
+                        ),
                         value: _security,
                         onChanged: _saving
                             ? null

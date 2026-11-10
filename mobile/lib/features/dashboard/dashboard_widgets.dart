@@ -123,12 +123,14 @@ class DashboardConfigurationRow extends StatelessWidget {
     this.value,
     this.onChanged,
     this.pending = false,
+    this.description,
   });
   final String title;
   final IconData icon;
   final bool? value;
   final ValueChanged<bool>? onChanged;
   final bool pending;
+  final String? description;
   @override
   Widget build(BuildContext context) => LayoutBuilder(
     builder: (context, constraints) {
@@ -171,6 +173,11 @@ class DashboardConfigurationRow extends StatelessWidget {
                         : 'Đang tắt',
                     style: Theme.of(context).textTheme.bodySmall,
                   ),
+                  if (description != null)
+                    Text(
+                      description!,
+                      style: Theme.of(context).textTheme.bodySmall,
+                    ),
                 ],
               ),
             ),

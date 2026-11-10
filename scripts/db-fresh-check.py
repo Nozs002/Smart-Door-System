@@ -12,7 +12,7 @@ import subprocess
 import sys
 
 ROOT = Path(__file__).resolve().parents[1]
-EXPECTED_VERSIONS = ",".join(str(version) for version in range(1, 11))
+EXPECTED_VERSIONS = ",".join(str(version) for version in range(1, 12))
 
 
 def check_outbox_upgrade(query, migrate):
@@ -66,6 +66,29 @@ def module(name, filename):
     return result
 
 
+def check_close_upgrade(query, migrate):
+    query("INSERT INTO accounts (id,display_name,username,password_hash) "
+          "VALUES (1,'Migration owner','migration-owner','migration-test-only'); "
+          "UPDATE doors SET owner_account_id=1,status='ACTIVE' WHERE id=1; "
+          "INSERT INTO control_commands (id,door_id,account_id,device_code,status,created_at,expires_at) "
+          "VALUES ('11111111-1111-4111-8111-111111111111',1,1,'MIGRATION-NODE-2','EXECUTED',"
+          "UTC_TIMESTAMP(3),DATE_ADD(UTC_TIMESTAMP(3),INTERVAL 15 SECOND))")
+    before = query("SELECT id,status,created_at,expires_at FROM control_commands ORDER BY id")
+    migrate()
+    if query("SELECT id,status,created_at,expires_at FROM control_commands ORDER BY id") != before:
+        raise RuntimeError("V11 changed existing command data")
+    if query("SELECT action FROM control_commands WHERE id='11111111-1111-4111-8111-111111111111'") != "UNLOCK":
+        raise RuntimeError("V11 did not default the old command to UNLOCK")
+    result = query("START TRANSACTION; "
+          "INSERT INTO control_commands (id,door_id,account_id,device_code,status,action,created_at,expires_at) "
+          "VALUES ('22222222-2222-4222-8222-222222222222',1,1,'MIGRATION-NODE-2','PENDING','CLOSE',"
+          "UTC_TIMESTAMP(3),DATE_ADD(UTC_TIMESTAMP(3),INTERVAL 15 SECOND)); "
+          "SELECT action FROM control_commands WHERE id='22222222-2222-4222-8222-222222222222'; ROLLBACK")
+    if result != "CLOSE":
+        raise RuntimeError("V11 could not persist a CLOSE command")
+    print("PASS V11: old commands preserved as UNLOCK; CLOSE persisted", flush=True)
+
+
 def main():
     setup = module("mqtt_setup", "setup-mqtt.py")
     audit = module("db_audit", "db-check.py")
@@ -84,6 +107,7 @@ def main():
             "--spring.profiles.active=local,device-security", "--app.settings-mqtt.enabled=false", "--app.outbox.enabled=false",
             "--spring.datasource.url=jdbc:mysql://mysql:3306/" + schema + "?connectionTimeZone=UTC",
             "--spring.flyway.target=" + str(target),
+            "--spring.jpa.hibernate.ddl-auto=" + ("validate" if target >= 11 else "none"),
             "--security.action=export-broker", "--security.output=/run/local/empty-users-v" + str(target) + ".local.json"],
             cwd=ROOT, capture_output=True, text=True, encoding="utf-8", errors="replace", timeout=120)
         log = folder / ("migration-v" + str(target) + ".local.log")
@@ -94,6 +118,7 @@ def main():
 
     migrate(9)
     check_outbox_upgrade(lambda sql: audit.query("USE `" + schema + "`; " + sql), lambda: migrate(10))
+    check_close_upgrade(lambda sql: audit.query("USE `" + schema + "`; " + sql), lambda: migrate(11))
     versions = audit.query("SELECT GROUP_CONCAT(version ORDER BY installed_rank) FROM `" + schema + "`.flyway_schema_history WHERE success=1")
     if versions != EXPECTED_VERSIONS:
         raise RuntimeError("Unexpected fresh migration history: " + versions)
@@ -101,7 +126,7 @@ def main():
     foreign_keys = audit.query("SELECT COUNT(*) FROM information_schema.REFERENTIAL_CONSTRAINTS WHERE CONSTRAINT_SCHEMA='" + schema + "'")
     if tables != "20" or foreign_keys != "31":
         raise RuntimeError("Fresh schema has unexpected table/FK counts: " + tables + "/" + foreign_keys)
-    print("PASS Flyway V1-V10 and Hibernate validation: 19 business tables, 31 foreign keys")
+    print("PASS Flyway V1-V11 and Hibernate validation: 19 business tables, 31 foreign keys")
     print("Isolated test schema kept for inspection:", schema)
     print("Migration logs:", folder.relative_to(ROOT))
     print("Existing application database was preserved.")

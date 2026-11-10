@@ -46,8 +46,10 @@ class DeviceLifecycleServiceTests {
 	private final DeviceRepository devices = mock(DeviceRepository.class);
 	private final DeviceLifecycleEventRepository events = mock(DeviceLifecycleEventRepository.class);
 	private final DeviceReadinessPolicy readiness = mock(DeviceReadinessPolicy.class);
+	private final com.smartdoor.backend.infrastructure.outbox.OutboxService outbox =
+			mock(com.smartdoor.backend.infrastructure.outbox.OutboxService.class);
 	private final DeviceLifecycleService service = new DeviceLifecycleService(ownership, doors, devices,
-			events, readiness, new DeviceConnectionPolicy(CLOCK, 90), CLOCK);
+			events, readiness, new DeviceConnectionPolicy(CLOCK, 90), CLOCK, outbox);
 	private Door door;
 	private Device node;
 
@@ -109,6 +111,7 @@ class DeviceLifecycleServiceTests {
 		when(devices.findAllByDoorId(DOOR_ID)).thenReturn(List.of(node, sibling));
 		service.changeLifecycle(ACCOUNT, DOOR_ID, node.getId(), Action.ACTIVATE, null);
 		assertThat(door.getStatus()).isEqualTo(Door.Status.ACTIVE);
+		verify(outbox).enqueue(eq("CONFIGURATION"), eq(DOOR_ID), eq(sibling.getDeviceCode()), anyString());
 	}
 
 	@Test

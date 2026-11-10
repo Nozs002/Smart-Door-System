@@ -1,7 +1,11 @@
 # Environment and secrets
+/firmware/shared/network/wifi_config.local.h
+/firmware/hardware-tests/node-2/node2_heartbeat_test/heartbeat_config.local.h
 .env
 *.local
 .local/
+/firmware/node-auth/node_auth_config.local.h
+/firmware/node-control/node_control_config.local.h
 __pycache__/
 
 # IDE and OS

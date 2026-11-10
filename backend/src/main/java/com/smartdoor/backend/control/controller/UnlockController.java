@@ -16,9 +16,10 @@ public class UnlockController {
     public UnlockController(UnlockService service,CurrentAccountProvider account) { this.service=service; this.account=account; }
     @PostMapping @ResponseStatus(HttpStatus.ACCEPTED)
     public CommandView unlock(@PathVariable Long doorId,@Valid @RequestBody UnlockRequest body) {
-        return service.unlock(account.requireAccountId(),doorId,body.requestId());
+        return service.command(account.requireAccountId(),doorId,body.requestId(),body.action()==null ? "UNLOCK" : body.action().name());
     }
     @GetMapping("/latest") public CommandView latest(@PathVariable Long doorId) { return service.latest(account.requireAccountId(),doorId); }
     @GetMapping("/{id}") public CommandView get(@PathVariable Long doorId,@PathVariable String id) { return service.get(account.requireAccountId(),doorId,id); }
-    public record UnlockRequest(@NotNull UUID requestId) { }
+    public enum Action { UNLOCK, CLOSE }
+    public record UnlockRequest(@NotNull UUID requestId,Action action) { }
 }
