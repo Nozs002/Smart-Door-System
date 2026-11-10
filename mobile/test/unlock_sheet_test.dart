@@ -6,6 +6,7 @@ import 'package:smart_door_mobile/features/doors/data/door_models.dart';
 
 class FakeUnlockRepository implements UnlockRepository {
   int calls = 0;
+  int closeCalls = 0;
   UnlockCommand? result;
   @override
   Future<UnlockCommand?> latest(int doorId) async => result;
@@ -17,9 +18,98 @@ class FakeUnlockRepository implements UnlockRepository {
 
   @override
   Future<UnlockCommand> get(int doorId, String commandId) async => result!;
+  @override
+  Future<UnlockCommand> closeDoor(int doorId, String requestId) async {
+    closeCalls++;
+    return result = UnlockCommand(
+      id: requestId,
+      status: 'SENT',
+      action: 'CLOSE',
+    );
+  }
 }
 
 void main() {
+  testWidgets('Hold-open mode disables direct open and close controls', (
+    tester,
+  ) async {
+    final repository = FakeUnlockRepository();
+    await tester.pumpWidget(
+      MaterialApp(
+        home: Scaffold(
+          body: UnlockSheet(
+            door: const DoorView(id: 1, name: 'Cửa chính', status: 'ACTIVE'),
+            repository: repository,
+            operatingMode: 'AUTOMATIC',
+            onSettings: () {},
+            onSignIn: () {},
+          ),
+        ),
+      ),
+    );
+    await tester.pumpAndSettle();
+    expect(find.text('Đã chọn chế độ giữ mở'), findsOneWidget);
+    expect(
+      tester.widget<Slider>(find.byKey(const Key('unlockSlider'))).onChanged,
+      isNull,
+    );
+    expect(
+      tester
+          .widget<OutlinedButton>(find.byKey(const Key('closeDoorButton')))
+          .onPressed,
+      isNull,
+    );
+    expect(repository.calls, 0);
+    expect(repository.closeCalls, 0);
+    await tester.pumpWidget(const SizedBox());
+  });
+  testWidgets(
+    'Close requires confirmation and waits for the matching device result',
+    (tester) async {
+      final repository = FakeUnlockRepository();
+      await tester.pumpWidget(
+        MaterialApp(
+          home: Scaffold(
+            body: UnlockSheet(
+              door: const DoorView(id: 1, name: 'Cửa chính', status: 'ACTIVE'),
+              repository: repository,
+              operatingMode: 'SECURITY',
+              onSettings: () {},
+              onSignIn: () {},
+            ),
+          ),
+        ),
+      );
+      await tester.pumpAndSettle();
+      final close = find.byKey(const Key('closeDoorButton'));
+      await tester.ensureVisible(close);
+      await tester.tap(close);
+      await tester.pumpAndSettle();
+      expect(repository.closeCalls, 0);
+      await tester.tap(find.text('Hủy'));
+      await tester.pumpAndSettle();
+      expect(repository.closeCalls, 0);
+      await tester.tap(close);
+      await tester.pumpAndSettle();
+      await tester.tap(find.text('Xác nhận đóng'));
+      await tester.pump();
+      await tester.pump();
+      expect(repository.closeCalls, 1);
+      expect(repository.calls, 0);
+      expect(find.text('Đã gửi, chờ thiết bị xác nhận'), findsOneWidget);
+      expect(tester.widget<OutlinedButton>(close).onPressed, isNull);
+      repository.result = UnlockCommand(
+        id: repository.result!.id,
+        status: 'EXECUTED',
+        action: 'CLOSE',
+      );
+      await tester.pump(const Duration(seconds: 1));
+      await tester.pump();
+      expect(find.text('Thiết bị xác nhận lệnh đóng cửa'), findsOneWidget);
+      expect(find.text('Thiết bị xác nhận lệnh mở khóa'), findsNothing);
+      await tester.pumpWidget(const SizedBox());
+    },
+  );
   testWidgets('Unlock panel supports narrow screens and large text', (
     tester,
   ) async {
@@ -43,6 +133,7 @@ void main() {
                 status: 'ACTIVE',
               ),
               repository: FakeUnlockRepository(),
+              operatingMode: 'SECURITY',
               onSettings: () {},
               onSignIn: () {},
             ),
@@ -64,6 +155,7 @@ void main() {
           body: UnlockSheet(
             door: const DoorView(id: 1, name: 'Cửa chính', status: 'ACTIVE'),
             repository: repository,
+            operatingMode: 'SECURITY',
             onSettings: () {},
             onSignIn: () {},
           ),

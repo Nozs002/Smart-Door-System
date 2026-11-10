@@ -98,4 +98,15 @@ của Account khác trả `404`. Các thời điểm không có offset là UTC t
 - Cả ba cấu hình được lưu và xếp hàng đồng bộ cùng transaction, tăng `version` chung. Chỉ ACK mới xác nhận thiết bị đã áp dụng.
 - Backend từ chối sự kiện nhiệt độ mới khi báo cháy tắt; khi bật, nhiệt độ phải vượt ngưỡng. Cảnh báo cửa mở mới yêu cầu cờ bật và có timeout; Node 2 chịu trách nhiệm đo thời gian và so sánh ngưỡng. Backend không suy ra thời gian mở từ trạng thái lệnh khóa.
 - Hai cảnh báo độc lập với `operatingMode`. Không tự đóng cảnh báo ACTIVE cũ khi tắt tính năng. Retry sự kiện đã ghi vẫn trả bản ghi cũ, không tạo thông báo lặp.
-- Phạm vi hiện tại là cấu hình app/backend/MQTT và Node giả lập; chưa triển khai tác động relay/còi/cảm biến thật.
+- Firmware mô hình [Node 2](../../firmware/node-control/README.md) có xử lý SG90,
+  MC-38, DHT11 và còi theo cấu hình; cần kiểm thử lại bản tích hợp trên board.
+  Node giả lập vẫn chỉ kiểm tra giao tiếp, không chứng minh tác động phần cứng.
+
+## Chế độ bảo mật trên mô hình servo
+
+- `SECURITY`: Node 1 gửi RFID/PIN đến Backend; mở hợp lệ thì Node 2 mở 180° và tự đóng 90° sau 10 giây.
+- `AUTOMATIC` (tắt bảo mật): Node 2 mở và giữ ở 180°, hủy bộ đếm tự đóng. Node 1 không gửi RFID/PIN; LCD hiển thị chế độ giữ mở. Không sử dụng cảm biến khoảng cách.
+- Chuyển `AUTOMATIC` → `SECURITY` đóng 90°; App yêu cầu xác nhận trước khi lưu cả hai chiều chuyển chế độ. Thiết bị ngoại tuyến chỉ áp dụng khi nhận cấu hình; lưu REST thành công chưa chứng minh cửa đã chuyển động.
+- CLOSE mới khi giữ mở trả `409`; CLOSE đang chờ bị hủy trước dispatch nếu mode đã đổi. Yêu cầu RFID/PIN đến muộn trả DENIED/`SECURITY_DISABLED`, không cộng lần sai, không tạo lệnh mở hay còi xác thực. Lockout cũ không bị xóa.
+- Báo nhiệt ưu tiên mở và chặn đóng. Khi hết báo nhiệt không tự đóng; cần CLOSE trong SECURITY. Công tắc báo cháy/cửa mở lâu vẫn độc lập; muốn giữ mở yên lặng cần tắt riêng cảnh báo cửa mở lâu.
+- ACK cấu hình Node 2 sau lưu NVS và phát lệnh servo ổn định 700 ms khi được phép điều khiển; MC-38 mới phản ánh cửa thực tế. ACK không chứng minh khóa cơ khí.

@@ -15,11 +15,13 @@ class UnlockSheet extends StatefulWidget {
     required this.repository,
     required this.onSettings,
     required this.onSignIn,
+    this.operatingMode,
   });
   final DoorView door;
   final UnlockRepository repository;
   final VoidCallback onSettings;
   final VoidCallback onSignIn;
+  final String? operatingMode;
   @override
   State<UnlockSheet> createState() => _UnlockSheetState();
 }
@@ -27,6 +29,7 @@ class UnlockSheet extends StatefulWidget {
 class _UnlockSheetState extends State<UnlockSheet> {
   UnlockCommand? _command;
   String? _unresolvedId;
+  String _requestedAction = 'UNLOCK';
   String? _error;
   bool _loading = true;
   double _slide = 0;
@@ -87,8 +90,38 @@ class _UnlockSheetState extends State<UnlockSheet> {
     return '${hex.substring(0, 8)}-${hex.substring(8, 12)}-${hex.substring(12, 16)}-${hex.substring(16, 20)}-${hex.substring(20)}';
   }
 
-  Future<void> _unlock() async {
-    if (_loading ||
+  Future<void> _unlock() => _sendCommand('UNLOCK');
+
+  Future<void> _closeDoor() async {
+    if (widget.operatingMode != 'SECURITY') return;
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('Đóng cửa?'),
+        content: const Text(
+          'Đảm bảo lối đi không có người hoặc vật cản trước khi đóng.',
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context, false),
+            child: const Text('Hủy'),
+          ),
+          FilledButton(
+            onPressed: () => Navigator.pop(context, true),
+            child: const Text('Xác nhận đóng'),
+          ),
+        ],
+      ),
+    );
+    if (!mounted || confirmed != true) return;
+    await _sendCommand('CLOSE');
+  }
+
+  Future<void> _sendCommand(String action) async {
+    if (widget.door.status != 'ACTIVE' ||
+        widget.operatingMode == 'AUTOMATIC' ||
+        (action == 'CLOSE' && widget.operatingMode != 'SECURITY') ||
+        _loading ||
         _error != null ||
         _command?.pending == true ||
         _unresolvedId != null) {
@@ -99,9 +132,12 @@ class _UnlockSheetState extends State<UnlockSheet> {
       _loading = true;
       _slide = 0;
       _unresolvedId = id;
+      _requestedAction = action;
     });
     try {
-      final result = await widget.repository.unlock(widget.door.id, id);
+      final result = action == 'CLOSE'
+          ? await widget.repository.closeDoor(widget.door.id, id)
+          : await widget.repository.unlock(widget.door.id, id);
       if (!mounted) return;
       setState(() {
         _command = result;
@@ -122,17 +158,27 @@ class _UnlockSheetState extends State<UnlockSheet> {
     }
   }
 
-  String get _status => _unresolvedId != null
+  String get _status => widget.operatingMode == 'AUTOMATIC'
+      ? 'Đã chọn chế độ giữ mở'
+      : _unresolvedId != null
       ? (_loading
-            ? 'Đang gửi lệnh mở khóa…'
+            ? (_requestedAction == 'CLOSE'
+                  ? 'Đang gửi lệnh đóng cửa…'
+                  : 'Đang gửi lệnh mở khóa…')
             : 'Chưa rõ lệnh đã được nhận hay chưa')
       : switch (_command?.status) {
           'PENDING' => 'Đang chuẩn bị gửi lệnh',
           'SENT' => 'Đã gửi, chờ thiết bị xác nhận',
           'UNKNOWN' => 'Chưa xác định kết quả gửi lệnh',
-          'EXECUTED' => 'Thiết bị xác nhận lệnh mở khóa',
+          'EXECUTED' =>
+            _command?.action == 'CLOSE'
+                ? 'Thiết bị xác nhận lệnh đóng cửa'
+                : 'Thiết bị xác nhận lệnh mở khóa',
           'REJECTED' => 'Thiết bị từ chối lệnh',
-          'FAILED' => 'Không thể gửi lệnh mở khóa',
+          'FAILED' =>
+            _command?.action == 'CLOSE'
+                ? 'Không thể gửi lệnh đóng cửa'
+                : 'Không thể gửi lệnh mở khóa',
           'TIMED_OUT' => 'Hết thời gian chờ xác nhận',
           _ => 'Lệnh gần nhất: Chưa có dữ liệu',
         };
@@ -145,6 +191,7 @@ class _UnlockSheetState extends State<UnlockSheet> {
         _error == null &&
         _unresolvedId == null &&
         _command?.pending != true &&
+        widget.operatingMode != 'AUTOMATIC' &&
         widget.door.status == 'ACTIVE';
     return BackdropFilter(
       filter: ImageFilter.blur(sigmaX: 10, sigmaY: 10),
@@ -177,7 +224,7 @@ class _UnlockSheetState extends State<UnlockSheet> {
                           ),
                         ),
                         IconButton(
-                          tooltip: 'Đóng',
+                          tooltip: 'Đóng bảng điều khiển',
                           onPressed: () => Navigator.pop(context),
                           icon: const Icon(Icons.close),
                         ),
@@ -214,7 +261,11 @@ class _UnlockSheetState extends State<UnlockSheet> {
                     ),
                     const SizedBox(height: 10),
                     Text(
-                      widget.door.status != 'ACTIVE' ? 'Cửa chưa hoạt động' : 'Xác nhận lệnh không thay thế cảm biến trạng thái cửa.',
+                      widget.operatingMode == 'AUTOMATIC'
+                          ? 'Bật lại bảo mật để đóng cửa. Xem cảm biến để biết trạng thái cửa thực tế.'
+                          : widget.door.status != 'ACTIVE'
+                          ? 'Cửa chưa hoạt động'
+                          : 'Xác nhận lệnh không thay thế cảm biến trạng thái cửa.',
                       textAlign: TextAlign.center,
                       style: Theme.of(context).textTheme.bodySmall,
                     ),
@@ -332,6 +383,15 @@ class _UnlockSheetState extends State<UnlockSheet> {
                           ],
                         ),
                       ),
+                    ),
+                    const SizedBox(height: 16),
+                    OutlinedButton.icon(
+                      key: const Key('closeDoorButton'),
+                      onPressed: enabled && widget.operatingMode == 'SECURITY'
+                          ? _closeDoor
+                          : null,
+                      icon: const Icon(Icons.door_front_door_outlined),
+                      label: const Text('Đóng cửa'),
                     ),
                     if (_loading)
                       const Padding(

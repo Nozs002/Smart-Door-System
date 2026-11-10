@@ -38,7 +38,25 @@ hiện có. Payload bên trong Base64:
 result: EXECUTED hoặc REJECTED. Backend kiểm tra đúng Door/Node 2 ACTIVE, chủ
 cửa hiện tại và hạn lệnh. ACK trùng không đổi kết quả cuối, ACK muộn không đổi
 TIMED_OUT thành thành công. EXECUTED không khẳng định trạng thái vật lý cửa.
-ACL hiện có commands/+ và events/+ bao phủ topic mới. Firmware chưa tích hợp.
+ACL hiện có commands/+ và events/+ bao phủ topic mới. Firmware mô hình tại
+[node-control](../../firmware/node-control/README.md) xử lý lệnh này; cần kiểm
+thử lại trên board sau khi thay bản tích hợp.
+
+### Đóng cửa từ App (mô hình servo kéo cánh cửa)
+
+Backend publish `smart-door/v1/doors/{doorId}/devices/{deviceCode}/commands/close`,
+QoS 1, retain=false. Payload giống unlock nhưng `action="CLOSE"`. ACK dùng
+`events/command-ack` và signed envelope hiện có; không có topic ACK riêng.
+Node từ chối retained/hết hạn/sai schema/action và CLOSE khi đang báo nhiệt.
+Nhật ký lưu đầy đủ commandId cùng action; lệnh trùng chỉ ACK, không quay lại.
+Các bản ghi cũ chưa có action được hiểu là UNLOCK. ID trùng nhưng khác action
+không được thực thi. Nếu báo nhiệt chen ngang chuyển động đóng, Node mở lại
+và trả REJECTED cho CLOSE. Nhiệt độ có ưu tiên cao hơn lệnh đóng và timer.
+
+Sau mở bình thường, Node 2 giữ 10 giây rồi đóng 90° bằng timer monotonic tại
+chỗ; lệnh trùng không gia hạn timer. Lệnh mở mới hợp lệ bắt đầu một khoảng giữ
+mở mới. Không replay timer hoặc lệnh cũ sau reset. Sau mở khẩn cấp do nhiệt,
+không tự đóng dù điều kiện đã hết. Dữ liệu MC-38 là xác nhận cánh cửa thực tế.
 
 ### Cấu hình, đồng bộ và sự kiện
 
@@ -227,3 +245,11 @@ Node 2 chỉ phát HIGH_TEMPERATURE khi fireAlarmEnabled và nhiệt độ vư�
 chỉ phát DOOR_OPEN_TOO_LONG khi doorOpenAlertEnabled, có openTimeoutSeconds và thời gian mở vượt ngưỡng.
 Hai cảnh báo độc lập với operatingMode. Backend từ chối cảnh báo mới đã tắt; lịch sử không bị xóa.
 Node ACK sau khi áp dụng toàn bộ snapshot. Simulator lưu snapshot, xét mẫu cảm biến giả theo ngưỡng, không điều khiển phần cứng.
+
+### Chế độ giữ mở và quyền điều khiển Node 2
+
+`operatingMode=AUTOMATIC` giữ servo 180° và hủy tự đóng; chuyển về SECURITY đóng 90° nếu không báo nhiệt. Node 1 dừng yêu cầu RFID/PIN trong chế độ giữ mở. Báo cháy/cửa mở lâu vẫn tuân theo cờ riêng.
+
+Snapshot gửi Node 2 bổ sung boolean `controlEnabled`: chỉ true khi Door và Node 2 đều ACTIVE. Thiếu/sai kiểu coi là false. Đây là metadata vận chuyển, không thuộc nội dung bất biến theo `version`; Backend dựng lại khi gửi và refresh qua outbox khi lifecycle thay đổi. Node 2 lưu metadata cùng bản ghi NVS nhưng so sánh nội dung cấu hình sau khi loại metadata. Cùng version có thể cập nhật quyền mà không đổi thông số.
+
+Khi false, Node 2 vẫn lưu/ACK phục vụ setup, nhưng không thực hiện chuyển mode, lệnh remote hay Serial CLOSE. Khi true, ACK sau khi áp dụng mode và chờ 700 ms. Báo nhiệt tại chỗ vẫn hoạt động độc lập. Quyền/cấu hình đã lưu hỗ trợ xử lý tại chỗ khi mất mạng; thay đổi lifecycle từ server chỉ có hiệu lực tại firmware khi nhận snapshot mới. Thu hồi thiết bị cũ vẫn phải thu hồi credential Broker theo quy trình lifecycle. Firmware mới cần Backend mới và đồng bộ lại snapshot; snapshot cũ thiếu metadata không cấp quyền điều khiển.

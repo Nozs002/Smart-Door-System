@@ -62,6 +62,17 @@ public class AccessAuthenticationService {
                 throw new ConflictException("eventId xác thực đã được sử dụng.");
             respond(identity,old,old.getLockedUntil(),r.occurredAt().plusSeconds(15)); return;
         }
+        if (door.getOperatingMode()==Door.OperatingMode.AUTOMATIC) {
+            // Free passage is a door policy, not a fabricated credential grant.
+            // A stale Node 1 request must not count failures or trigger a siren.
+            var ignored=new AccessLog(); ignored.setEventId(r.eventId()); ignored.setCorrelationId(r.eventId());
+            ignored.setDoorId(door.getId()); ignored.setSourceDeviceId(source.deviceId());
+            ignored.setMethod(AccessLog.Method.valueOf(r.method().name()));
+            ignored.setResult(AccessLog.Result.DENIED); ignored.setReason("SECURITY_DISABLED");
+            ignored.setOccurredAt(LocalDateTime.ofInstant(r.occurredAt(),ZoneOffset.UTC));
+            ignored.setReceivedAt(LocalDateTime.ofInstant(clock.instant(),ZoneOffset.UTC));
+            logs.save(ignored); respond(identity,ignored,null,r.occurredAt().plusSeconds(15)); return;
+        }
         var id=new LockoutStatusId(door.getId(),r.method());
         var status=lockouts.findByIdForUpdate(id).orElseGet(() -> { var s=new LockoutStatus(); s.setId(id); return s; });
         var config=configs.findById(door.getId()).orElseThrow(() -> new ConflictException("Cửa chưa có cấu hình."));

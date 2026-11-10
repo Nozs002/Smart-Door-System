@@ -45,6 +45,7 @@ def main() -> None:
     parser.add_argument("--failures", action="store_true", help="Emit one Node 1 TOO_MANY_FAILURES test event; activate the Node first.")
     parser.add_argument("--event-id", help="Repeat an event ID to verify alert deduplication (keep the same payload).")
     parser.add_argument("--unlock-result", choices=("EXECUTED", "REJECTED", "silent"), default="EXECUTED", help="Node 2 simulated outcome; silent tests timeouts.")
+    parser.add_argument("--close-result", choices=("EXECUTED", "REJECTED", "silent"), default="EXECUTED", help="Simulated CLOSE outcome; does not move a servo.")
     parser.add_argument("--access-method", choices=("RFID", "PIN"), help="Node 1: read credential interactively; it is never printed or passed in command arguments.")
     parser.add_argument("--attempts", type=int, default=1, help="Number of distinct access attempts, separated by --attempt-interval.")
     parser.add_argument("--attempt-interval", type=float, default=2)
@@ -136,26 +137,26 @@ def main() -> None:
             except (ValueError, TypeError, KeyError):
                 print("Rejected malformed access/alarm message.", flush=True)
             return
-        if kind == "unlock":
+        if kind in ("unlock", "close"):
             if credential["nodeType"] != "NODE_2" or message.retain:
                 return
             try:
                 value = json.loads(message.payload)
                 command_id = str(uuid.UUID(value["commandId"]))
                 expires = datetime.fromisoformat(value["expiresAt"].replace("Z", "+00:00"))
-                if value.get("schemaVersion") != 1 or value.get("action") != "UNLOCK" or expires <= datetime.now(timezone.utc):
+                if value.get("schemaVersion") != 1 or value.get("action") != ("CLOSE" if kind == "close" else "UNLOCK") or expires <= datetime.now(timezone.utc):
                     return
                 with state_lock:
                     history = state.setdefault("unlockResults", {})
                     if command_id not in history:
-                        history[command_id] = args.unlock_result
+                        history[command_id] = args.close_result if kind == "close" else args.unlock_result
                         state_file.parent.mkdir(parents=True, exist_ok=True)
                         state_file.write_text(json.dumps(state), encoding="utf-8")
                         state_file.chmod(0o600)
                     result = history[command_id]
                 if result != "silent":
                     publish("command-ack", {"schemaVersion": 1, "commandId": command_id, "result": result})
-                print("Simulated unlock:", command_id, result, flush=True)
+                print("Simulated", kind, command_id, result, flush=True)
             except (ValueError, TypeError, KeyError):
                 print("Rejected malformed unlock command.", flush=True)
             return

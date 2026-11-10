@@ -82,14 +82,14 @@ void main() {
     await tester.tap(find.text('Tải thêm'));
     await tester.pumpAndSettle();
     expect(repository.requests.last, (12, 1, null, null));
-    expect(find.text('Thẻ RFID · Đã thực thi mở khóa'), findsOneWidget);
+    expect(find.text('Thẻ RFID · Đã thực thi lệnh'), findsOneWidget);
     await tester.tap(find.byType(DropdownButtonFormField<String>).first);
     await tester.pumpAndSettle();
     await tester.tap(find.text('Mã PIN').last);
     await tester.pumpAndSettle();
     expect(repository.requests.last, (12, 0, 'PIN', null));
     expect(find.text('Mã PIN · Xác thực hợp lệ'), findsOneWidget);
-    expect(find.text('Thẻ RFID · Đã thực thi mở khóa'), findsNothing);
+    expect(find.text('Thẻ RFID · Đã thực thi lệnh'), findsNothing);
   });
 
   testWidgets('history retries errors and requests login on 401', (

@@ -68,6 +68,44 @@ class UnlockServiceTests {
         verify(transport,times(1)).publishUnlock(eq(1L),eq("NODE-2"),eq(c.getId()),anyString());
         assertThat(c.getStatus()).isEqualTo("SENT");
     }
+    @Test void closeIsPersistedDispatchedOnceAndConfirmedAsCommandedLocked() throws Exception {
+        assertThat(service.command(2L,1L,id,"CLOSE").action()).isEqualTo("CLOSE");
+        verify(commands).save(argThat(c -> "CLOSE".equals(c.getAction())));
+        var c=command("PENDING"); c.setAction("CLOSE");
+        service.dispatch(c.getId()); service.dispatch(c.getId());
+        verify(transport,times(1)).publishClose(eq(1L),eq("NODE-2"),eq(c.getId()),anyString());
+        verify(transport,never()).publishUnlock(anyLong(),anyString(),anyString(),anyString());
+        service.acknowledge(new AuthenticatedDeviceIdentity("NODE-2",1L,Device.NodeType.NODE_2),new UnlockService.Ack(1,c.getId(),"EXECUTED"));
+        assertThat(door.getCommandedLockState()).isEqualTo(Door.LockState.LOCKED);
+    }
+    @Test void cannotReuseOpenIdForCloseAndInvalidActionsFail() {
+        command("EXECUTED");
+        assertThatThrownBy(() -> service.command(2L,1L,id,"CLOSE")).isInstanceOf(ConflictException.class);
+        assertThatThrownBy(() -> service.command(2L,1L,UUID.randomUUID(),"OTHER")).isInstanceOf(BadRequestException.class);
+        assertThatThrownBy(() -> service.command(99L,1L,UUID.randomUUID(),"CLOSE")).isInstanceOf(ResourceNotFoundException.class);
+    }
+    @Test void rejectedOrExpiredCloseDoesNotChangeCommandedState() {
+        var c=command("SENT"); c.setAction("CLOSE"); door.setCommandedLockState(Door.LockState.UNLOCKED);
+        var identity=new AuthenticatedDeviceIdentity("NODE-2",1L,Device.NodeType.NODE_2);
+        service.acknowledge(identity,new UnlockService.Ack(1,c.getId(),"REJECTED"));
+        assertThat(c.getStatus()).isEqualTo("REJECTED");
+        assertThat(door.getCommandedLockState()).isEqualTo(Door.LockState.UNLOCKED);
+        service.acknowledge(identity,new UnlockService.Ack(1,c.getId(),"EXECUTED"));
+        assertThat(c.getStatus()).isEqualTo("REJECTED");
+        c.setStatus("SENT"); c.setExpiresAt(LocalDateTime.now(clock));
+        service.acknowledge(identity,new UnlockService.Ack(1,c.getId(),"EXECUTED"));
+        assertThat(c.getStatus()).isEqualTo("TIMED_OUT");
+        assertThat(door.getCommandedLockState()).isEqualTo(Door.LockState.UNLOCKED);
+    }
+    @Test void automaticModeRejectsCloseAndCancelsAQueuedCloseBeforeDispatch() throws Exception {
+        door.setOperatingMode(Door.OperatingMode.AUTOMATIC);
+        assertThatThrownBy(() -> service.command(2L,1L,id,"CLOSE")).isInstanceOf(ConflictException.class);
+        verify(commands,never()).save(any());
+        var c=command("PENDING"); c.setAction("CLOSE");
+        service.dispatch(c.getId());
+        assertThat(c.getStatus()).isEqualTo("FAILED");
+        verify(transport,never()).publishClose(anyLong(),anyString(),anyString(),anyString());
+    }
     @Test void onlyMatchingActiveNodeCanConfirmBeforeExpiry() {
         var c=command("SENT");
         var ack=new UnlockService.Ack(1,c.getId(),"EXECUTED");

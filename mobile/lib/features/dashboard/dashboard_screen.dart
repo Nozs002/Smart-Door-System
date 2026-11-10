@@ -1,5 +1,7 @@
 import 'dart:async';
 
+import '../settings/presentation/security_mode_confirmation.dart';
+
 import '../access_logs/data/access_repository.dart';
 import '../access_logs/presentation/access_log_screen.dart';
 
@@ -255,14 +257,17 @@ class _DashboardScreenState extends State<DashboardScreen>
     }
   }
 
+  String get _commandName =>
+      _latestCommand?.action == 'CLOSE' ? 'Đóng cửa' : 'Mở khóa';
   String? get _commandLabel => _latestCommand == null
       ? null
       : switch (_latestCommand!.status) {
-          'EXECUTED' => 'Lệnh gần nhất: Mở khóa (đã xác nhận)',
-          'PENDING' || 'SENT' => 'Lệnh mở khóa: Chờ xác nhận',
-          'REJECTED' => 'Lệnh mở khóa: Bị từ chối',
-          'FAILED' => 'Lệnh mở khóa: Gửi thất bại',
-          _ => 'Lệnh mở khóa: Chưa rõ kết quả',
+          'EXECUTED' => 'Lệnh gần nhất: $_commandName (đã xác nhận)',
+          'PENDING' ||
+          'SENT' => 'Lệnh ${_commandName.toLowerCase()}: Chờ xác nhận',
+          'REJECTED' => 'Lệnh ${_commandName.toLowerCase()}: Bị từ chối',
+          'FAILED' => 'Lệnh ${_commandName.toLowerCase()}: Gửi thất bại',
+          _ => 'Lệnh ${_commandName.toLowerCase()}: Chưa rõ kết quả',
         };
 
   Future<void> _loadConfiguration(int id) async {
@@ -329,6 +334,7 @@ class _DashboardScreenState extends State<DashboardScreen>
       builder: (_) => UnlockSheet(
         door: door,
         repository: repository,
+        operatingMode: _configurationValue?.operatingMode,
         onSettings: _detail,
         onSignIn: _signIn,
       ),
@@ -734,6 +740,13 @@ class _DashboardScreenState extends State<DashboardScreen>
     }
   }
 
+  Future<void> _changeSecurity(bool enabled) async {
+    if (!await confirmSecurityMode(context, enabled: enabled) || !mounted) {
+      return;
+    }
+    await _saveConfiguration(operatingMode: enabled ? 'SECURITY' : 'AUTOMATIC');
+  }
+
   Widget _configuration() => DashboardGlassPanel(
     child: Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
@@ -752,10 +765,9 @@ class _DashboardScreenState extends State<DashboardScreen>
                   _savingConfiguration ||
                   widget.settingsRepository == null
               ? null
-              : (value) => _saveConfiguration(
-                  operatingMode: value ? 'SECURITY' : 'AUTOMATIC',
-                ),
+              : _changeSecurity,
           title: 'Chế độ bảo mật',
+          description: 'Bật: yêu cầu thẻ/PIN. Tắt: giữ cửa mở.',
           icon: Icons.shield_outlined,
         ),
         const Divider(height: 1),
