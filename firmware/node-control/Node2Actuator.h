@@ -77,7 +77,8 @@ class Node2Actuator {
       }
     }
     if (!ready_ || !clockReady) {
-      Serial.println("Chua san sang bo nho/gio; khong quay servo");
+      Serial.printf("[SERVO] NVS ready=%d, clock ready=%d; khong quay servo\n",
+                    ready_, clockReady);
       return;
     }
     long long expires = parseUtc(command["expiresAt"] | "");
@@ -111,7 +112,16 @@ class Node2Actuator {
       return;
     }
     if (!valid) {
-      Serial.println("Tu choi lenh servo: sai, node ban hoac dang bao nhiet");
+      Serial.printf(
+        "[SERVO] REJECTED expected=%s, schemaOk=%d, actionOk=%d, "
+        "shapeValid=%d, ttlSeconds=%lld, ttlOk=%d, configurationReady=%d, "
+        "busy=%d, closeAllowed=%d, closeGuardOk=%d\n",
+        expectedAction,
+        command["schemaVersion"].is<int>() && command["schemaVersion"].as<int>() == 1,
+        command["action"].is<const char*>() && String(command["action"].as<const char*>()) == expectedAction,
+        shapeValid, expires - now, expires <= now + 60,
+        configurationReady, moving_ >= 0, closeAllowed,
+        String(expectedAction) != "CLOSE" || closeAllowed);
       return;
     }
     if (!servo_.attached()) {
@@ -267,20 +277,35 @@ class Node2Actuator {
   String serialLine_;
 
   bool save() {
+    // receive() only saves after a trusted UTC clock check. Keep in-flight
+    // reservations even if their deadline passes during servo movement.
+    // Expired commands cannot execute after reboot (receive checks expiry),
+    // so persisting their history only wastes contiguous NVS string space.
+    const long long now = static_cast<long long>(time(nullptr));
     JsonDocument doc;
     doc["identity"] = identity_;
     JsonArray rows = doc["entries"].to<JsonArray>();
     for (size_t i = 0; i < count_; ++i) {
+      if (entries_[i].expires <= now && static_cast<int>(i) != moving_) continue;
       JsonObject row = rows.add<JsonObject>();
       row["id"] = entries_[i].id;
       row["result"] = entries_[i].result;
       row["action"] = entries_[i].action;
       row["expires"] = entries_[i].expires;
     }
+    if (doc.overflowed()) return false;
     String snapshot;
     serializeJson(doc, snapshot);
-    return store_.putString("journal", snapshot) == snapshot.length() &&
-      store_.getString("journal", "") == snapshot;
+    size_t written = store_.putString("journal", snapshot);
+    String readBack = store_.getString("journal", "");
+    Serial.printf(
+      "[NVS] expected=%u, written=%u, read=%u, match=%d, freeEntries=%u\n",
+      static_cast<unsigned>(snapshot.length()),
+      static_cast<unsigned>(written),
+      static_cast<unsigned>(readBack.length()),
+      readBack == snapshot,
+      static_cast<unsigned>(store_.freeEntries()));
+    return written == snapshot.length() && readBack == snapshot;
   }
 
   static bool validId(const String& id) {

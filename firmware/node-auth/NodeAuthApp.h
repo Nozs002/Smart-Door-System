@@ -235,17 +235,18 @@ void pollInputs() {
   if (holdingOpen) erasePin();
   if (key && pendingId.isEmpty() && !holdingOpen) {
     if (key == '*') { erasePin(); noticeDuration = 0; }
-    else if (key == '#') {
-      if (pinLength >= 4 && pinLength <= 8) {
-        String value(pinBuffer); erasePin(); submitAccess("PIN", value); value = "";
-      } else { erasePin(); showNotice("PIN 4-8 CHU SO", "Nhap lai"); }
-    } else if (key >= '0' && key <= '9') {
+    else if (key >= '0' && key <= '9') {
       if (!configured || !linkReady || !trustedClock() || !hasConfiguration()) {
         erasePin(); showNotice("CHUA SAN SANG", "Kiem tra ket noi");
       } else if (pinLockedUntil > AuthProtocol::nowMs()) {
         erasePin(); showNotice("PIN TAM KHOA", "Thu lai sau");
-      } else if (pinLength >= 8) { erasePin(); showNotice("TOI DA 8 CHU SO", "Nhap lai"); }
-      else { pinBuffer[pinLength++] = key; pinBuffer[pinLength] = '\0'; lastKeyAt = millis(); noticeDuration = 0; }
+      } else {
+        pinBuffer[pinLength++] = key; pinBuffer[pinLength] = '\0';
+        lastKeyAt = millis(); noticeDuration = 0;
+        if (pinLength == 4) {
+          String value(pinBuffer); erasePin(); submitAccess("PIN", value); value = "";
+        }
+      }
     }
   }
   if (!rfidReady || millis() - lastRfidPoll < 50) return;
@@ -272,8 +273,8 @@ void refreshDisplay() {
   else if (!linkReady) { first = "MAT MQTT"; second = "Dang ket noi..."; }
   else if (!trustedClock()) { first = "DONG BO GIO..."; second = "Cho NTP"; }
   else if (!hasConfiguration()) { first = "CHO CAU HINH"; second = "Gui lai tu App"; }
-  else if (pinLength) { first = "NHAP PIN (#=OK)"; for (size_t i = 0; i < pinLength; ++i) second += '*'; }
-  else { first = "QUET THE / PIN"; second = rfidReady ? "*=Xoa   #=Gui" : "RC522 chua san"; }
+  else if (pinLength) { first = "NHAP PIN 4 SO"; for (size_t i = 0; i < pinLength; ++i) second += '*'; }
+  else { first = "QUET THE / PIN"; second = rfidReady ? "PIN 4 so; *=Xoa" : "RC522 chua san"; }
   first = first.substring(0, 16); second = second.substring(0, 16);
   if (first == screenLine1 && second == screenLine2) return;
   screenLine1 = first; screenLine2 = second;

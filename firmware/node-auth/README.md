@@ -40,7 +40,9 @@ servo vào Node 1. Sketch không dùng shared/network/wifi_manager.cpp.
 
 ## Hành vi
 
-- PIN 4–8 chữ số, `#` gửi, `*` xóa, sau 20 giây không nhập tự xóa. Che PIN
+- Keypad tự gửi xác thực ngay khi nhập đủ 4 chữ số; `#` không làm gì, `*` xóa,
+  sau 20 giây không nhập tự xóa. Cửa dùng sketch này phải đặt PIN đúng 4 số
+  trên App; Backend/App vẫn cho phép 4–8 số nhưng keypad không nhập PIN dài hơn 4 số. Che PIN
   bằng dấu sao; không log PIN/UID/envelope/khóa, không lưu credential vào NVS.
 - Một lượt xác thực có UUID và hạn 15 giây. Chỉ nhận kết quả đúng eventId,
   còn hạn, schema/result hợp lệ và không retained. Không tự retry/replay
@@ -70,11 +72,12 @@ ACK thay để lách điều kiện; cần triển khai credential/BCrypt ở gi
 2. Kiểm tra Node 1 heartbeat và ACK cấu hình trong DB; reset rồi gửi lại cùng
    snapshot phải ACK mà không ghi NVS thêm. applied_pin_version không được
    sketch này cập nhật.
-3. Quẹt thẻ hợp lệ, nhập PIN đúng + # → LCD báo xác thực đúng, Node 2 mở 180°;
+3. Quẹt thẻ hợp lệ hoặc nhập đủ PIN đúng 4 số (không cần #) → LCD báo xác thực đúng, Node 2 mở 180°;
    đối chiếu access_logs GRANTED và control_commands EXECUTED trên App/DB.
 4. Thẻ chưa cấp/PIN sai → DENIED, không mở. Sai đủ ngưỡng → khóa phương thức
    đó; khi PIN khóa vẫn có thể thử RFID đúng. Reset không xóa khóa tạm đã lưu.
-5. Thử * xóa, PIN ngắn/dài, nhập dở quá 20 giây. Giữ thẻ không được tạo vòng
+5. Thử * xóa, nhập 1–3 số rồi # không gửi, nhập dở quá 20 giây tự xóa;
+   số thứ tư tự gửi đúng một yêu cầu, nhấn # không tạo yêu cầu thêm. Giữ thẻ không được tạo vòng
    yêu cầu liên tục; nhấc ra rồi đưa lại tạo lượt mới.
 6. Mất mạng/broker/backend → không mở offline, không phát lại yêu cầu khi có
    mạng. Nếu đã gửi nhưng timeout, kiểm tra App/lịch sử trước khi thử lượt mới:

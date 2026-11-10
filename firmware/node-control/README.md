@@ -55,6 +55,10 @@ vì SG90 không có cảm biến phản hồi vị trí; MC-38 chỉ đo cánh c
   không replay hoặc suy đoán trạng thái vật lý. EXECUTED sau thời gian ổn định
   700 ms chỉ xác nhận phát lệnh servo. Giữ namespace/journal tương thích sketch
   node2_heartbeat_test đã dùng; cùng Door/Node/credential mới dùng lại nhật ký.
+  Khi ghi NVS, bỏ các mục đã hết hạn khỏi snapshot, giữ mục còn hiệu lực và
+  mục đang chuyển động để giảm kích thước chuỗi journal. Không xóa namespace
+  hoặc nhật ký cũ trước khi ghi; chỉ cho quay servo sau khi ghi và đọc kiểm tra
+  thành công. Log `[NVS]` báo kích thước ghi/đọc và kết quả đối chiếu.
 - Heartbeat, command-ack, sync-ack, telemetry và alert đều HMAC-SHA256, Base64,
   UUID nonce, QoS 1, retain=false. Chỉ công bố event khi NTP đã sync và chưa
   quá hai giờ; lệnh remote cũng cần điều kiện này. Broker PUBACK không chứng
