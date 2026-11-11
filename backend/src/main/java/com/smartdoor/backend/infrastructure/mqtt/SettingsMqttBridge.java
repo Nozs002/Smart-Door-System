@@ -125,10 +125,16 @@ public class SettingsMqttBridge implements OutboxTransport, com.smartdoor.backen
     @Override public boolean connected() { return client.isConnected(); }
 
     @Override public void publishUnlock(Long doorId,String deviceCode,String commandId,String expiresAt) throws Exception {
+        publishControl(doorId,deviceCode,commandId,expiresAt,"UNLOCK","unlock");
+    }
+    @Override public void publishClose(Long doorId,String deviceCode,String commandId,String expiresAt) throws Exception {
+        publishControl(doorId,deviceCode,commandId,expiresAt,"CLOSE","close");
+    }
+    private void publishControl(Long doorId,String deviceCode,String commandId,String expiresAt,String action,String suffix) throws Exception {
         if (!client.isConnected()) throw new IllegalStateException("MQTT disconnected");
         byte[] payload=mapper.writeValueAsString(java.util.Map.of("schemaVersion",1,"commandId",commandId,
-                "action","UNLOCK","expiresAt",expiresAt)).getBytes(StandardCharsets.UTF_8);
-        client.publish("smart-door/v1/doors/"+doorId+"/devices/"+deviceCode+"/commands/unlock",payload,1,false)
+                "action",action,"expiresAt",expiresAt)).getBytes(StandardCharsets.UTF_8);
+        client.publish("smart-door/v1/doors/"+doorId+"/devices/"+deviceCode+"/commands/"+suffix,payload,1,false)
             .waitForCompletion(2000);
     }
 
@@ -167,6 +173,10 @@ public class SettingsMqttBridge implements OutboxTransport, com.smartdoor.backen
             payload.put("operatingMode",door.getOperatingMode());
             payload.put("fireAlarmEnabled",config.isFireAlarmEnabled());
             payload.put("doorOpenAlertEnabled",config.isDoorOpenAlertEnabled());
+            if (device.getNodeType()==Device.NodeType.NODE_2) {
+                payload.put("controlEnabled",device.getLifecycleStatus()==Device.LifecycleStatus.ACTIVE
+                    && door.getStatus()==com.smartdoor.backend.door.entity.Door.Status.ACTIVE);
+            }
         } else if ("CREDENTIALS".equals(message.kind()) && device.getNodeType()==Device.NodeType.NODE_1) {
             command="credentials";
             var snapshot=credentials.snapshot(door.getId());

@@ -116,3 +116,7 @@ Lắp đặt an toàn bên trong nhà, làm nhiệm vụ trực tiếp điều k
   - **Lắng nghe lệnh**: Subscribe topic MQTT từ Backend. Khi Backend kiểm tra mã thẻ từ Node 1 hợp lệ, Backend gửi lệnh "Mở khóa", Node 2 kích hoạt Relay rút chốt cửa.
   - **Báo cháy tự động**: Cảm biến DHT11 đo nhiệt độ phòng liên tục. Nếu vượt 50°C, Node 2 tự động hú còi Buzzer, kích hoạt Relay mở khóa Cửa chính để thoát hiểm, bắn cảnh báo lên MQTT để App nhận thông báo đẩy.
   - **Báo động xâm nhập**: Nhận lệnh từ Backend để hú còi khi Node 1 đạt ngưỡng xác thực sai đang cấu hình, mặc định là 3 lần.
+
+## Quyết định cho mô hình servo giữ mở
+
+Tắt chế độ bảo mật (`AUTOMATIC`) mở servo 180° và giữ mở, không tự đóng; bật lại (`SECURITY`) đóng servo 90° và yêu cầu thẻ/PIN cho lần truy cập tiếp theo. Khi SECURITY, mở hợp lệ tự đóng sau 10 giây và có lệnh đóng trên App. Báo nhiệt đang hoạt động ưu tiên mở/chặn đóng; hết báo nhiệt không tự đóng. Không bổ sung cảm biến khoảng cách hoặc xác thực offline. Cờ báo cháy và cửa mở lâu độc lập với chế độ bảo mật. Xem [contract cấu hình](../../contracts/api/settings-alerts.md).

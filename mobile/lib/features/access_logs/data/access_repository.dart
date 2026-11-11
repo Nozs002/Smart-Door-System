@@ -127,8 +127,8 @@ String accessResultLabel(String value) =>
     const {
       'GRANTED': 'Xác thực hợp lệ',
       'DENIED': 'Từ chối xác thực',
-      'EXECUTED': 'Đã thực thi mở khóa',
-      'FAILED': 'Không thực thi mở khóa',
+      'EXECUTED': 'Đã thực thi lệnh',
+      'FAILED': 'Không thực thi lệnh',
       'UNKNOWN': 'Chờ/chưa rõ kết quả',
     }[value] ??
     value;
@@ -139,12 +139,20 @@ String accessReasonLabel(String? value) =>
       'INVALID_RFID': 'Thẻ không hợp lệ',
       'QUEUED': 'Đã xếp hàng mở khóa',
       'CONTROL_UNAVAILABLE': 'Chưa thể gửi lệnh mở khóa',
+      'SECURITY_DISABLED': 'Bảo mật đang tắt; cửa ở chế độ giữ mở',
       'PENDING': 'Đang chờ gửi',
       'TIMED_OUT': 'Hết thời gian chờ xác nhận',
       'REJECTED': 'Thiết bị từ chối',
       'FAILED': 'Gửi lệnh thất bại',
       'UNKNOWN': 'Chưa rõ kết quả gửi',
       'EXECUTED': 'Thiết bị xác nhận thực thi',
+      'CLOSE_PENDING': 'Đang chờ gửi lệnh đóng cửa',
+      'CLOSE_SENT': 'Đã gửi lệnh đóng cửa',
+      'CLOSE_EXECUTED': 'Thiết bị xác nhận đóng cửa',
+      'CLOSE_REJECTED': 'Thiết bị từ chối đóng cửa',
+      'CLOSE_TIMED_OUT': 'Hết thời gian chờ xác nhận đóng cửa',
+      'CLOSE_UNKNOWN': 'Chưa rõ kết quả đóng cửa',
+      'CLOSE_FAILED': 'Gửi lệnh đóng cửa thất bại',
     }[value] ??
     value ??
     '';

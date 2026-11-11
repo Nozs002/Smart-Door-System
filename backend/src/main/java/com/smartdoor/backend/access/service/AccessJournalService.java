@@ -28,7 +28,7 @@ public class AccessJournalService {
             case "REJECTED", "FAILED", "TIMED_OUT" -> AccessLog.Result.FAILED;
             default -> AccessLog.Result.UNKNOWN;
         });
-        log.setReason(c.getStatus()); log.setOccurredAt(LocalDateTime.ofInstant(clock.instant(),ZoneOffset.UTC));
+        log.setReason(("CLOSE".equals(c.getAction()) ? "CLOSE_" : "")+c.getStatus()); log.setOccurredAt(LocalDateTime.ofInstant(clock.instant(),ZoneOffset.UTC));
         logs.save(log);
     }
 }

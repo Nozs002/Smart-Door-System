@@ -36,10 +36,12 @@ public class DeviceLifecycleService {
 	private final DeviceReadinessPolicy readiness;
 	private final DeviceConnectionPolicy connections;
 	private final Clock clock;
+	private final com.smartdoor.backend.infrastructure.outbox.OutboxService outbox;
 
 	public DeviceLifecycleService(DoorOwnershipService ownership, DoorRepository doors,
 			DeviceRepository devices, DeviceLifecycleEventRepository events,
-			DeviceReadinessPolicy readiness, DeviceConnectionPolicy connections, Clock clock) {
+			DeviceReadinessPolicy readiness, DeviceConnectionPolicy connections, Clock clock,
+			com.smartdoor.backend.infrastructure.outbox.OutboxService outbox) {
 		this.ownership = ownership;
 		this.doors = doors;
 		this.devices = devices;
@@ -47,6 +49,7 @@ public class DeviceLifecycleService {
 		this.readiness = readiness;
 		this.connections = connections;
 		this.clock = clock;
+		this.outbox = outbox;
 	}
 
 	public DeviceView changeLifecycle(Long accountId, Long doorId, Long deviceId, Action action,
@@ -237,6 +240,15 @@ public class DeviceLifecycleService {
 				&& active.stream().anyMatch(device -> device.getNodeType() == NodeType.NODE_2)
 				&& active.stream().allMatch(readiness::canActivate);
 		door.setStatus(bothRolesReady ? Door.Status.ACTIVE : Door.Status.SETUP_PENDING);
+		// Refresh transport authorization even when the business configuration version
+		// is unchanged. Delivery rebuilds the latest state under the Door lock.
+		for (Device device : devices.findAllByDoorId(door.getId())) {
+			if (device.getNodeType() == NodeType.NODE_2
+					&& device.getLifecycleStatus() != LifecycleStatus.RETIRED) {
+				outbox.enqueue(com.smartdoor.backend.infrastructure.outbox.OutboxService.CONFIGURATION,
+						door.getId(), device.getDeviceCode(), "{\"lifecycleRefresh\":\"" + UUID.randomUUID() + "\"}");
+			}
+		}
 	}
 
 	private static String validateReason(String reason, boolean required) {

@@ -172,6 +172,15 @@ void main() {
       expect(tester.widget<Switch>(switches.at(2)).value, isFalse);
       tester.widget<Switch>(switches.at(0)).onChanged!(false);
       await tester.pumpAndSettle();
+      expect(settings.mode, 'SECURITY');
+      expect(settings.saves, 0);
+      await tester.tap(find.text('Hủy'));
+      await tester.pumpAndSettle();
+      expect(settings.mode, 'SECURITY');
+      tester.widget<Switch>(switches.at(0)).onChanged!(false);
+      await tester.pumpAndSettle();
+      await tester.tap(find.text('Giữ cửa mở'));
+      await tester.pumpAndSettle();
       expect(settings.mode, 'AUTOMATIC');
       tester.widget<Switch>(switches.at(1)).onChanged!(false);
       await tester.pumpAndSettle();
@@ -180,6 +189,12 @@ void main() {
       await tester.pumpAndSettle();
       expect(settings.open, isTrue);
       expect(settings.timeout, 30);
+      tester.widget<Switch>(switches.at(0)).onChanged!(true);
+      await tester.pumpAndSettle();
+      expect(settings.mode, 'AUTOMATIC');
+      await tester.tap(find.text('Bật bảo mật'));
+      await tester.pumpAndSettle();
+      expect(settings.mode, 'SECURITY');
       settings.failSave = true;
       tester.widget<Switch>(switches.at(1)).onChanged!(true);
       await tester.pumpAndSettle();
