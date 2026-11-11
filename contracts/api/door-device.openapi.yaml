@@ -1,0 +1,632 @@
+openapi: 3.0.3
+info:
+  title: Smart Door - Door and Device API
+  version: 1.0.0
+  description: |
+    REST contract cho phần Người 2: quản lý Door, claim, Device và lifecycle.
+    Account phải được xác thực và ACTIVE; backend lấy Account từ principal,
+    không nhận accountId trong body. Không thuộc Door được trả 404.
+    JWT do Người 1 tích hợp; contract bearerAuth không triển khai đăng nhập.
+    Provision/cấp lại mã/đăng ký Node thay thế chỉ có CLI nội bộ.
+    MQTT thật và readiness dựa trên danh tính/ACK là đầu nối chưa tích hợp;
+    mặc định activate/reactivate/replace bị từ chối khi chưa đủ bằng chứng.
+servers:
+  - url: http://localhost:8080
+    description: Local Docker backend
+tags:
+  - name: Doors
+  - name: Devices
+  - name: Lifecycle
+security:
+  - bearerAuth: []
+paths:
+  /api/v1/doors:
+    get:
+      tags: [Doors]
+      operationId: listOwnedDoors
+      summary: Danh sách cửa thuộc Account hiện tại
+      parameters:
+        - $ref: '#/components/parameters/Page'
+        - $ref: '#/components/parameters/Size'
+      responses:
+        '200':
+          description: Danh sách phân trang; có thể rỗng
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/SuccessEnvelope'
+                  - type: object
+                    required: [data]
+                    properties:
+                      data:
+                        $ref: '#/components/schemas/DoorPage'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '500':
+          $ref: '#/components/responses/InternalError'
+  /api/v1/doors/claim:
+    post:
+      tags: [Doors]
+      operationId: claimDoor
+      summary: Nhận sở hữu bộ cửa bằng mã kích hoạt một lần
+      description: |
+        Mã gồm 8 ký tự chữ/số, trình bày XXXX-XXXX, hiệu lực 7 ngày.
+        Chấp nhận không gạch và chữ thường; loại ký tự dễ nhầm 0/O/1/I/L.
+        Lưu hash; không trả lại mã hoặc hash trong API.
+        Retry cùng Account với mã đã dùng thành công trả cùng Door.
+        Claim không tự activate Node hoặc gửi lệnh mở khóa.
+        Giới hạn 5 request/phút trên Account và IP kết nối trực tiếp;
+        triển khai hiện tại dùng bộ nhớ một instance.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ClaimDoorRequest'
+      responses:
+        '200':
+          $ref: '#/components/responses/DoorSuccess'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '409':
+          $ref: '#/components/responses/Conflict'
+        '429':
+          $ref: '#/components/responses/TooManyRequests'
+        '500':
+          $ref: '#/components/responses/InternalError'
+  /api/v1/doors/{doorId}:
+    parameters:
+      - $ref: '#/components/parameters/DoorId'
+    get:
+      tags: [Doors]
+      operationId: getOwnedDoor
+      summary: Xem cửa thuộc Account
+      responses:
+        '200':
+          $ref: '#/components/responses/DoorSuccess'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '500':
+          $ref: '#/components/responses/InternalError'
+    patch:
+      tags: [Doors]
+      operationId: updateDoorDetails
+      summary: Đổi tên và vị trí cửa
+      description: |
+        Cập nhật đồng thời name/location. name bắt buộc;
+        location null hoặc bỏ qua sẽ xóa vị trí hiện tại.
+        Không đổi owner, trạng thái hoặc định danh bằng endpoint này.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/UpdateDoorRequest'
+      responses:
+        '200':
+          $ref: '#/components/responses/DoorSuccess'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '409':
+          $ref: '#/components/responses/Conflict'
+        '500':
+          $ref: '#/components/responses/InternalError'
+  /api/v1/doors/{doorId}/devices:
+    parameters:
+      - $ref: '#/components/parameters/DoorId'
+    get:
+      tags: [Devices]
+      operationId: listDoorDevices
+      summary: Xem từng Node của cửa, gồm thiết bị cũ
+      responses:
+        '200':
+          description: Các Node với lifecycle và kết nối riêng
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/SuccessEnvelope'
+                  - type: object
+                    required: [data]
+                    properties:
+                      data:
+                        type: array
+                        items:
+                          $ref: '#/components/schemas/DeviceView'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '500':
+          $ref: '#/components/responses/InternalError'
+  /api/v1/doors/{doorId}/devices/{deviceId}:
+    parameters:
+      - $ref: '#/components/parameters/DoorId'
+      - $ref: '#/components/parameters/DeviceId'
+    get:
+      tags: [Devices]
+      operationId: getDoorDevice
+      summary: Xem một Node đúng cửa thuộc Account
+      responses:
+        '200':
+          $ref: '#/components/responses/DeviceSuccess'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '500':
+          $ref: '#/components/responses/InternalError'
+  /api/v1/doors/{doorId}/devices/{deviceId}/lifecycle:
+    parameters:
+      - $ref: '#/components/parameters/DoorId'
+      - $ref: '#/components/parameters/DeviceId'
+    post:
+      tags: [Lifecycle]
+      operationId: changeDeviceLifecycle
+      summary: Activate, disable, reactivate hoặc retire Node
+      description: |
+        PROVISIONED -> ACTIVE bằng ACTIVATE.
+        ACTIVE -> DISABLED bằng DISABLE.
+        DISABLED -> ACTIVE bằng REACTIVATE.
+        ACTIVE/DISABLED -> RETIRED bằng RETIRE; RETIRED là kết thúc.
+        RETIRE yêu cầu reason có nội dung. Các action khác cho phép reason null.
+        ACTIVATE/REACTIVATE kiểm tra danh tính, cấu hình/PIN và active slot.
+        Mặc định readiness từ chối cho tới khi có adapter tích hợp đáng tin cậy.
+        Mỗi thay đổi thành công ghi lịch sử cùng transaction.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/LifecycleRequest'
+      responses:
+        '200':
+          $ref: '#/components/responses/DeviceSuccess'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '409':
+          $ref: '#/components/responses/Conflict'
+        '500':
+          $ref: '#/components/responses/InternalError'
+  /api/v1/doors/{doorId}/devices/{deviceId}/replace:
+    parameters:
+      - $ref: '#/components/parameters/DoorId'
+      - $ref: '#/components/parameters/DeviceId'
+    post:
+      tags: [Lifecycle]
+      operationId: replaceDoorDevice
+      summary: Thay Node bằng Device đã được kỹ thuật viên đăng ký
+      description: |
+        Node mới phải khác Node cũ, cùng Door/vai trò và PROVISIONED.
+        Node cũ phải ACTIVE hoặc DISABLED. Kiểm tra readiness và bằng chứng
+        thu hồi quyền Node cũ qua policy tích hợp trước khi đổi.
+        Transaction retire Node cũ, activate Node mới và ghi sự kiện;
+        response là Node mới. Giữ Door và toàn bộ lịch sử Node cũ.
+        Không nhận deviceCode tùy ý để tự đăng ký thiết bị từ App.
+        Database commit không chứng minh quyền Broker/thiết bị cũ đã bị thu hồi;
+        tích hợp cần adapter và cơ chế retry tương ứng.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ReplaceDeviceRequest'
+      responses:
+        '200':
+          $ref: '#/components/responses/DeviceSuccess'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '409':
+          $ref: '#/components/responses/Conflict'
+        '500':
+          $ref: '#/components/responses/InternalError'
+  /api/v1/doors/{doorId}/lifecycle-events:
+    parameters:
+      - $ref: '#/components/parameters/DoorId'
+    get:
+      tags: [Lifecycle]
+      operationId: listLifecycleEvents
+      summary: Lịch sử lifecycle mới nhất trước
+      parameters:
+        - $ref: '#/components/parameters/Page'
+        - $ref: '#/components/parameters/Size'
+        - name: deviceId
+          in: query
+          required: false
+          description: Lọc một Device thuộc Door, gồm Device cũ đã thay
+          schema:
+            type: integer
+            format: int64
+            minimum: 1
+      responses:
+        '200':
+          description: Lịch sử phân trang, gồm actor/lý do/trạng thái trước sau
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/SuccessEnvelope'
+                  - type: object
+                    required: [data]
+                    properties:
+                      data:
+                        $ref: '#/components/schemas/LifecycleEventPage'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '500':
+          $ref: '#/components/responses/InternalError'
+components:
+  securitySchemes:
+    bearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+      description: JWT xác minh bởi module Người 1; cần principal chứa Account ID đáng tin cậy
+  parameters:
+    DoorId:
+      name: doorId
+      in: path
+      required: true
+      schema:
+        type: integer
+        format: int64
+        minimum: 1
+    DeviceId:
+      name: deviceId
+      in: path
+      required: true
+      schema:
+        type: integer
+        format: int64
+        minimum: 1
+    Page:
+      name: page
+      in: query
+      required: false
+      schema:
+        type: integer
+        minimum: 0
+        default: 0
+    Size:
+      name: size
+      in: query
+      required: false
+      schema:
+        type: integer
+        minimum: 1
+        maximum: 100
+        default: 20
+  responses:
+    DoorSuccess:
+      description: Thông tin Door thuộc Account
+      content:
+        application/json:
+          schema:
+            allOf:
+              - $ref: '#/components/schemas/SuccessEnvelope'
+              - type: object
+                required: [data]
+                properties:
+                  data:
+                    $ref: '#/components/schemas/DoorView'
+    DeviceSuccess:
+      description: Thông tin Node; endpoint replace trả Node mới
+      content:
+        application/json:
+          schema:
+            allOf:
+              - $ref: '#/components/schemas/SuccessEnvelope'
+              - type: object
+                required: [data]
+                properties:
+                  data:
+                    $ref: '#/components/schemas/DeviceView'
+    BadRequest:
+      description: Body/query/mã không hợp lệ hoặc thiếu reason bắt buộc
+      content:
+        application/problem+json:
+          schema:
+            $ref: '#/components/schemas/Problem'
+    Unauthorized:
+      description: Chưa xác thực, principal không hợp lệ hoặc Account không ACTIVE
+      content:
+        application/problem+json:
+          schema:
+            $ref: '#/components/schemas/Problem'
+    NotFound:
+      description: Không tồn tại, không thuộc Account hoặc Device không thuộc Door
+      content:
+        application/problem+json:
+          schema:
+            $ref: '#/components/schemas/Problem'
+    Conflict:
+      description: Xung đột dữ liệu, transition/slot không hợp lệ hoặc thiếu readiness
+      content:
+        application/problem+json:
+          schema:
+            $ref: '#/components/schemas/Problem'
+    TooManyRequests:
+      description: Vượt giới hạn thử claim trên Account hoặc IP
+      content:
+        application/problem+json:
+          schema:
+            $ref: '#/components/schemas/Problem'
+    InternalError:
+      description: Lỗi hệ thống; dùng correlationId để đối chiếu log
+      content:
+        application/problem+json:
+          schema:
+            $ref: '#/components/schemas/Problem'
+  schemas:
+    SuccessEnvelope:
+      type: object
+      required: [message, timestamp, correlationId]
+      properties:
+        message:
+          type: string
+          example: Thành công
+        timestamp:
+          type: string
+          format: date-time
+          example: '2026-10-16T10:00:00Z'
+        correlationId:
+          type: string
+          nullable: true
+          description: ID đối chiếu request/log, cũng có trong header X-Correlation-ID
+    UtcLocalTimestamp:
+      type: string
+      description: |
+        LocalDateTime serialize ISO-8601 không có offset; tất cả giá trị là UTC.
+        Client cần diễn giải là UTC trước khi đổi múi giờ hiển thị.
+        Timestamp của envelope có định dạng Instant riêng.
+      example: '2026-10-16T10:00:00.123'
+    DoorStatus:
+      type: string
+      enum: [UNCLAIMED, SETUP_PENDING, ACTIVE, DISABLED]
+    LifecycleStatus:
+      type: string
+      enum: [PROVISIONED, ACTIVE, DISABLED, RETIRED]
+    DoorView:
+      type: object
+      required: [id, name, status, createdAt, updatedAt]
+      properties:
+        id:
+          type: integer
+          format: int64
+          minimum: 1
+        name:
+          type: string
+          maxLength: 100
+        location:
+          type: string
+          maxLength: 255
+          nullable: true
+        status:
+          $ref: '#/components/schemas/DoorStatus'
+        createdAt:
+          $ref: '#/components/schemas/UtcLocalTimestamp'
+        updatedAt:
+          $ref: '#/components/schemas/UtcLocalTimestamp'
+    DeviceView:
+      type: object
+      required: [id, doorId, deviceCode, nodeType, lifecycleStatus, connectionStatus]
+      properties:
+        id:
+          type: integer
+          format: int64
+        doorId:
+          type: integer
+          format: int64
+        deviceCode:
+          type: string
+          maxLength: 100
+          description: Định danh công khai, không phải credential
+        nodeType:
+          type: string
+          enum: [NODE_1, NODE_2]
+        lifecycleStatus:
+          $ref: '#/components/schemas/LifecycleStatus'
+        connectionStatus:
+          type: string
+          enum: [UNKNOWN, ONLINE, OFFLINE]
+          description: Suy ra riêng từng Node từ giờ Backend nhận heartbeat; không đổi lifecycle
+        lastHeartbeatAt:
+          type: string
+          nullable: true
+          description: LocalDateTime UTC không có offset; null khi chưa nhận heartbeat
+          example: '2026-10-16T10:00:00.123'
+        firmwareVersion:
+          type: string
+          maxLength: 50
+          nullable: true
+        appliedConfigVersion:
+          type: integer
+          format: int64
+          nullable: true
+          description: Chỉ ACK đáng tin cậy mới được cập nhật
+        appliedPinVersion:
+          type: integer
+          format: int64
+          nullable: true
+          description: Không suy ra từ heartbeat
+    LifecycleEventView:
+      type: object
+      required: [id, eventId, deviceId, doorId, eventType, toStatus, occurredAt]
+      properties:
+        id:
+          type: integer
+          format: int64
+        eventId:
+          type: string
+        deviceId:
+          type: integer
+          format: int64
+        doorId:
+          type: integer
+          format: int64
+        actorAccountId:
+          type: integer
+          format: int64
+          nullable: true
+          description: null cho quy trình kỹ thuật CLI
+        eventType:
+          type: string
+          enum: [PROVISIONED, ACTIVATED, DISABLED, REACTIVATED, RETIRED, REPLACED]
+        fromStatus:
+          type: string
+          enum: [PROVISIONED, ACTIVE, DISABLED, RETIRED]
+          nullable: true
+          description: null cho sự kiện provision ban đầu
+        toStatus:
+          $ref: '#/components/schemas/LifecycleStatus'
+        replacementDeviceId:
+          type: integer
+          format: int64
+          nullable: true
+        reason:
+          type: string
+          maxLength: 500
+          nullable: true
+        occurredAt:
+          $ref: '#/components/schemas/UtcLocalTimestamp'
+    PageMetadata:
+      type: object
+      required: [page, size, totalElements, totalPages]
+      properties:
+        page:
+          type: integer
+          minimum: 0
+        size:
+          type: integer
+          minimum: 1
+          maximum: 100
+        totalElements:
+          type: integer
+          format: int64
+          minimum: 0
+        totalPages:
+          type: integer
+          minimum: 0
+    DoorPage:
+      allOf:
+        - $ref: '#/components/schemas/PageMetadata'
+        - type: object
+          required: [items]
+          properties:
+            items:
+              type: array
+              items:
+                $ref: '#/components/schemas/DoorView'
+    LifecycleEventPage:
+      allOf:
+        - $ref: '#/components/schemas/PageMetadata'
+        - type: object
+          required: [items]
+          properties:
+            items:
+              type: array
+              items:
+                $ref: '#/components/schemas/LifecycleEventView'
+    ClaimDoorRequest:
+      type: object
+      required: [activationCode]
+      properties:
+        activationCode:
+          type: string
+          minLength: 1
+          maxLength: 32
+          description: Mã thực có 8 ký tự; chấp nhận dấu gạch và bỏ khoảng trắng hai đầu, chuẩn hóa tại backend
+          example: K7MP-4Q2D
+    UpdateDoorRequest:
+      type: object
+      required: [name]
+      properties:
+        name:
+          type: string
+          minLength: 1
+          maxLength: 100
+          description: Không được chỉ có khoảng trắng
+        location:
+          type: string
+          maxLength: 255
+          nullable: true
+          description: null hoặc bỏ qua để xóa vị trí
+    LifecycleRequest:
+      type: object
+      required: [action]
+      properties:
+        action:
+          type: string
+          enum: [ACTIVATE, DISABLE, REACTIVATE, RETIRE]
+        reason:
+          type: string
+          maxLength: 500
+          nullable: true
+          description: Bắt buộc có nội dung khi action=RETIRE; tùy chọn với các action khác
+    ReplaceDeviceRequest:
+      type: object
+      required: [replacementDeviceId, reason]
+      properties:
+        replacementDeviceId:
+          type: integer
+          format: int64
+          minimum: 1
+        reason:
+          type: string
+          minLength: 1
+          maxLength: 500
+          description: Không được chỉ có khoảng trắng
+    Problem:
+      type: object
+      required: [type, title, status, detail, instance, errorCode, correlationId]
+      properties:
+        type:
+          type: string
+          description: URN dạng urn:smart-door:error:conflict
+        title:
+          type: string
+        status:
+          type: integer
+        detail:
+          type: string
+        instance:
+          type: string
+          description: Đường dẫn request
+        errorCode:
+          type: string
+          description: Mã lỗi máy đọc được, ví dụ INVALID_REQUEST, VALIDATION_FAILED, CONFLICT, RATE_LIMITED
+        correlationId:
+          type: string
+        errors:
+          type: array
+          items:
+            type: object
+            required: [field, message]
+            properties:
+              field:
+                type: string
+              message:
+                type: string
