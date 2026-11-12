@@ -7,7 +7,7 @@ skinparam nodesep 55
 skinparam ranksep 75
 hide methods
 hide circle
-title 7a. ERD MySQL V10 — 19 bảng nghiệp vụ + lịch sử Flyway, đủ 31 FK
+title 7a. ERD MySQL V12 — 19 bảng nghiệp vụ + lịch sử Flyway, đủ 31 FK
 entity access_logs {
   {field} * id : BIGINT UNSIGNED <<PK>>
   {field} * event_id : VARCHAR(100) <<UQ>>
@@ -65,6 +65,7 @@ entity control_commands {
   {field} * created_at : DATETIME(3)
   {field} * expires_at : DATETIME(3)
   {field} * access_method : VARCHAR(24)
+  {field} * action : VARCHAR(16)
 }
 entity device_lifecycle_events {
   {field} * id : BIGINT UNSIGNED <<PK>>
@@ -84,6 +85,7 @@ entity device_transport_credentials {
   {field} * credential_id : VARCHAR(36) <<UQ>>
   {field} verified_at : DATETIME(3) NULL
   {field} revoked_at : DATETIME(3) NULL
+  {field} broker_revoked_at : DATETIME(3) NULL
   {field} * created_at : DATETIME(3)
 }
 entity devices {

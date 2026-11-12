@@ -18,11 +18,14 @@ Tài liệu của dự án Smart Door System được tổ chức theo các nhó
 
 ## Tài liệu hiện có
 
+- [Tóm tắt dự án và kịch bản bảo vệ demo](08-process/demo-defense-guide.md)
+
 - [Xác thực, lịch sử ra vào và giám sát cửa](06-frontend/access-monitoring.md)
 
 - [Mở khóa cửa từ dashboard](06-frontend/door-unlock.md)
 
 - [Hoàn thiện Người 1, Người 4: thay đổi, database và cách test](05-backend/person1-person4-completion.md)
+- [Sửa lỗi trước onboarding: keypad, kích hoạt Node, thu hồi MQTT và V12](05-backend/pre-onboarding-fixes.md)
 - [Quy chuẩn quản lý tài liệu](00-getting-started/00-docs-vault.md)
 - [Hướng dẫn bắt đầu phát triển](00-getting-started/01-getting-started.md)
 - [Bộ mẫu tài liệu](00-getting-started/02-template-pack.md)

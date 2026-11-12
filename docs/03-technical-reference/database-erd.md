@@ -356,7 +356,7 @@ Phần mô tả 12 bảng trên bắt nguồn từ bootstrap V1. Bản đang ch�
 | `revoked_access_tokens` | PK `token_id`; FK `account_id`; `expires_at`, `revoked_at` | Thu hồi một JWT đến hết thời hạn; không lưu bearer token |
 | `integration_outbox` | PK `id`; FK Door, FK ghép `(device_id,door_id)`; `kind`, `device_code`, `payload`, `status`, `attempts`, `next_attempt_at`, `lease_until`, `lease_token`, `last_error`, `created_at`, `sent_at`, `version` | Giao cấu hình/credentials bền vững; lease tránh hai worker cùng gửi một claim |
 | `owner_notifications` | PK `id`; FK Account, FK ghép Alert/Door và Door/chủ; unique `(alert_id,account_id)`; `title`, `body`, `created_at`, `read_at` | Một thông báo cho đúng chủ cửa, đọc độc lập với xử lý cảnh báo |
-| `device_transport_credentials` | PK/FK `device_id`; unique `credential_id`; `verified_at`, `revoked_at`, `created_at` | Danh tính kỹ thuật đang có của mỗi Node, không chứa secret rõ |
+| `device_transport_credentials` | PK/FK `device_id`; unique `credential_id`; `verified_at`, `revoked_at`, `broker_revoked_at` (V12), `created_at` | Danh tính kỹ thuật đang có của mỗi Node, không chứa secret rõ; thời điểm xác nhận Broker đã từ chối khóa cũ |
 | `processed_device_messages` | PK `id` SHA-256; FK `device_id`; `received_at` có index | Chống xử lý lại nonce của thông điệp ký HMAC; dọn receipt quá hạn |
 
 ```mermaid

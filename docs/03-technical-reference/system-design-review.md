@@ -9,14 +9,21 @@ updated: 2026-11-06
 
 # Hồ sơ thiết kế hệ thống Smart Door
 
+> **Cập nhật 12/11/2026:** source đã có firmware tích hợp Node 1/Node 2,
+> CLOSE và schema V12. Xem [bản sửa trước onboarding](../05-backend/pre-onboarding-fixes.md)
+> để biết trạng thái hiện tại, cách kích hoạt bộ mới, thu hồi Broker và test.
+> Những sơ đồ còn ghi V10 là ảnh chụp thiết kế 06/11, không phải bằng chứng
+> nghiệm thu firmware hiện tại. Sơ đồ 6 tiếp tục tạm hoãn; offline vẫn trong phạm vi.
+
 Hồ sơ này cập nhật bộ sơ đồ theo source tại commit `253d14e` (bản sửa V10),
 đã đưa vào `dev` qua [PR #21](https://github.com/Nozs002/Smart-Door-System/pull/21).
 Thay cho bản rà soát 27/10/2026, hồ sơ phản ánh JWT, đồng bộ, MQTT có ACL,
 RFID/PIN, lệnh mở khóa, lịch sử và telemetry hiện đã có code.
 
 **Phạm vi mới nhất của nhóm: vẫn làm offline; tạm chưa làm sơ đồ 6.** Luồng
-online đủ thông tin được mô tả chi tiết. Kênh offline, cache quyền/PIN, thu hồi,
-đồng bộ sau reconnect và hành vi khi reboot chưa được chốt hoặc hiện thực.
+online đủ thông tin được mô tả chi tiết. Node 1 hiện đã lưu snapshot PIN/thẻ,
+nhưng kênh mở offline, hiệu lực quyền offline, thu hồi khi mất mạng và đối soát
+sau reconnect vẫn chưa được chốt hoặc hiện thực đầy đủ.
 Không tự chọn ESP-NOW, dây nối hay cơ chế cache thay nhóm firmware.
 
 ## Mục lục và mức hoàn thiện
@@ -29,7 +36,7 @@ Không tự chọn ESP-NOW, dây nối hay cơ chế cache thay nhóm firmware.
 | [4](#diagram-04) | RFID/PIN | Hoàn thiện luồng online; offline cần thiết kế riêng |
 | [5](#diagram-05) | Điều khiển từ App | Hoàn thiện luồng online, ACK và timeout |
 | 6 | Cảnh báo và mất kết nối | **Tạm hoãn theo yêu cầu; không phát hành sơ đồ cũ** |
-| [7](#diagram-07) | ERD đầy đủ và rút gọn | Hoàn thiện V1–V10; đủ bảng/cột và 31 FK |
+| [7](#diagram-07) | ERD đầy đủ và rút gọn | Bản đầy đủ đã thêm action V11 và broker_revoked_at V12; 31 FK |
 | [8](#diagram-08) | Provision, claim và kích hoạt | Hoàn thiện luồng backend / MQTT |
 | [9](#diagram-09) | Trạng thái thiết bị | Hoàn thiện hiện trạng, chỉ rõ thay Node còn bị chặn |
 | [10](#diagram-10) | MQTT và ACL | Hoàn thiện hợp đồng hiện tại |
@@ -63,11 +70,10 @@ Kênh trực tiếp giữa hai Node khi offline vẫn cần nhóm thiết kế.
 
 [Source](diagrams/02-hardware-blocks.puml).
 
-Node 1 ở ngoài cửa: RC522, Keypad, OLED. Node 2 ở trong cửa: điều khiển khóa,
-cảm biến nhiệt độ, Buzzer, Exit. Không còn cảm biến khoảng cách hoặc wake-up
-theo khoảng cách. SSD1306 chỉ là ví dụ màn hình, chưa xác nhận model mua thật.
-Model khóa/relay, nguồn và cách quan sát cửa/chốt cần được xác nhận trước sơ đồ
-đấu dây. Dải đo cảm biến thực tế phải phù hợp ngưỡng nhiệt độ dự án chọn.
+Source firmware mới dùng Node 1: RC522, Keypad, **LCD I2C 16×2**; Node 2:
+**servo, DHT11, MC-38**, Buzzer, Exit. Sơ đồ phần cứng cũ còn ghi OLED/relay
+là phương án trước đây; tra bảng GPIO trong README hai sketch khi đấu mô hình.
+Nguồn cấp/cơ khí và kiểm chứng trên board thật vẫn cần nghiệm thu riêng.
 
 <a id="diagram-03"></a>
 ## 3. Mô hình miền và sở hữu
@@ -125,9 +131,9 @@ offline được phép dùng, thu hồi, chống replay, clock/reboot và xử l
 khi mạng trở lại; không tự phát lại lệnh mở khóa đã hết hạn.
 
 <a id="diagram-07"></a>
-## 7. ERD V10
+## 7. ERD V12
 
-![ERD đầy đủ V10](diagrams/07-database-erd.svg)
+![ERD đầy đủ V12](diagrams/07-database-erd.svg)
 
 [Source đầy đủ](diagrams/07-database-erd.puml) ·
 [Bản SVG để phóng to](diagrams/07-database-erd.svg) ·
@@ -179,9 +185,10 @@ ra riêng: UNKNOWN nếu chưa có heartbeat; ONLINE trong ngưỡng; OFFLINE kh
 ngưỡng, mặc định hơn 90 giây. Không tự disable do mất mạng. Retire giữ lịch sử
 và không kích hoạt lại. Thao tác activate/reactivate không bắt nhập lý do.
 
-Backend có cấu trúc transaction cho thay Node, nhưng `canReplace()` vẫn trả
-false khi chưa chứng minh thu hồi credential/session Broker của Node cũ. Nhánh
-này hiện trả 409, không được trình bày như chức năng thay thiết bị đã nghiệm thu.
+`canReplace()` hiện kiểm tra bằng chứng V12: `revoked_at` và `broker_revoked_at`.
+`setup-mqtt.py revoke` cập nhật Broker, restart ngắt phiên cũ, xác minh đăng nhập
+bằng khóa cũ bị từ chối rồi ghi xác nhận. Thiếu bằng chứng vẫn trả 409; Node mới
+cũng phải đồng bộ đủ trước khi thay. Kiểm thử phần mềm chưa thay nghiệm thu ESP32 thật.
 
 <a id="diagram-10"></a>
 ## 10. MQTT và quyền topic
