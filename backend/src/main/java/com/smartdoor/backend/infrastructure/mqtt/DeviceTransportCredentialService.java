@@ -41,8 +41,10 @@ public class DeviceTransportCredentialService {
         Device device=devices.findByIdAndDoorIdForUpdate(deviceId,candidate.getDoorId()).orElseThrow();
         if (device.getLifecycleStatus()==Device.LifecycleStatus.RETIRED) throw new ConflictException("Không cấp khóa cho Node đã ngừng sử dụng.");
         DeviceTransportCredential key=keys.findById(deviceId).orElseGet(DeviceTransportCredential::new);
+        if (key.getRevokedAt()!=null) throw new ConflictException("Node đã thu hồi khóa; hãy đăng ký Node thay thế, không cấp lại danh tính cũ.");
         key.setDeviceId(deviceId); key.setCredentialId(UUID.randomUUID().toString());
         key.setCreatedAt(now()); key.setVerifiedAt(null); key.setRevokedAt(null);
+        key.setBrokerRevokedAt(null);
         // Fail before saving if the server master key is not configured.
         DeviceCredentialExport result=export(device,key);
         // A new identity must prove that it applied the snapshots itself.
@@ -58,6 +60,43 @@ public class DeviceTransportCredentialService {
             return d.getLifecycleStatus()==Device.LifecycleStatus.RETIRED ? null : export(d,key);
         }).filter(java.util.Objects::nonNull).toList();
     }
+
+    /** First step: reject old signed events immediately. Broker removal follows separately. */
+    @Transactional
+    public DeviceCredentialExport revoke(Long deviceId) {
+        Device device=lockDevice(deviceId);
+        DeviceTransportCredential key=keys.findById(deviceId).orElseThrow(() ->
+                new ConflictException("Thiết bị chưa có danh tính MQTT để thu hồi."));
+        DeviceCredentialExport result=export(device,key);
+        if (key.getRevokedAt()==null) {
+            key.setRevokedAt(now()); key.setVerifiedAt(null); key.setBrokerRevokedAt(null);
+            keys.saveAndFlush(key);
+        }
+        return result; // Private export used only to verify that Broker rejects this identity.
+    }
+
+    /** Privileged local CLI only, after Broker restart and an explicit authentication rejection. */
+    @Transactional
+    public RevocationConfirmation confirmBrokerRevocation(Long deviceId,String credentialId) {
+        lockDevice(deviceId);
+        DeviceTransportCredential key=keys.findById(deviceId).orElseThrow(() ->
+                new ConflictException("Không tìm thấy danh tính MQTT."));
+        if (key.getRevokedAt()==null || !key.getCredentialId().equals(credentialId)) {
+            throw new ConflictException("Xác nhận thu hồi không khớp danh tính đã thu hồi.");
+        }
+        if (key.getBrokerRevokedAt()==null) {
+            key.setBrokerRevokedAt(now()); keys.saveAndFlush(key);
+        }
+        return new RevocationConfirmation(deviceId,key.getCredentialId(),key.getBrokerRevokedAt());
+    }
+
+    private Device lockDevice(Long deviceId) {
+        Device candidate=devices.findById(deviceId).orElseThrow(() -> new ResourceNotFoundException("Không tìm thấy thiết bị."));
+        doors.findByIdForUpdate(candidate.getDoorId()).orElseThrow(() -> new ResourceNotFoundException("Không tìm thấy cửa."));
+        return devices.findByIdAndDoorIdForUpdate(deviceId,candidate.getDoorId()).orElseThrow();
+    }
+
+    public record RevocationConfirmation(Long deviceId,String credentialId,LocalDateTime brokerRevokedAt) {}
 
     public byte[] signingKey(DeviceTransportCredential key) {
         return derive("message-signing",key.getCredentialId());

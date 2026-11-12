@@ -53,6 +53,26 @@ class DeviceTransportCredentialServiceTests {
         assertThatThrownBy(() -> service(Base64.getEncoder().encodeToString(new byte[32])).issue(1L)).isInstanceOf(ConflictException.class);
         verify(keys,never()).saveAndFlush(any());
     }
+    @Test void revocationRejectsEventsImmediatelyButDoesNotPretendBrokerWasUpdated() {
+        var service=service(Base64.getEncoder().encodeToString(new byte[32]));
+        var exported=service.revoke(1L);
+        assertThat(exported.credentialId()).isEqualTo(previous.getCredentialId());
+        assertThat(previous.getRevokedAt()).isEqualTo(LocalDateTime.now(clock));
+        assertThat(previous.getVerifiedAt()).isNull();
+        assertThat(previous.getBrokerRevokedAt()).isNull();
+        assertThatThrownBy(() -> service.issue(1L)).isInstanceOf(ConflictException.class);
+    }
+    @Test void confirmationRequiresTheExactRevokedIdentityAndCanBeRetried() {
+        var service=service(Base64.getEncoder().encodeToString(new byte[32]));
+        assertThatThrownBy(() -> service.confirmBrokerRevocation(1L,previous.getCredentialId())).isInstanceOf(ConflictException.class);
+        service.revoke(1L);
+        assertThatThrownBy(() -> service.confirmBrokerRevocation(1L,UUID.randomUUID().toString())).isInstanceOf(ConflictException.class);
+        assertThat(previous.getBrokerRevokedAt()).isNull();
+        var confirmed=service.confirmBrokerRevocation(1L,previous.getCredentialId());
+        assertThat(confirmed.brokerRevokedAt()).isEqualTo(LocalDateTime.now(clock));
+        service.revoke(1L);
+        assertThat(service.confirmBrokerRevocation(1L,previous.getCredentialId())).isEqualTo(confirmed);
+    }
     private DeviceTransportCredentialService service(String master) {
         return new DeviceTransportCredentialService(keys,devices,doors,new SettingsMqttProperties(false,false,master,60,4096),clock);
     }

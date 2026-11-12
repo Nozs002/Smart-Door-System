@@ -10,36 +10,43 @@
 #include <Keypad.h>
 #include <esp_sntp.h>
 #include "AuthProtocol.h"
+#include "CredentialSnapshot.h"
+#include "PinInput.h"
+#include <memory>
 #if __has_include("node_auth_config.local.h")
 #include "node_auth_config.local.h"
 #else
 #include "node_auth_config.h.example"
 #endif
 
-// Online-only: no direct command to Node 2, credential snapshot ACK or offline unlock.
+// Access remains online; persistent credential synchronization does not enable offline unlock.
 WiFiClient network;
 MqttClient mqtt(network);
 AuthProtocol::Signer signer;
 Preferences storage;
 JsonDocument configuration;
+JsonDocument credentials;
 MFRC522 rfid(5, 15);
 LiquidCrystal_I2C lcd(AuthConfig::LCD_ADDRESS, 16, 2);
 char keys[4][3] = {{'1','2','3'}, {'4','5','6'}, {'7','8','9'}, {'*','0','#'}};
 byte rowPins[4] = {13, 14, 27, 26};
 byte colPins[3] = {25, 33, 32};
 Keypad keypad(makeKeymap(keys), rowPins, colPins, 4, 3);
+PinInput::Gestures pinGestures;
 constexpr unsigned long REQUEST_TIMEOUT_MS = 15000, PIN_IDLE_MS = 20000;
-constexpr size_t MAX_MESSAGE = 1536, QUEUE_SIZE = 4;
+constexpr size_t MAX_MESSAGE = CredentialSnapshot::MAX_BYTES, QUEUE_SIZE = 4;
 struct Incoming { String topic; String payload; bool retained = false; };
 Incoming messages[QUEUE_SIZE];
 size_t queueHead = 0, queueCount = 0;
 bool configured = false, storageReady = false, lcdReady = false, rfidReady = false;
 bool linkReady = false, configAckPending = false, heartbeatPending = true;
+bool credentialsAckPending = false;
 volatile bool clockSynced = false;
 volatile unsigned long lastClockSync = 0;
 unsigned long lastWifiAttempt = 0, lastMqttAttempt = 0, lastHeartbeat = 0;
 unsigned long lastHeartbeatAttempt = 0, lastAckAttempt = 0, lastRfidPoll = 0;
-String prefix, identity, configEventId;
+String prefix, identity, configEventId, credentialsEventId;
+unsigned long lastCredentialsAckAttempt = 0;
 char pinBuffer[9] = {};
 size_t pinLength = 0;
 unsigned long lastKeyAt = 0;
@@ -51,9 +58,7 @@ String noticeLine1, noticeLine2, screenLine1, screenLine2;
 unsigned long noticeStarted = 0, noticeDuration = 0;
 
 void erasePin() {
-  volatile char* bytes = pinBuffer;
-  for (size_t i = 0; i < sizeof(pinBuffer); ++i) bytes[i] = 0;
-  pinLength = 0;
+  PinInput::clear(pinBuffer, pinLength);
 }
 void showNotice(const String& first, const String& second, unsigned long duration = 2500) {
   noticeLine1 = first; noticeLine2 = second;
@@ -96,6 +101,18 @@ void restoreState() {
     }
   }
   if (!storageReady) Serial.println("[NVS] Loi trang thai khoa tam; tu choi xac thuc");
+  size_t bytes = storage.getBytesLength("credentials");
+  if (bytes > MAX_MESSAGE + 512) { storageReady = false; return; }
+  if (bytes) {
+    std::unique_ptr<char[]> buffer(new (std::nothrow) char[bytes]);
+    JsonDocument doc;
+    if (!buffer || storage.getBytes("credentials", buffer.get(), bytes) != bytes ||
+        deserializeJson(doc, buffer.get(), bytes)) { storageReady = false; return; }
+    if (doc["identity"].as<String>() == identity) {
+      credentials.set(doc["credentials"]);
+      if (!CredentialSnapshot::valid(credentials)) { credentials.clear(); storageReady = false; }
+    }
+  }
 }
 
 bool publishSigned(const char* eventType, JsonDocument& payload) {
@@ -117,10 +134,37 @@ void receiveMessage(int length) {
   size_t slot = (queueHead + queueCount) % QUEUE_SIZE;
   messages[slot].topic = mqtt.messageTopic();
   messages[slot].retained = mqtt.messageRetain() != 0;
-  char buffer[MAX_MESSAGE + 1];
-  size_t received = mqtt.readBytes(buffer, length);
-  if (received != static_cast<size_t>(length) || memchr(buffer, '\0', received)) return;
-  buffer[received] = '\0'; messages[slot].payload = buffer; ++queueCount;
+  std::unique_ptr<char[]> buffer(new (std::nothrow) char[length + 1]);
+  if (!buffer) { while (mqtt.available()) mqtt.read(); return; }
+  size_t received = mqtt.readBytes(buffer.get(), length);
+  if (received != static_cast<size_t>(length) || memchr(buffer.get(), '\0', received)) return;
+  buffer[received] = '\0'; messages[slot].payload = buffer.get();
+  if (messages[slot].payload.length() == received) ++queueCount;
+}
+
+void applyCredentials(JsonDocument& doc) {
+  if (!storageReady || !CredentialSnapshot::valid(doc)) {
+    Serial.println("[CREDENTIALS] Snapshot khong hop le; khong ACK"); return;
+  }
+  JsonDocument next; CredentialSnapshot::normalize(next, doc);
+  if (next.overflowed()) return;
+  auto decision = CredentialSnapshot::updateDecision(next, credentials);
+  if (decision == CredentialSnapshot::Update::REJECT) return;
+  if (decision == CredentialSnapshot::Update::REPLACE) {
+    JsonDocument stored; stored["identity"] = identity; stored["credentials"] = next.as<JsonVariantConst>();
+    String record; serializeJson(stored, record);
+    if (stored.overflowed() || record.length() != measureJson(stored)) return;
+    std::unique_ptr<char[]> readback(new (std::nothrow) char[record.length()]);
+    if (!readback) return;
+    // One NVS blob: never partially apply cards or PIN. No plaintext PIN is stored.
+    if (storage.putBytes("credentials", record.c_str(), record.length()) != record.length() ||
+        storage.getBytes("credentials", readback.get(), record.length()) != record.length() ||
+        memcmp(readback.get(), record.c_str(), record.length()) != 0) {
+      storageReady = false; credentialsAckPending = false; erasePin(); return;
+    }
+    credentials = std::move(next);
+  }
+  credentialsEventId = AuthProtocol::newUuid(); credentialsAckPending = true;
 }
 
 void applyConfiguration(JsonDocument& doc) {
@@ -200,6 +244,7 @@ void processMessages() {
       Serial.println("[MQTT] JSON khong hop le"); continue;
     }
     if (message.topic == prefix + "/commands/configuration") applyConfiguration(doc);
+    else if (message.topic == prefix + "/commands/credentials") applyCredentials(doc);
     else if (message.topic == prefix + "/commands/access-result") finishAccessResult(doc, message.retained);
   }
 }
@@ -228,25 +273,45 @@ void submitAccess(const char* method, const String& value) {
   // persist a plaintext credential, or replay an access attempt on reconnect.
 }
 
-void pollInputs() {
-  if (pinLength && millis() - lastKeyAt >= PIN_IDLE_MS) erasePin();
-  char key = keypad.getKey();
-  bool holdingOpen = holdingOpenMode();
-  if (holdingOpen) erasePin();
-  if (key && pendingId.isEmpty() && !holdingOpen) {
+void handlePinKey(char key) {
+  if (key) {
     if (key == '*') { erasePin(); noticeDuration = 0; }
-    else if (key >= '0' && key <= '9') {
+    else if ((key >= '0' && key <= '9') || key == '#') {
       if (!configured || !linkReady || !trustedClock() || !hasConfiguration()) {
         erasePin(); showNotice("CHUA SAN SANG", "Kiem tra ket noi");
       } else if (pinLockedUntil > AuthProtocol::nowMs()) {
         erasePin(); showNotice("PIN TAM KHOA", "Thu lai sau");
       } else {
-        pinBuffer[pinLength++] = key; pinBuffer[pinLength] = '\0';
+        auto result = PinInput::press(key, pinBuffer, pinLength);
         lastKeyAt = millis(); noticeDuration = 0;
-        if (pinLength == 4) {
+        if (result == PinInput::Result::READY) {
           String value(pinBuffer); erasePin(); submitAccess("PIN", value); value = "";
-        }
+        } else if (result == PinInput::Result::TOO_SHORT) showNotice("PIN CAN 4-8 SO", "Giu3 Gui; 1 Xoa");
+        else if (result == PinInput::Result::TOO_LONG) showNotice("TOI DA 8 SO", "Giu3 Gui; 1 Xoa");
       }
+    }
+  }
+}
+
+void pollInputs() {
+  if (pinLength && millis() - lastKeyAt >= PIN_IDLE_MS) erasePin();
+  bool holdingOpen = holdingOpenMode();
+  if (holdingOpen) erasePin();
+  bool inputAllowed = pendingId.isEmpty() && !holdingOpen;
+  if (!inputAllowed) pinGestures.reset();
+  if (keypad.getKeys()) {
+    for (size_t i = 0; i < LIST_MAX; ++i) {
+      if (!keypad.key[i].stateChanged || !inputAllowed) continue;
+      char logical = 0;
+      switch (keypad.key[i].kstate) {
+        case PRESSED: logical = pinGestures.event(keypad.key[i].kchar, PinInput::KeyEvent::PRESSED); break;
+        case HOLD: logical = pinGestures.event(keypad.key[i].kchar, PinInput::KeyEvent::HELD); break;
+        case RELEASED: logical = pinGestures.event(keypad.key[i].kchar, PinInput::KeyEvent::RELEASED); break;
+        default: break;
+      }
+      handlePinKey(logical);
+      // A submit during this scan blocks any other keys in the same scan.
+      if (!pendingId.isEmpty()) { inputAllowed = false; pinGestures.reset(); }
     }
   }
   if (!rfidReady || millis() - lastRfidPoll < 50) return;
@@ -273,8 +338,8 @@ void refreshDisplay() {
   else if (!linkReady) { first = "MAT MQTT"; second = "Dang ket noi..."; }
   else if (!trustedClock()) { first = "DONG BO GIO..."; second = "Cho NTP"; }
   else if (!hasConfiguration()) { first = "CHO CAU HINH"; second = "Gui lai tu App"; }
-  else if (pinLength) { first = "NHAP PIN 4 SO"; for (size_t i = 0; i < pinLength; ++i) second += '*'; }
-  else { first = "QUET THE / PIN"; second = rfidReady ? "PIN 4 so; *=Xoa" : "RC522 chua san"; }
+  else if (pinLength) { first = "PIN: GIU3 DE GUI"; for (size_t i = 0; i < pinLength; ++i) second += '*'; }
+  else { first = "QUET THE / PIN"; second = millis() / 4000 % 2 ? "Giu3: Gui PIN" : "Giu1:Xoa 2:So0"; }
   first = first.substring(0, 16); second = second.substring(0, 16);
   if (first == screenLine1 && second == screenLine2) return;
   screenLine1 = first; screenLine2 = second;
@@ -300,8 +365,8 @@ void maintainNetwork() {
     if (!mqtt.connect(AuthConfig::MQTT_HOST, AuthConfig::MQTT_PORT)) {
       Serial.print("[MQTT] Loi ket noi: "); Serial.println(mqtt.connectError()); return;
     }
-    // Never subscribe to credential snapshots: online verification is at Backend.
     bool subscribed = mqtt.subscribe(prefix + "/commands/configuration", 1) && mqtt.subscribeQoS() == 1 &&
+      mqtt.subscribe(prefix + "/commands/credentials", 1) && mqtt.subscribeQoS() == 1 &&
       mqtt.subscribe(prefix + "/commands/access-result", 1) && mqtt.subscribeQoS() == 1;
     if (!subscribed) { mqtt.stop(); Serial.println("[MQTT] Dang ky topic bi tu choi"); return; }
     linkReady = true; heartbeatPending = true;
@@ -321,6 +386,7 @@ void setup() {
   rfidReady = version != 0 && version != 0xff;
   if (!rfidReady) Serial.println("[HW] RC522 chua san sang; van co the dung keypad");
   keypad.setDebounceTime(30);
+  keypad.setHoldTime(900);
   setenv("TZ", "UTC0", 1); tzset();
   prefix = "smart-door/v1/doors/" + String(AuthConfig::DOOR_ID) + "/devices/" + AuthConfig::DEVICE_CODE;
   identity = String(AuthConfig::DOOR_ID) + ":" + AuthConfig::DEVICE_CODE + ":" + AuthConfig::CREDENTIAL_ID;
@@ -333,6 +399,10 @@ void setup() {
     refreshDisplay(); return;
   }
   restoreState();
+  if (!CredentialSnapshot::verifierSelfTest()) {
+    storageReady = false;
+    Serial.println("[CREDENTIALS] BCrypt self-test failed; refuse setup ACK");
+  }
   sntp_set_time_sync_notification_cb(onClockSync);
   WiFi.mode(WIFI_STA); WiFi.setAutoReconnect(true);
   WiFi.begin(AuthConfig::WIFI_SSID, AuthConfig::WIFI_PASSWORD);
@@ -356,7 +426,7 @@ void loop() {
   if (linkReady && trustedClock()) {
     if ((heartbeatPending || millis() - lastHeartbeat >= 20000) && millis() - lastHeartbeatAttempt >= 3000) {
       lastHeartbeatAttempt = millis();
-      JsonDocument heartbeat; heartbeat["firmwareVersion"] = "node-auth-online-1.1";
+      JsonDocument heartbeat; heartbeat["firmwareVersion"] = "node-auth-online-1.2";
       if (publishSigned("heartbeat", heartbeat)) { lastHeartbeat = millis(); heartbeatPending = false; }
       else heartbeatPending = true;
     }
@@ -366,6 +436,15 @@ void loop() {
       ack["schemaVersion"] = 1; ack["eventId"] = configEventId; ack["kind"] = "CONFIGURATION";
       ack["version"] = configuration["version"].as<uint32_t>(); ack["appliedAt"] = AuthProtocol::utcNow();
       if (publishSigned("sync-ack", ack)) { configAckPending = false; Serial.println("[CONFIG] Da gui ACK; kiem tra Backend"); }
+    }
+    if (credentialsAckPending && storageReady && millis() - lastCredentialsAckAttempt >= 5000) {
+      lastCredentialsAckAttempt = millis();
+      JsonDocument ack;
+      ack["schemaVersion"] = 1; ack["eventId"] = credentialsEventId; ack["kind"] = "CREDENTIALS";
+      ack["version"] = credentials["version"].as<uint32_t>(); ack["appliedAt"] = AuthProtocol::utcNow();
+      if (publishSigned("sync-ack", ack)) {
+        credentialsAckPending = false; Serial.println("[CREDENTIALS] Da gui ACK snapshot da luu");
+      }
     }
   }
   pollInputs(); refreshDisplay(); delay(2);

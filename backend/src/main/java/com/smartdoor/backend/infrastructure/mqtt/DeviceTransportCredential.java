@@ -21,6 +21,8 @@ public class DeviceTransportCredential {
     private LocalDateTime verifiedAt;
     @Column(name="revoked_at", columnDefinition="datetime(3)")
     private LocalDateTime revokedAt;
+    @Column(name="broker_revoked_at", columnDefinition="datetime(3)")
+    private LocalDateTime brokerRevokedAt;
     @Column(name="created_at", nullable=false, columnDefinition="datetime(3)")
     private LocalDateTime createdAt;
 }

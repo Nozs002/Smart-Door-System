@@ -1,0 +1,43 @@
+@startuml
+!theme plain
+skinparam shadowing false
+skinparam defaultFontName Arial
+skinparam backgroundColor white
+left to right direction
+title 1. Kiến trúc hệ thống — Backend V10, firmware theo hợp đồng
+node "ĐIỆN THOẠI" {
+  component "Flutter Android\nJWT trong secure storage" as App
+}
+node "TẠI CỬA" {
+  node "ESP32 Node 1 — ngoài cửa\nRFID / Keypad / OLED" as N1
+  node "ESP32 Node 2 — trong cửa\nKhóa / nhiệt độ / Buzzer / Exit" as N2
+  node "Router / Wi-Fi AP" as Wifi
+  N1 <--> Wifi : Wi-Fi
+  N2 <--> Wifi : Wi-Fi
+  N1 .. N2 : Offline vẫn thuộc phạm vi\nKênh và giao thức chưa chốt
+}
+node "MÁY CHỦ / PC LOCAL — Docker Compose" {
+  component "Spring Boot Backend\nJWT, ownership, Door/Device\nRFID/PIN, điều khiển, cấu hình, cảnh báo" as BE
+  database "MySQL 8.4\n19 bảng nghiệp vụ\nFlyway V1–V10" as DB
+  queue "Mosquitto\nUser riêng + ACL theo Door/Device\nAnonymous tắt" as Broker
+  BE --> DB : JDBC / transaction
+  BE --> Broker : MQTT QoS 1\nunlock, access-result, alarm\nconfiguration, credentials
+  Broker --> BE : MQTT QoS 1\naccess-request, command-ack\nsync-ack, heartbeat, alert, telemetry
+}
+App --> BE : REST/JSON + Bearer JWT\nLocal HTTP :8080
+BE --> App : JSON; App polling khi foreground\nChưa có push nền
+Wifi --> Broker : Node publish events/*\nEvent ký HMAC, credential riêng
+Broker --> Wifi : Node subscribe commands/*\nĐúng Door/deviceCode
+note bottom of DB
+  Account đăng nhập khác Cardholder được cấp thẻ.
+  Mọi API nghiệp vụ kiểm tra chủ cửa.
+  App không truy cập MySQL hoặc publish MQTT trực tiếp.
+end note
+legend bottom
+  Backend / DB / Broker / Flutter: có code; đã kiểm thử với Node giả lập.
+  ESP32 và ngoại vi: thiết kế giao tiếp; chưa có firmware hoàn chỉnh.
+  Offline: yêu cầu còn giữ, cơ chế cache / kênh hai Node chưa chốt.
+  TLS vận hành chưa triển khai trong Compose local; xem sơ đồ 11.
+endlegend
+footer Cập nhật 06/11/2026 | Schema V10 | Offline còn thuộc phạm vi
+@enduml

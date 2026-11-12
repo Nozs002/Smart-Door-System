@@ -1,0 +1,61 @@
+@startuml
+!theme plain
+skinparam shadowing false
+skinparam defaultFontName Arial
+skinparam backgroundColor white
+autonumber
+title 8. Provision → claim → đồng bộ → kích hoạt
+actor "Kỹ thuật viên" as Tech
+participant "CLI / setup-mqtt.py" as CLI
+actor "Chủ cửa" as Owner
+participant "App" as App
+participant "Backend" as BE
+database "MySQL" as DB
+queue "Broker + ACL" as MQ
+participant "Node 1 / Node 2\nFirmware hoặc giả lập" as Nodes
+Tech -> CLI : Provision tên cửa / vị trí + hai device_code
+CLI -> DB : Transaction: Door UNCLAIMED, 2 Node PROVISIONED\nCấu hình + lockout + lifecycle events
+CLI -> DB : Sinh mã 8 ký tự; lưu SHA-256\nHạn 7 ngày; mã hiển thị một lần
+CLI --> Tech : doorId + mã kích hoạt
+Tech -> CLI : issue credential từng Node; configure Broker
+CLI -> DB : Metadata danh tính; không công khai secret
+CLI -> MQ : User/password riêng + ACL đúng Door/deviceCode\nRestart Broker khi cập nhật danh tính
+Tech -> Nodes : Nạp private credential qua quy trình kỹ thuật
+Tech -> Owner : Bàn giao mã kích hoạt
+Owner -> App : Đăng nhập, nhập mã
+App -> BE : Claim với JWT; Account lấy từ phiên
+BE -> DB : Lookup doorId từ hash; khóa Door trước rồi mã
+alt Mã đã được cùng Account sử dụng, cửa vẫn thuộc Account
+  BE --> App : Door cũ (retry nhất quán)
+else Mã sai / hết hạn / thu hồi / thuộc Account khác
+  BE --> App : Lỗi chung; không đổi chủ
+else Hợp lệ và đủ hai Node PROVISIONED
+  BE -> DB : owner_account_id; SETUP_PENDING\nconsumed_at / consumed_by_account_id; COMMIT
+  BE --> App : Claim thành công; chưa tự ACTIVE
+end
+Owner -> App : Đặt PIN, lưu cấu hình / yêu cầu đồng bộ
+App -> BE : API đúng chủ cửa
+BE -> DB : Desired versions + outbox trong transaction
+BE -> MQ : Retained configuration cho hai Node\nRetained credentials chỉ cho Node 1
+MQ -> Nodes : Snapshot mới nhất
+Nodes -> Nodes : Áp dụng / lưu bền vững trước ACK
+Nodes -> MQ : Signed sync-ack + heartbeat
+MQ -> BE : Event đúng danh tính
+BE -> DB : verified_at; applied_config_version\nNode 1: applied_pin_version = credentials_version
+Owner -> App : Kích hoạt từng Node
+App -> BE : ACTIVATE
+BE -> DB : Khóa Door / Device, kiểm tra chủ và slot
+BE -> BE : Danh tính chưa thu hồi + verified\nACK config mới nhất; Node 1 cần PIN ACTIVE + ACK credentials
+alt Thiếu bằng chứng
+  BE --> App : 409; nêu điều kiện chưa đạt
+else Đủ điều kiện
+  BE -> DB : Device ACTIVE + lifecycle event\nDoor ACTIVE khi đủ hai vai trò và readiness
+  BE --> App : Đã kích hoạt
+end
+note over DB,Nodes
+  Setup chấp nhận Node PROVISIONED / DISABLED sau claim, từ chối RETIRED.
+  Heartbeat không thay ACK; lưu DB / SENT không có nghĩa đã áp dụng.
+  Claim đồng thời: chỉ một Account thành công; không tạo cửa mới khi retry.
+end note
+footer Cập nhật 06/11/2026 | Schema V10 | Offline còn thuộc phạm vi
+@enduml

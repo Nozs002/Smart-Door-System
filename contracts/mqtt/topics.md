@@ -115,6 +115,16 @@ là BCrypt riêng của PIN cửa, có thể null nếu chưa cấp PIN. Không 
 đăng nhập Account hoặc secret MQTT trong payload/log. Firmware phải hỗ trợ xác
 minh BCrypt và lưu snapshot an toàn trước khi có thể báo ACK áp dụng.
 
+Node 1 bản tích hợp hỗ trợ BCrypt `$2a$`/`$2b$`/`$2y$`, cost 4–12; Backend
+hiện tạo cost 10. Giới hạn snapshot CREDENTIALS là **16384 byte JSON UTF-8**;
+vượt giới hạn phải báo lỗi giao, không cắt bớt danh sách hay ACK thành công.
+Node lưu toàn bộ snapshot vào NVS trước ACK, chống rollback theo version và
+gắn cache với danh tính Door/Device/credentialId. Keypad nhập PIN 4–8 số rồi
+bấm `#` để gửi; `*` xóa. Quyết định truy cập vẫn tại Backend; bộ lưu snapshot
+chưa triển khai luồng mở offline giữa hai Node.
+Keypad có phím dự phòng khi hàng cuối hỏng: giữ 1 để xóa, giữ 2 để nhập 0,
+giữ 3 để gửi (khoảng 0,9 giây). Không thay đổi payload hoặc quy tắc PIN của API.
+
 ## Payload ACK
 
 ```json

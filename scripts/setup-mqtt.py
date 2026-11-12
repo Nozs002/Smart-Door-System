@@ -11,6 +11,9 @@ import secrets
 import shutil
 import subprocess
 import sys
+import threading
+import time
+from contextlib import contextmanager
 
 ROOT = Path(__file__).resolve().parents[1]
 LOCAL = ROOT / ".local"
@@ -118,7 +121,7 @@ def configure(devices_file: Path | None) -> None:
     print("Broker password hashes and ACL prepared for", len(devices), "devices.")
 
 
-def cli(action: str, output: str, device_id: int | None = None) -> Path:
+def cli(action: str, output: str, device_id: int | None = None, credential_id: str | None = None) -> Path:
     LOCAL.mkdir(parents=True, exist_ok=True)
     command = ["docker", "compose", "run", "--rm", "--no-deps", "--user", "0",
                "--volume", str(LOCAL) + ":/run/local", "backend",
@@ -127,8 +130,97 @@ def cli(action: str, output: str, device_id: int | None = None) -> Path:
                "--security.output=/run/local/" + output]
     if device_id is not None:
         command.append("--security.device-id=" + str(device_id))
+    if credential_id is not None:
+        command.append("--security.credential-id=" + credential_id)
     run(command)
     return LOCAL / output
+
+
+@contextmanager
+def workflow_lock():
+    """Serialize exports/restarts so a stale concurrent configure cannot restore a revoked user."""
+    LOCAL.mkdir(parents=True, exist_ok=True)
+    with (LOCAL / "mqtt-setup.lock").open("a+b") as lock:
+        lock.seek(0)
+        if not lock.read(1):
+            lock.write(b"0")
+            lock.flush()
+        lock.seek(0)
+        if sys.platform == "win32":
+            import msvcrt
+            msvcrt.locking(lock.fileno(), msvcrt.LK_NBLCK, 1)
+        else:
+            import fcntl
+            fcntl.flock(lock.fileno(), fcntl.LOCK_EX | fcntl.LOCK_NB)
+        try:
+            yield
+        finally:
+            lock.seek(0)
+            if sys.platform == "win32":
+                msvcrt.locking(lock.fileno(), msvcrt.LK_UNLCK, 1)
+            else:
+                fcntl.flock(lock.fileno(), fcntl.LOCK_UN)
+
+
+def authentication_result(config: dict, username: str, password: str) -> int:
+    """Return an actual CONNACK. Timeout/connection failure is never a revocation proof."""
+    try:
+        import paho.mqtt.client as mqtt
+    except ImportError as error:
+        raise RuntimeError("Install scripts/requirements.txt in your Python environment first.") from error
+    if config.get("MQTT_TLS", "false").lower() == "true":
+        raise RuntimeError("This local Compose revocation tool requires the configured local TCP broker; TLS needs a separate verified endpoint.")
+    received = threading.Event()
+    codes = []
+    client = mqtt.Client(mqtt.CallbackAPIVersion.VERSION2, client_id="revocation-check-" + secrets.token_hex(8),
+                         protocol=mqtt.MQTTv311, reconnect_on_failure=False)
+    client.username_pw_set(username, password)
+
+    def on_connect(_client, _userdata, _flags, reason, _properties):
+        codes.append(reason.value)
+        received.set()
+
+    client.on_connect = on_connect
+    try:
+        client.connect("127.0.0.1", int(config.get("MQTT_HOST_PORT", "1884")), keepalive=10)
+        client.loop_start()
+        if not received.wait(8):
+            raise RuntimeError("No Broker CONNACK; revocation remains unconfirmed.")
+        return codes[0]
+    finally:
+        client.disconnect()
+        client.loop_stop()
+
+
+def confirm_rejection(config: dict, old: dict) -> None:
+    # Wait briefly for restart, but accept only an explicit authorization rejection.
+    for attempt in range(6):
+        try:
+            if authentication_result(config, config["MQTT_USERNAME"], config["MQTT_PASSWORD"]) != 0:
+                raise RuntimeError("Backend probe cannot authenticate to Broker.")
+            result = authentication_result(config, old["username"], old["password"])
+            if result not in (134, 135):  # Paho v2 maps MQTT 3.1.1 CONNACK 4/5 to these codes.
+                raise RuntimeError("Old credential was not explicitly rejected; replacement remains blocked.")
+            return
+        except OSError:
+            if attempt == 5:
+                raise
+            time.sleep(1)
+
+
+def revoke(device_id: int, stamp: str) -> None:
+    # Check dependency/config before the irreversible credential revocation.
+    config = environment()
+    if authentication_result(config, config["MQTT_USERNAME"], config["MQTT_PASSWORD"]) != 0:
+        raise RuntimeError("Backend probe cannot authenticate; no credential revoked.")
+    private = cli("revoke", f"revoked-device-{device_id}-{stamp}.local.json", device_id)
+    old = json.loads(private.read_text(encoding="utf-8"))
+    export = cli("export-broker", "broker-users-revoke-" + stamp + ".local.json")
+    configure(export)
+    run(["docker", "compose", "restart", "mosquitto"])
+    confirm_rejection(config, old)
+    cli("confirm-revocation", f"revocation-confirmed-{device_id}-{stamp}.local.json", device_id, old["credentialId"])
+    print("Old identity revoked, Broker sessions disconnected, rejection verified. Replacement can now be requested if the new Node is ready.")
 
 
 def main() -> None:
@@ -137,6 +229,8 @@ def main() -> None:
     commands.add_parser("init", help="Generate a missing master key, preserve .env values, prepare backend Broker user.")
     issue = commands.add_parser("issue", help="Issue/rotate a provisioned device identity; save private export locally.")
     issue.add_argument("device_id", type=int)
+    revoke_parser = commands.add_parser("revoke", help="Permanently revoke an old Node before replacement; verify Broker rejection.")
+    revoke_parser.add_argument("device_id", type=int)
     configure_parser = commands.add_parser("configure", help="Export current identities, update Broker users and restart Broker.")
     configure_parser.add_argument("--devices", type=Path, help="Use an existing private broker export instead of invoking CLI.")
     args = parser.parse_args()
@@ -149,8 +243,14 @@ def main() -> None:
         output = cli("issue", "device-" + str(args.device_id) + "-" + stamp + ".local.json", args.device_id)
         print("Private device export:", output.relative_to(ROOT))
         print("Run: python scripts/setup-mqtt.py configure")
+    elif args.action == "revoke":
+        if args.device_id < 1:
+            parser.error("device_id must be positive")
+        revoke(args.device_id, stamp)
     else:
-        export = args.devices or cli("export-broker", "broker-users-" + stamp + ".local.json")
+        export = cli("export-broker", "broker-users-" + stamp + ".local.json")
+        if args.devices and json.loads(args.devices.read_text(encoding="utf-8")) != json.loads(export.read_text(encoding="utf-8")):
+            raise RuntimeError("Provided export is stale; refusing to restore old Broker identities.")
         configure(export)
         run(["docker", "compose", "restart", "mosquitto"])
         print("Broker restarted: previous sessions were disconnected and current ACL is active.")
@@ -158,7 +258,8 @@ def main() -> None:
 
 if __name__ == "__main__":
     try:
-        main()
+        with workflow_lock():
+            main()
     except (RuntimeError, OSError, ValueError, KeyError, subprocess.SubprocessError) as error:
         print("MQTT setup failed:", type(error).__name__, str(error), file=sys.stderr)
         sys.exit(1)

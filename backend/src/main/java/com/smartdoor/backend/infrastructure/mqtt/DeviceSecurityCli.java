@@ -40,10 +40,11 @@ public class DeviceSecurityCli implements ApplicationRunner {
     public void run(ApplicationArguments args) throws IOException {
         try {
             String action = required(args, "security.action");
-            if (!Set.of("issue", "export-broker").contains(action)) {
-                throw new IllegalArgumentException("security.action phải là issue hoặc export-broker.");
+            if (!Set.of("issue", "export-broker", "revoke", "confirm-revocation", "check-schema").contains(action)) {
+                throw new IllegalArgumentException("Unsupported security.action.");
             }
-            Long deviceId = action.equals("issue") ? id(args, "security.device-id") : null;
+            Long deviceId = Set.of("export-broker", "check-schema").contains(action) ? null : id(args, "security.device-id");
+            String credentialId = action.equals("confirm-revocation") ? required(args, "security.credential-id") : null;
             Path output = Path.of(required(args, "security.output")).toAbsolutePath().normalize();
             if (output.getParent() != null) Files.createDirectories(output.getParent());
             // Fail before rotating a key if the destination exists or cannot be created.
@@ -53,7 +54,13 @@ public class DeviceSecurityCli implements ApplicationRunner {
             try {
                 restrictToOwner(output);
                 try (OutputStream stream = Files.newOutputStream(output, StandardOpenOption.WRITE)) {
-                    Object value = action.equals("issue") ? credentials.issue(deviceId) : credentials.exportBrokerUsers();
+                    Object value = switch (action) {
+                        case "issue" -> credentials.issue(deviceId);
+                        case "revoke" -> credentials.revoke(deviceId);
+                        case "confirm-revocation" -> credentials.confirmBrokerRevocation(deviceId,credentialId);
+                        case "check-schema" -> java.util.Map.of("migrationsCompleted",true);
+                        default -> credentials.exportBrokerUsers();
+                    };
                     stream.write(json.writerWithDefaultPrettyPrinter().writeValueAsBytes(value));
                     stream.flush();
                 }

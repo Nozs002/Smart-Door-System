@@ -20,9 +20,10 @@ chưa có trường điều chỉnh trên App. Xem trạng thái thực tế qua
 
 ## Kiểm thử
 
-1. Nạp firmware Node 2 mới trước, rồi build backend:
-   `docker compose up -d --build backend`; Flyway áp dụng tới V11, lệnh cũ giữ
-   action UNLOCK. Không reset/xóa volume. Cập nhật App sau Backend.
+1. Nạp firmware Node 2 hỗ trợ CLOSE trước, rồi build backend:
+   `docker compose up -d --build backend`; Flyway áp dụng tới V11 (bao gồm
+   ràng buộc V10), lệnh cũ giữ action UNLOCK. Không reset/xóa volume.
+   Cập nhật App sau Backend.
 2. Theo [hướng dẫn thiết bị](../05-backend/person1-person4-completion.md), cấp
    credential, đồng bộ cấu hình và activate Node 2 của cửa cần kiểm thử.
 3. Chạy `python scripts/device-simulator.py <credential-file> --duration 600`.
@@ -36,8 +37,11 @@ chưa có trường điều chỉnh trên App. Xem trạng thái thực tế qua
    ngắt: không được báo mở khóa thành công.
 
 Xem [REST](../../contracts/api/door-unlock.md), [MQTT](../../contracts/mqtt/topics.md).
-Firmware thật chưa triển khai; cần tích hợp contract, chống trùng và kiểm tra
-hạn lệnh trước khi thử phần cứng.
+Sơ đồ luồng quyền, ACK, timeout và giới hạn firmware tại
+[hồ sơ hệ thống](../03-technical-reference/system-design-review.md#diagram-05).
+Firmware tích hợp nằm tại `firmware/node-control/`; có xử lý hạn lệnh,
+chống trùng và servo. Cần kiểm thử trên board thật để xác nhận đấu dây,
+MC-38 và cơ cấu cửa; simulator không chứng minh được các phần này.
 
 Kiểm thử tự động:
 

@@ -1,0 +1,54 @@
+@startuml
+!theme plain
+skinparam shadowing false
+skinparam defaultFontName Arial
+skinparam backgroundColor white
+hide methods
+hide circle
+title 7b. ERD rút gọn — 19 bảng nghiệp vụ, nhóm theo trách nhiệm
+entity accounts
+entity cardholders
+entity doors
+entity devices
+entity rfid_credentials
+entity door_configs
+entity system_pins
+entity door_activation_codes
+entity device_lifecycle_events
+entity access_logs
+entity lockout_statuses
+entity alerts
+entity revoked_access_tokens
+entity integration_outbox
+entity owner_notifications
+entity device_transport_credentials
+entity processed_device_messages
+entity control_commands
+entity door_telemetry
+accounts ||--o{ cardholders
+accounts |o--o{ doors : chủ (NULL trước claim)
+accounts ||--o{ revoked_access_tokens
+doors ||--o{ devices
+doors ||--o| door_configs
+doors ||--o| system_pins
+doors ||--o{ door_activation_codes
+devices ||--o{ device_lifecycle_events
+devices ||--o| device_transport_credentials
+devices ||--o{ processed_device_messages
+cardholders ||--o{ rfid_credentials
+doors ||--o{ rfid_credentials
+doors ||--o{ lockout_statuses
+doors ||--o{ access_logs
+doors ||--o{ alerts
+alerts ||--o{ owner_notifications
+doors ||--o{ integration_outbox
+doors ||--o{ control_commands
+doors ||--o{ door_telemetry
+legend bottom
+  Bản slide lược bớt cạnh FK và thuộc tính; xem 7a để có đủ 31 FK.
+  Composite FK giữ phạm vi Door / Account / Device; xóa theo RESTRICT.
+  Không xóa lịch sử khi thu hồi RFID hoặc ngừng sử dụng thiết bị.
+  flyway_schema_history là bảng kỹ thuật, không tính trong 19 bảng nghiệp vụ.
+endlegend
+footer Cập nhật 06/11/2026 | Schema V10 | Offline còn thuộc phạm vi
+@enduml

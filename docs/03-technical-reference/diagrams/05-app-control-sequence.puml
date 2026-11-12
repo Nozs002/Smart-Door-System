@@ -1,0 +1,62 @@
+@startuml
+!theme plain
+skinparam shadowing false
+skinparam defaultFontName Arial
+skinparam backgroundColor white
+autonumber
+title 5. Mở khóa từ App — ownership, idempotency, ACK và timeout
+actor "Chủ cửa" as Owner
+participant "Flutter" as App
+participant "Backend / UnlockService" as BE
+database "MySQL" as DB
+queue "Mosquitto" as MQ
+participant "Node 2\nTheo hợp đồng firmware" as N2
+Owner -> App : Vuốt ít nhất 95% rồi thả
+App -> BE : POST /api/v1/doors/{doorId}/commands\nBearer JWT + requestId UUID
+BE -> BE : Xác minh JWT, hết hạn / thu hồi / auth_version
+BE -> DB : Khóa Door; requireOwner(accountId, doorId)
+alt Sai chủ / JWT không hợp lệ
+  BE --> App : 404 sai chủ hoặc 401 phiên không hợp lệ
+else Đúng chủ
+  BE -> DB : Tìm requestId đã có
+  alt Cùng requestId, Door / Account / method
+    BE --> App : Trả lệnh cũ; không tạo / gửi lại lệnh
+  else Lệnh mới
+    BE -> BE : Door ACTIVE; Node 2 ACTIVE + ONLINE\nMQTT connected; không có lệnh đang chờ còn hạn
+    alt Điều kiện không đạt
+      BE --> App : 409 + lý do
+    else Điều kiện đạt
+      BE -> DB : Lưu PENDING, TTL 15 giây + access log APP
+      BE --> App : 202 CommandView
+      BE -> BE : Dispatcher (chu kỳ 1 giây) kiểm tra lại quyền / Node / hạn
+      BE -> MQ : commands/unlock, QoS 1, retain=false\ncommandId + expiresAt; đánh dấu SENT
+      note right of BE
+        Gửi gặp kết quả không rõ: UNKNOWN.
+        Không tự retry thao tác mở khóa.
+      end note
+      MQ -> N2 : Chuyển lệnh đúng Door / deviceCode
+      N2 -> N2 : Từ chối retained / hết hạn\nDedupe bền vững commandId trước tác động khóa
+      alt Có phản hồi trước hạn
+        N2 -> MQ : events/command-ack ký HMAC\nEXECUTED hoặc REJECTED
+        MQ -> BE : ACK
+        BE -> BE : Kiểm tra danh tính Node 2, cửa, lifecycle, chủ và hạn
+        BE -> DB : Kết quả cuối + lịch sử thực thi
+      else Không có ACK trước hạn
+        BE -> DB : TIMED_OUT; log result=FAILED\nreason=TIMED_OUT (chưa biết tác động vật lý)
+        note right of DB : ACK muộn không đổi TIMED_OUT thành thành công
+      end
+      loop Khi màn điều khiển đang chờ
+        App -> BE : GET /commands/{id}, mỗi giây
+        BE --> App : Trạng thái hiện tại
+      end
+    end
+  end
+end
+note over App,N2
+  MQTT PUBACK / SENT không phải ACK thực thi từ Node.
+  EXECUTED không chứng minh cửa/chốt đã mở vật lý.
+  Trạng thái quan sát cần telemetry và cảm biến thực tế.
+  Mất mạng sau khi gửi có thể chưa biết tác động thật; không báo thành công giả.
+end note
+footer Cập nhật 06/11/2026 | Schema V10 | Offline còn thuộc phạm vi
+@enduml

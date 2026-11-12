@@ -1,0 +1,44 @@
+@startuml
+!theme plain
+skinparam shadowing false
+skinparam defaultFontName Arial
+skinparam backgroundColor white
+left to right direction
+title 10. MQTT v1 — topic, chiều truyền, QoS, retained và ACL
+node "Node 1\nDanh tính riêng" as N1
+queue "Mosquitto\nAnonymous OFF\nPassword + ACL" as MQ
+component "Backend / SettingsMqttBridge\nKiểm tra HMAC / nonce / thời hạn\nĐối chiếu DB + vai trò + lifecycle" as BE
+node "Node 2\nDanh tính riêng" as N2
+database "MySQL\nReceipts / outbox / versions / history" as DB
+N1 --> MQ : events/access-request\nevents/sync-ack, heartbeat, alert
+MQ --> N1 : commands/access-result\ncommands/configuration, credentials
+N2 --> MQ : events/command-ack, telemetry\nevents/sync-ack, heartbeat, alert
+MQ --> N2 : commands/unlock, alarm\ncommands/configuration
+MQ --> BE : Subscribe events của các Node
+BE --> MQ : Publish commands đúng Door / deviceCode
+BE --> DB : Transaction nghiệp vụ / receipt\nVersion ACK / trạng thái gửi
+note top of MQ
+  Prefix: smart-door/v1/doors/{doorId}/devices/{deviceCode}/
+  Node chỉ đọc commands/+ của chính mình.
+  Node chỉ publish event topic được liệt kê trong ACL của chính mình.
+  Backend dùng user riêng đọc events / ghi commands nhiều Door.
+  ACL không thay kiểm tra node_type ở Backend.
+end note
+note bottom of BE
+  Event: signed envelope credentialId, sentAt, nonce,
+  payload Base64 và signature HMAC-SHA256.
+  HMAC bao gồm topic; không tin ID do payload tự khai.
+  Dedupe nonce và eventId / commandId / version.
+  Chỉ ACK MQTT sau commit hoặc quyết định từ chối event không hợp lệ.
+end note
+legend bottom
+  QoS 1 cho các luồng đã đặc tả; consumer phải idempotent.
+  Retained: chỉ commands/configuration và commands/credentials.
+  Không retained: unlock, access-result, alarm và tất cả events.
+  Unlock / access-result / alarm có thời hạn; không replay mở khóa khi reconnect.
+  SENT / PUBACK = Broker nhận; SYNCED = Node ACK phiên bản đã áp dụng.
+  ACTIVE cho nghiệp vụ; setup sau claim cho PROVISIONED / DISABLED; RETIRED bị từ chối.
+  Credential / ACL cũ cần thu hồi khi thay Node; workflow replacement chưa hoàn thiện.
+endlegend
+footer Cập nhật 06/11/2026 | Schema V10 | Offline còn thuộc phạm vi
+@enduml
