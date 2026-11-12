@@ -184,6 +184,9 @@ public class SettingsMqttBridge implements OutboxTransport, com.smartdoor.backen
             payload.put("pinVerifier",snapshot.pinVerifier()); payload.put("cards",snapshot.cards());
         } else throw new IllegalArgumentException("Unsupported delivery kind for device");
         byte[] bytes=mapper.writeValueAsString(payload).getBytes(StandardCharsets.UTF_8);
+        if ("credentials".equals(command) && bytes.length>16384) {
+            throw new IllegalStateException("Node 1 credential snapshot exceeds firmware limit of 16384 bytes");
+        }
         if (bytes.length>properties.maxPayloadBytes()) throw new IllegalStateException("Device snapshot exceeds payload limit");
         // Serialize with settings writers and rebuild the latest desired state. An old retry never rolls a retained version back.
         client.publish("smart-door/v1/doors/"+door.getId()+"/devices/"+device.getDeviceCode()+"/commands/"+command,

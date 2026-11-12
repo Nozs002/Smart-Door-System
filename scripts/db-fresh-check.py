@@ -12,7 +12,7 @@ import subprocess
 import sys
 
 ROOT = Path(__file__).resolve().parents[1]
-EXPECTED_VERSIONS = ",".join(str(version) for version in range(1, 12))
+EXPECTED_VERSIONS = ",".join(str(version) for version in range(1, 13))
 
 
 def check_outbox_upgrade(query, migrate):
@@ -89,6 +89,29 @@ def check_close_upgrade(query, migrate):
     print("PASS V11: old commands preserved as UNLOCK; CLOSE persisted", flush=True)
 
 
+def check_revocation_upgrade(query, migrate):
+    query("INSERT INTO device_transport_credentials (device_id,credential_id,created_at) "
+          "VALUES (1,'33333333-3333-4333-8333-333333333333',UTC_TIMESTAMP(3))")
+    before = query("SELECT device_id,credential_id,created_at FROM device_transport_credentials")
+    migrate()
+    if before != query("SELECT device_id,credential_id,created_at FROM device_transport_credentials"):
+        raise RuntimeError("V12 changed existing credentials")
+    if query("SELECT broker_revoked_at IS NULL FROM device_transport_credentials WHERE device_id=1") != "1":
+        raise RuntimeError("V12 incorrectly marked old credentials as Broker-revoked")
+    for assignments in ("broker_revoked_at=UTC_TIMESTAMP(3)",
+                        "revoked_at=UTC_TIMESTAMP(3),broker_revoked_at=DATE_SUB(UTC_TIMESTAMP(3),INTERVAL 1 SECOND)"):
+        try:
+            query("START TRANSACTION; UPDATE device_transport_credentials SET " + assignments + " WHERE device_id=1; ROLLBACK")
+        except RuntimeError as error:
+            if "ERROR 3819 " not in str(error):
+                raise
+        else:
+            raise RuntimeError("V12 accepted invalid Broker revocation proof")
+    query("START TRANSACTION; UPDATE device_transport_credentials SET revoked_at=UTC_TIMESTAMP(3),"
+          "broker_revoked_at=UTC_TIMESTAMP(3) WHERE device_id=1; ROLLBACK")
+    print("PASS V12: credentials preserved; proof defaults NULL; revocation ordering CHECK enforced", flush=True)
+
+
 def main():
     setup = module("mqtt_setup", "setup-mqtt.py")
     audit = module("db_audit", "db-check.py")
@@ -107,8 +130,8 @@ def main():
             "--spring.profiles.active=local,device-security", "--app.settings-mqtt.enabled=false", "--app.outbox.enabled=false",
             "--spring.datasource.url=jdbc:mysql://mysql:3306/" + schema + "?connectionTimeZone=UTC",
             "--spring.flyway.target=" + str(target),
-            "--spring.jpa.hibernate.ddl-auto=" + ("validate" if target >= 11 else "none"),
-            "--security.action=export-broker", "--security.output=/run/local/empty-users-v" + str(target) + ".local.json"],
+            "--spring.jpa.hibernate.ddl-auto=" + ("validate" if target >= 12 else "none"),
+            "--security.action=check-schema", "--security.output=/run/local/schema-v" + str(target) + ".local.json"],
             cwd=ROOT, capture_output=True, text=True, encoding="utf-8", errors="replace", timeout=120)
         log = folder / ("migration-v" + str(target) + ".local.log")
         log.write_text(result.stdout + result.stderr, encoding="utf-8")
@@ -119,6 +142,7 @@ def main():
     migrate(9)
     check_outbox_upgrade(lambda sql: audit.query("USE `" + schema + "`; " + sql), lambda: migrate(10))
     check_close_upgrade(lambda sql: audit.query("USE `" + schema + "`; " + sql), lambda: migrate(11))
+    check_revocation_upgrade(lambda sql: audit.query("USE `" + schema + "`; " + sql), lambda: migrate(12))
     versions = audit.query("SELECT GROUP_CONCAT(version ORDER BY installed_rank) FROM `" + schema + "`.flyway_schema_history WHERE success=1")
     if versions != EXPECTED_VERSIONS:
         raise RuntimeError("Unexpected fresh migration history: " + versions)
@@ -126,7 +150,7 @@ def main():
     foreign_keys = audit.query("SELECT COUNT(*) FROM information_schema.REFERENTIAL_CONSTRAINTS WHERE CONSTRAINT_SCHEMA='" + schema + "'")
     if tables != "20" or foreign_keys != "31":
         raise RuntimeError("Fresh schema has unexpected table/FK counts: " + tables + "/" + foreign_keys)
-    print("PASS Flyway V1-V11 and Hibernate validation: 19 business tables, 31 foreign keys")
+    print("PASS Flyway V1-V12 and Hibernate validation: 19 business tables, 31 foreign keys")
     print("Isolated test schema kept for inspection:", schema)
     print("Migration logs:", folder.relative_to(ROOT))
     print("Existing application database was preserved.")

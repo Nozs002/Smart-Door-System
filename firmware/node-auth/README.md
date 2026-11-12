@@ -17,8 +17,9 @@ hay cửa thực sự mở; xem kết quả lệnh và MC-38 trên App.
    Giữ signingKey dạng Base64. Không dùng khóa Node 2 hoặc chạy lại issue nếu
    export hiện tại còn hiệu lực. Ví dụ demo là cửa 5/thiết bị 10/TEST-MAIN-N1.
 5. Chọn ESP32 Dev Module, đúng COM, Upload; Serial Monitor 115200 baud.
-6. Chờ MQTT, NTP và cấu hình. Nếu LCD báo CHO CAU HINH, vào App đúng cửa và
-   gửi lại cấu hình. Kiểm tra last_seen_at và applied_config_version của Node 1.
+6. Claim cửa, đặt PIN 4–8 số trên App, gửi cấu hình và đồng bộ PIN/thẻ. Chờ
+   MQTT, NTP, heartbeat và ACK cả CONFIGURATION/CREDENTIALS rồi kích hoạt Node 1.
+   Kiểm tra `last_seen_at`, `applied_config_version`, `applied_pin_version`.
 
 Thiếu cấu hình local: sketch vẫn biên dịch với mẫu an toàn nhưng không kết nối,
 LCD báo CAU HINH THIEU. Firmware tự tạo client ID riêng, không lấy khóa Node 2.
@@ -38,12 +39,31 @@ CA/hostname trước khi gửi RFID/PIN thật, không tắt kiểm tra chứng 
 LCD 16x2 dùng chữ không dấu. RC522 lỗi thì vẫn dùng keypad được; không nối
 servo vào Node 1. Sketch không dùng shared/network/wifi_manager.cpp.
 
+## Demo khi hàng `* 0 #` bị hỏng
+
+Firmware có phím dự phòng, không cần đổi PIN thành 4 số hoặc bỏ số 0:
+
+| Thao tác | Kết quả |
+| --- | --- |
+| Bấm ngắn 1–9 | Nhập số đó; riêng 1/2/3 nhận khi thả phím |
+| Giữ `1` khoảng 0,9 giây | Xóa toàn bộ PIN đang nhập |
+| Giữ `2` khoảng 0,9 giây | Nhập **một số 0** |
+| Giữ `3` khoảng 0,9 giây | Gửi PIN 4–8 số |
+
+Ví dụ PIN `1203`: bấm ngắn **1**, bấm ngắn **2**, giữ **2**, bấm ngắn **3**,
+rồi giữ **3** để gửi. Thả phím sau mỗi thao tác. Giữ không lặp và không chèn
+thêm 1/2/3 vào PIN. Các phím `*`, `0`, `#` vẫn dùng bình thường nếu phần cứng tốt.
+LCD nhắc thao tác giữ. Phải Upload lại sketch Node 1 để có chức năng này.
+
+Đây là cách nhập dự phòng, không sửa phần cứng. Ba phím cuối chung hàng R4,
+đang nối **GPIO26** trong `rowPins`; ngắt nguồn rồi kiểm tra dây R4/jack/chân
+keypad, chạy `hardware-tests/node-1/keypad_test/` để kiểm tra từng phím.
+
 ## Hành vi
 
-- Keypad tự gửi xác thực ngay khi nhập đủ 4 chữ số; `#` không làm gì, `*` xóa,
-  sau 20 giây không nhập tự xóa. Cửa dùng sketch này phải đặt PIN đúng 4 số
-  trên App; Backend/App vẫn cho phép 4–8 số nhưng keypad không nhập PIN dài hơn 4 số. Che PIN
-  bằng dấu sao; không log PIN/UID/envelope/khóa, không lưu credential vào NVS.
+- Keypad nhận PIN 4–8 số, `#` gửi, `*` xóa, sau 20 giây không nhập tự xóa.
+  Không tự gửi ở số thứ tư; số thứ chín bị từ chối. PIN hiển thị bằng dấu sao;
+  không log PIN/UID/envelope/khóa, không lưu PIN rõ vào NVS.
 - Một lượt xác thực có UUID và hạn 15 giây. Chỉ nhận kết quả đúng eventId,
   còn hạn, schema/result hợp lệ và không retained. Không tự retry/replay
   yêu cầu sau reconnect, kể cả khi không chắc Broker đã nhận.
@@ -58,26 +78,35 @@ servo vào Node 1. Sketch không dùng shared/network/wifi_manager.cpp.
 - Xác thực thành công hiển thị XAC THUC DUNG; Da yeu cau mo khi Backend trả
   QUEUED, Kiem tra Node 2 khi không tạo được lệnh điều khiển.
 
-**Phạm vi chỉ online, không hỗ trợ BCrypt/credential snapshot/offline.** Không
-subscribe commands/credentials, không lưu verifier/thẻ, không ACK CREDENTIALS.
-Dùng Node 1 đã ACTIVE của bộ demo. Node mới PROVISIONED chưa thể hoàn tất
-điều kiện kích hoạt yêu cầu credential ACK. Không sửa DB hoặc dùng simulator
-ACK thay để lách điều kiện; cần triển khai credential/BCrypt ở giai đoạn sau.
-Đồng bộ CONFIGURATION không có nghĩa toàn bộ credential đã đồng bộ.
+**Xác thực mở cửa hiện vẫn online; offline còn trong phạm vi phát triển.**
+Node subscribe `commands/credentials`, kiểm tra schema, UID/trùng thẻ/expiry,
+verifier BCrypt `$2a$`/`$2b$`/`$2y$` cost 4–12 (Backend dùng 10), rồi thay toàn
+bộ snapshot bằng một blob NVS và đọc lại xác minh trước ACK CREDENTIALS.
+Snapshot tối đa 16 KiB; Backend từ chối gửi vượt giới hạn, không cắt danh sách.
+Phiên bản lùi hoặc cùng phiên bản khác dữ liệu không được ACK. Snapshot rỗng
+xóa quyền cũ; một thẻ bị thu hồi không còn trong snapshot mới.
+NVS gắn với Door/deviceCode/credentialId, nên đổi danh tính không dùng ACK cũ.
+BCrypt Openwall được vendor trong `src/bcrypt/`; self-test vector độc lập chạy
+khi boot. Lỗi NVS/BCrypt chặn ACK. Có hàm kiểm tra verifier nhưng luồng online
+vẫn gửi yêu cầu đến Backend để quyết định quyền/khóa tạm; chưa gửi lệnh trực
+tiếp đến Node 2 khi mất mạng. Không dùng ACK giả hoặc sửa DB để kích hoạt.
+NVS bản demo chưa mã hóa flash; triển khai thật cần NVS encryption/secure boot
+và TLS. ACK chứng minh lưu áp dụng snapshot, không chứng minh chống đọc flash.
 
 ## Kiểm thử trên mô hình
 
-1. Cửa và hai node ACTIVE, Node 2 chạy sketch tích hợp đã test. Trên App đặt
-   PIN và cấp thẻ cho đúng cửa, đúng người giữ thẻ.
+1. Bắt đầu với bộ cửa mới PROVISIONED, claim và cấp credential riêng từng Node.
+   Chạy `setup-mqtt.py configure`, nạp đúng firmware, đặt PIN/cấp thẻ và gửi
+   đồng bộ trên App. Đợi ACK đúng phiên bản rồi kích hoạt hai Node; cửa ACTIVE.
 2. Kiểm tra Node 1 heartbeat và ACK cấu hình trong DB; reset rồi gửi lại cùng
-   snapshot phải ACK mà không ghi NVS thêm. applied_pin_version không được
-   sketch này cập nhật.
-3. Quẹt thẻ hợp lệ hoặc nhập đủ PIN đúng 4 số (không cần #) → LCD báo xác thực đúng, Node 2 mở 180°;
+   snapshot phải ACK mà không ghi NVS thêm. `applied_pin_version` phải bằng
+   `door_configs.credentials_version`; thu hồi thẻ rồi đồng bộ lại.
+3. Quẹt thẻ hợp lệ hoặc nhập PIN đúng và bấm # → LCD báo xác thực đúng, Node 2 mở 180°;
    đối chiếu access_logs GRANTED và control_commands EXECUTED trên App/DB.
 4. Thẻ chưa cấp/PIN sai → DENIED, không mở. Sai đủ ngưỡng → khóa phương thức
    đó; khi PIN khóa vẫn có thể thử RFID đúng. Reset không xóa khóa tạm đã lưu.
-5. Thử * xóa, nhập 1–3 số rồi # không gửi, nhập dở quá 20 giây tự xóa;
-   số thứ tư tự gửi đúng một yêu cầu, nhấn # không tạo yêu cầu thêm. Giữ thẻ không được tạo vòng
+5. Thử PIN 4/6/8 số, * xóa, nhập 1–3 số rồi # không gửi, nhập dở quá 20 giây
+   tự xóa; nhập đủ số không tự gửi, # gửi đúng một yêu cầu. Giữ thẻ không được tạo vòng
    yêu cầu liên tục; nhấc ra rồi đưa lại tạo lượt mới.
 6. Mất mạng/broker/backend → không mở offline, không phát lại yêu cầu khi có
    mạng. Nếu đã gửi nhưng timeout, kiểm tra App/lịch sử trước khi thử lượt mới:
@@ -102,7 +131,23 @@ không kết nối mạng hay điều khiển chân ngoại vi. Kết quả mong
 Sau đó comment lại dòng này và Upload lại firmware online. Đây là các ca chạy
 trên ESP32; biên dịch thành công không có nghĩa đã chạy/passed các ca trên board.
 
+Test logic keypad và BCrypt trên máy, không cần board:
+
+```powershell
+docker build -f firmware/tests/native/Dockerfile -t smartdoor-input-tests firmware
+docker run --rm smartdoor-input-tests
+```
+
+Chạy từ root repository. Test kiểm tra nhập `1203` không cần hàng cuối,
+nhấn/giữ/thả không lặp, xóa, PIN ngắn/dài, không tràn buffer và vector BCrypt
+đối chiếu Spring Security. Không thay thế test GPIO, NVS hoặc kết nối ESP32.
+
 ## Xác minh bản này
+
+Cập nhật 12/11/2026: build cấu hình giả đầy đủ và build chế độ self-test đạt
+với core 3.3.11; bản đầy đủ dùng 77% flash, 16% RAM tĩnh. Test C++ native
+phím dự phòng và vector BCrypt đạt. Chưa upload/chạy bộ self-test hoặc thử
+NVS/luồng bộ cửa mới trên ESP32 thật. Số liệu bên dưới là build trước khi sửa.
 
 Đã biên dịch ESP32 Dev Module với core 3.3.11, ArduinoJson 7.4.3,
 ArduinoMqttClient 0.1.8, MFRC522 1.4.12, Keypad 3.1.1 và LiquidCrystal I2C 1.1.2.

@@ -87,4 +87,31 @@ class DeviceSecurityCliTests {
         assertThat(output).doesNotExist();
         verify(context).close();
     }
+
+    @Test
+    void revocationWritesOldIdentityPrivatelyWithoutRotatingIt() throws Exception {
+        Path output=directory.resolve("revoked.json");
+        when(credentials.revoke(11L)).thenReturn(value);
+        cli.run(new DefaultApplicationArguments("--security.action=revoke", "--security.device-id=11", "--security.output="+output));
+        assertThat(json.readTree(Files.readString(output)).get("credentialId").asText()).isEqualTo(value.credentialId());
+        verify(credentials).revoke(11L);
+        verify(credentials,never()).issue(any());
+    }
+
+    @Test
+    void confirmationCannotOmitExactCredentialIdentity() {
+        Path output=directory.resolve("confirmation.json");
+        assertThatThrownBy(() -> cli.run(new DefaultApplicationArguments("--security.action=confirm-revocation",
+                "--security.device-id=11", "--security.output="+output))).isInstanceOf(IllegalArgumentException.class);
+        assertThat(output).doesNotExist();
+        verifyNoInteractions(credentials);
+    }
+
+    @Test
+    void schemaCheckDoesNotQueryEntitiesBeforeTheirMigrationVersionExists() throws Exception {
+        Path output=directory.resolve("schema.json");
+        cli.run(new DefaultApplicationArguments("--security.action=check-schema", "--security.output="+output));
+        assertThat(json.readTree(Files.readString(output)).get("migrationsCompleted").asBoolean()).isTrue();
+        verifyNoInteractions(credentials);
+    }
 }
