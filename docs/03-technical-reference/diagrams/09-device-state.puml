@@ -3,48 +3,64 @@
 skinparam shadowing false
 skinparam defaultFontName Arial
 skinparam backgroundColor white
-title 9. Lifecycle và kết nối thiết bị — hai trục độc lập
-state "Device đã đăng ký" as D {
-  state "LIFECYCLE — lưu trong MySQL" as L {
-    [*] --> PROVISIONED : CLI provision / đăng ký Node thay thế
-    PROVISIONED --> ACTIVE : ACTIVATE\nChủ cửa + readiness + slot trống
+title 9. Vòng đời thiết bị, Door và kết nối — các trạng thái riêng
+state "Device thuộc một Door" as D {
+  state "LIFECYCLE — lưu MySQL" as L {
+    [*] --> PROVISIONED : App tạo bộ cửa\nHoặc CLI đăng ký thiết bị thay thế
+    PROVISIONED --> ACTIVE : ACTIVATE / complete-setup\nChủ cửa + readiness + slot trống
     ACTIVE --> DISABLED : DISABLE\nLý do tùy chọn
     DISABLED --> ACTIVE : REACTIVATE\nKiểm tra lại readiness / slot
-    ACTIVE --> RETIRED : RETIRE\nBắt buộc lý do
-    DISABLED --> RETIRED : RETIRE\nBắt buộc lý do
+    ACTIVE --> RETIRED : RETIRE hoặc REPLACE\nBắt buộc lý do
+    DISABLED --> RETIRED : RETIRE hoặc REPLACE\nBắt buộc lý do
     note bottom of PROVISIONED
-      Danh tính đã verified, chưa revoked.
-      Hai Node: applied_config = desired config.
-      Node 1 thêm PIN ACTIVE và ACK credentials mới nhất.
-      Setup ACK không tự ACTIVE; chủ cửa gọi ACTIVATE.
-      Hiện không có RETIRE trực tiếp từ PROVISIONED.
+      Inventory chưa gắn chưa phải Device trong lifecycle này.
+      Readiness: danh tính verified / chưa revoked; ACK config hiện hành.
+      Node 1 thêm PIN ACTIVE và ACK credentials hiện hành.
+      Readiness kích hoạt hiện không bắt buộc heartbeat còn mới.
+      Không RETIRE trực tiếp từ PROVISIONED.
     end note
     note bottom of RETIRED
       Không kích hoạt lại; giữ lịch sử.
-      Nhánh thay Node hiện trả 409:
-      canReplace() chưa có bằng chứng thu hồi Broker cũ.
-      Không vẽ thay Node như luồng đã hoạt động.
+      REPLACE: Node mới cùng Door/vai trò, PROVISIONED và ready.
+      Khóa cũ cần revoked_at + broker_revoked_at (V12).
+      Thu hồi Broker: CLI restart/ngắt phiên + kiểm tra khóa cũ bị từ chối.
+      Thiếu bằng chứng: 409; đủ: retire cũ trước, activate mới.
+      Không phải chức năng chuyển cùng bo sang Door khác.
     end note
   }
   --
-  state "KẾT NỐI — suy ra khi đọc dữ liệu" as C {
-    [*] --> UNKNOWN : Chưa có heartbeat
+  state "KẾT NỐI — suy ra khi đọc" as C {
+    [*] --> UNKNOWN : Chưa nhận heartbeat
     UNKNOWN --> ONLINE : Heartbeat hợp lệ đầu tiên
-    ONLINE --> ONLINE : Heartbeat mới (giờ nhận Backend)
-    ONLINE --> OFFLINE : Quá ngưỡng, mặc định > 90 giây
-    OFFLINE --> ONLINE : Heartbeat hợp lệ mới
+    ONLINE --> ONLINE : Heartbeat mới; dùng giờ nhận Backend
+    ONLINE --> OFFLINE : Quá ngưỡng\nMặc định > 90 giây
+    OFFLINE --> ONLINE : Nhận heartbeat\nHợp lệ mới
     note bottom of OFFLINE
       Mất kết nối không tự DISABLE / RETIRE.
-      ONLINE không tự cấp quyền nghiệp vụ.
-      RETIRED không được gửi heartbeat mới.
-      Không suy ra Node còn lại offline từ một Node.
+      ONLINE không tự cấp quyền hoặc xác nhận config đã áp dụng.
+      RETIRED không được cập nhật bằng heartbeat mới.
+      Mỗi Node có trạng thái kết nối riêng.
     end note
   }
 }
+state "DOOR — trạng thái nghiệp vụ" as Door {
+  [*] --> UNCLAIMED : Tạo bộ cửa
+  UNCLAIMED --> SETUP_PENDING : Claim hợp lệ
+  SETUP_PENDING --> DOOR_ACTIVE : Đủ hai vai trò ACTIVE và ready
+  state "ACTIVE" as DOOR_ACTIVE
+  DOOR_ACTIVE --> SETUP_PENDING : Lifecycle thay đổi làm thiếu Node ready
+  note bottom of DOOR_ACTIVE
+    complete-setup kích hoạt hai Node trong một transaction.
+    Đọc trạng thái kết nối không tự đổi trạng thái Door.
+    Door.DISABLED tồn tại trong enum; onboarding từ chối hoàn tất.
+    Chưa mô tả thao tác disable Door như tính năng App đã có.
+  end note
+}
 legend bottom
-  ACTIVATE / REACTIVATE không yêu cầu nhập lý do trên App.
-  Khi lifecycle đổi, Backend tính lại trạng thái Door theo các Node ACTIVE.
-  Offline vẫn là yêu cầu firmware; không thay đổi lifecycle trên Backend.
+  Lifecycle của Device khác kết nối, khác trạng thái nghiệp vụ Door và khác vị trí cánh cửa.
+  ACTIVATE / REACTIVATE không yêu cầu nhập lý do; Node DISABLED cần hành động lifecycle riêng.
+  Offline RFID/PIN giữa hai Node vẫn chưa triển khai; không suy ra từ timer cục bộ.
 endlegend
-footer Cập nhật 06/11/2026 | Schema V10 | Offline còn thuộc phạm vi
+
+footer Đối chiếu source 15/11/2026 | V13 | Sơ đồ 6 tạm hoãn
 @enduml

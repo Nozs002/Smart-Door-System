@@ -4,58 +4,84 @@ skinparam shadowing false
 skinparam defaultFontName Arial
 skinparam backgroundColor white
 autonumber
-title 8. Provision → claim → đồng bộ → kích hoạt
+skinparam maxMessageSize 240
+title 8. Kỹ thuật viên đăng ký → tạo bộ cửa → chủ nhà claim và kích hoạt
 actor "Kỹ thuật viên" as Tech
-participant "CLI / setup-mqtt.py" as CLI
-actor "Chủ cửa" as Owner
-participant "App" as App
-participant "Backend" as BE
-database "MySQL" as DB
-queue "Broker + ACL" as MQ
-participant "Node 1 / Node 2\nFirmware hoặc giả lập" as Nodes
-Tech -> CLI : Provision tên cửa / vị trí + hai device_code
-CLI -> DB : Transaction: Door UNCLAIMED, 2 Node PROVISIONED\nCấu hình + lockout + lifecycle events
-CLI -> DB : Sinh mã 8 ký tự; lưu SHA-256\nHạn 7 ngày; mã hiển thị một lần
-CLI --> Tech : doorId + mã kích hoạt
-Tech -> CLI : issue credential từng Node; configure Broker
-CLI -> DB : Metadata danh tính; không công khai secret
-CLI -> MQ : User/password riêng + ACL đúng Door/deviceCode\nRestart Broker khi cập nhật danh tính
-Tech -> Nodes : Nạp private credential qua quy trình kỹ thuật
-Tech -> Owner : Bàn giao mã kích hoạt
-Owner -> App : Đăng nhập, nhập mã
-App -> BE : Claim với JWT; Account lấy từ phiên
-BE -> DB : Lookup doorId từ hash; khóa Door trước rồi mã
-alt Mã đã được cùng Account sử dụng, cửa vẫn thuộc Account
-  BE --> App : Door cũ (retry nhất quán)
-else Mã sai / hết hạn / thu hồi / thuộc Account khác
-  BE --> App : Lỗi chung; không đổi chủ
-else Hợp lệ và đủ hai Node PROVISIONED
-  BE -> DB : owner_account_id; SETUP_PENDING\nconsumed_at / consumed_by_account_id; COMMIT
-  BE --> App : Claim thành công; chưa tự ACTIVE
+participant "Flutter\nĐổi trang theo role" as App
+participant "Backend\nOnboardingService" as BE
+database "MySQL V13" as DB
+participant "Xưởng / USB\nArduino IDE" as USB
+participant "Hai ESP32\nNode 1 và Node 2" as Nodes
+queue "Mosquitto\nSupervisor + ACL" as MQ
+actor "Chủ nhà" as Owner
+== Chuẩn bị bo tại xưởng; đăng ký trên App không phải nạp firmware ==
+Tech -> App : Đăng nhập TECHNICIAN; mở Kho ESP32
+loop Mỗi bo: chọn NODE_1 hoặc NODE_2
+  App -> BE : POST /technician/inventory + JWT
+  BE -> DB : Kiểm tra role; tạo unitCode UUID / vai trò / created_by
+  BE --> App : Danh tính bo; chưa có Device / Door
+  App -> BE : GET /technician/inventory/{unitCode}/factory
+  BE --> App : QR/mã thiết lập + private firmware header\nChỉ creator; cấm xuất sau claim
+  Tech -> USB : Sao chép header riêng; chọn sketch đúng vai trò
+  USB -> Nodes : Nạp firmware qua USB; cấu hình bootstrap riêng từng bo
+  Tech -> Nodes : Dán tem QR + mã nhập tay tương ứng
 end
-Owner -> App : Đặt PIN, lưu cấu hình / yêu cầu đồng bộ
-App -> BE : API đúng chủ cửa
-BE -> DB : Desired versions + outbox trong transaction
-BE -> MQ : Retained configuration cho hai Node\nRetained credentials chỉ cho Node 1
-MQ -> Nodes : Snapshot mới nhất
-Nodes -> Nodes : Áp dụng / lưu bền vững trước ACK
-Nodes -> MQ : Signed sync-ack + heartbeat
-MQ -> BE : Event đúng danh tính
-BE -> DB : verified_at; applied_config_version\nNode 1: applied_pin_version = credentials_version
-Owner -> App : Kích hoạt từng Node
-App -> BE : ACTIVATE
-BE -> DB : Khóa Door / Device, kiểm tra chủ và slot
-BE -> BE : Danh tính chưa thu hồi + verified\nACK config mới nhất; Node 1 cần PIN ACTIVE + ACK credentials
-alt Thiếu bằng chứng
-  BE --> App : 409; nêu điều kiện chưa đạt
-else Đủ điều kiện
-  BE -> DB : Device ACTIVE + lifecycle event\nDoor ACTIVE khi đủ hai vai trò và readiness
-  BE --> App : Đã kích hoạt
-end
-note over DB,Nodes
-  Setup chấp nhận Node PROVISIONED / DISABLED sau claim, từ chối RETIRED.
-  Heartbeat không thay ACK; lưu DB / SENT không có nghĩa đã áp dụng.
-  Claim đồng thời: chỉ một Account thành công; không tạo cửa mới khi retry.
+note over App,Nodes
+  QR Node chứa unitCode + setupCode, không chứa bootstrapSecret.
+  Chưa nạp Door ID hoặc Wi-Fi nhà; hai thông tin này đến sau.
 end note
-footer Cập nhật 06/11/2026 | Schema V10 | Offline còn thuộc phạm vi
+== Tạo bộ cửa và bàn giao ==
+Tech -> App : Tên/vị trí + quét hoặc nhập mã hai Node
+App -> BE : POST /technician/kits; requestId UUID + JWT
+BE -> DB : Khóa Account; tìm requestId đã commit
+alt Retry requestId đã commit
+  BE --> App : Bộ cửa cũ; không phát lại mã rõ\nMất mã: chủ động Cấp lại mã trước claim
+else Bộ mới hợp lệ
+  BE -> DB : Khóa inventory theo thứ tự\nKiểm tra creator, đúng vai trò, chưa gắn và không trùng
+  BE -> DB : Một transaction: Door UNCLAIMED, 2 Device PROVISIONED\nGắn inventory; kit; config; lifecycle; transport identity\nMã claim hash SHA-256, hạn 7 ngày
+  BE --> App : Bộ cửa + mã claim / QR bàn giao
+else Sai vai trò / đã gắn / không thuộc kỹ thuật viên
+  BE --> App : Từ chối; không tạo bộ cửa một phần
+end
+BE -> MQ : Tự cập nhật password / ACL qua private manifest\nKhông cần sửa DB hay chạy configure để tạo bộ mới
+Tech -> Owner : Bàn giao bộ thiết bị và QR/mã claim của Door
+== Claim và thiết lập bằng tài khoản CUSTOMER ==
+Owner -> App : Đăng nhập; Thêm cửa; quét QR hoặc nhập mã claim
+App -> BE : Claim; Account từ JWT
+BE -> DB : Khóa Door trước rồi mã; kiểm tra lại mã / chủ
+alt Cùng Account retry, cửa vẫn thuộc Account
+  BE --> App : Door cũ
+else Mã sai / hết hạn / thu hồi / đã thuộc Account khác
+  BE --> App : Từ chối; không đổi chủ
+else Hợp lệ
+  BE -> DB : Gán owner; Door SETUP_PENDING; tiêu thụ mã; COMMIT
+  BE --> App : Claim thành công; chưa ACTIVE
+end
+ref over App,MQ : 8b — Cài Wi-Fi riêng từng bo; bootstrap sau claim nhận Door ID và MQTT identity
+Owner -> App : Đặt PIN; gửi cấu hình / đồng bộ
+App -> BE : API đúng chủ; lưu desired versions + outbox
+BE -> MQ : Retained configuration đến hai Node\nRetained credentials đến Node 1
+MQ -> Nodes : Snapshot hiện hành
+Nodes -> Nodes : Áp dụng + lưu NVS trước ACK
+Nodes -> MQ : Heartbeat và signed sync-ack
+MQ -> BE : Xác thực danh tính; cập nhật verified / applied versions
+Owner -> App : Hoàn tất và kích hoạt bộ cửa
+App -> BE : POST /doors/{doorId}/complete-setup
+BE -> DB : Khóa Door; đúng chủ; đúng hai vai trò; không DISABLED / RETIRED
+BE -> BE : Readiness: identity verified, chưa revoked\nACK config hiện hành; Node 1 có PIN ACTIVE + ACK credentials
+alt Thiếu điều kiện
+  BE --> App : 409; giữ nguyên trạng thái
+else Đủ điều kiện
+  BE -> DB : Kích hoạt hai Node + lifecycle; Door ACTIVE\nMột transaction; retry không kích hoạt lặp
+  BE --> App : Bộ cửa đã kích hoạt
+end
+note over App,DB
+  Các bước sau chỉ tiếp tục khi tạo bộ cửa và claim thành công.
+  Endpoint trong sơ đồ dùng chung prefix /api/v1.
+  Heartbeat khác ACK; ONLINE không tự ACTIVE.
+  Kho thuộc creator; hiện dùng cùng tài khoản chuẩn bị và tạo bộ cửa.
+  Node đã gắn cửa không được chọn sang cửa khác; chưa có luồng chuyển cửa.
+end note
+
+footer Đối chiếu source 15/11/2026 | V13 | Sơ đồ 6 tạm hoãn
 @enduml

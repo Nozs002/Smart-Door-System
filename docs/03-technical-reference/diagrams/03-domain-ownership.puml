@@ -5,11 +5,11 @@ skinparam defaultFontName Arial
 skinparam backgroundColor white
 hide methods
 skinparam classAttributeIconSize 0
-title 3. Mô hình miền và sở hữu — Account / Door / Cardholder
+title 3. Mô hình miền V13 — chủ cửa và kỹ thuật viên chuẩn bị thiết bị
 class Account {
   id / username
   password_hash / auth_version
-  status
+  status / role : CUSTOMER | TECHNICIAN
 }
 class Door {
   id / owner_account_id : nullable
@@ -39,6 +39,20 @@ class SystemPin {
   door_id / pin_hash
   status / version
 }
+class InventoryUnit {
+  unit_code : UUID / node_type
+  created_by : Account
+  device_id : nullable, unique
+}
+class InstallationKit {
+  request_id : UUID
+  technician_id : Account
+  door_id : unique
+}
+Account "1" -- "0..*" InventoryUnit : kỹ thuật viên đăng ký
+InventoryUnit "0..1" -- "0..1" Device : gắn khi tạo bộ cửa
+Account "1" -- "0..*" InstallationKit : kỹ thuật viên tạo
+Door "1" -- "0..1" InstallationKit : bộ cửa qua App
 Account "0..1" -- "0..*" Door : sở hữu
 Account "1" -- "0..*" Cardholder : quản lý
 Door "1" -- "0..*" Device : hiện tại và lịch sử
@@ -50,6 +64,7 @@ note bottom of Account
   Account đăng nhập App; Cardholder không cần tài khoản đăng nhập.
   Một bảng cardholders dùng chung; API lọc account_id từ JWT.
   Chủ cửa có thể tạo hồ sơ Cardholder cho chính mình.
+  TECHNICIAN không tự có quyền sở hữu / mở cửa của khách hàng.
 end note
 note bottom of RFIDCredential
   Cardholder.account_id = Door.owner_account_id.
@@ -62,5 +77,11 @@ note bottom of Device
   UNIQUE active slot: tối đa một ACTIVE cho mỗi Door / node_type.
   Door UNCLAIMED không có chủ; sau claim có đúng một chủ.
 end note
-footer Cập nhật 06/11/2026 | Schema V10 | Offline còn thuộc phạm vi
+note bottom of InventoryUnit
+  Inventory là danh tính bo; đăng ký không phải nạp firmware.
+  Trước tạo bộ cửa, device_id có thể NULL; bo legacy có thể không có inventory.
+  Bo đã gắn không được chọn sang cửa mới; chưa có chức năng chuyển cửa.
+  Kho theo creator; chưa có luồng chuyển kho giữa kỹ thuật viên.
+end note
+footer Đối chiếu source 15/11/2026 | V13 | Sơ đồ 6 tạm hoãn
 @enduml

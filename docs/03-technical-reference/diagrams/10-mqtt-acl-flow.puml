@@ -13,13 +13,15 @@ database "MySQL\nReceipts / outbox / versions / history" as DB
 N1 --> MQ : events/access-request\nevents/sync-ack, heartbeat, alert
 MQ --> N1 : commands/access-result\ncommands/configuration, credentials
 N2 --> MQ : events/command-ack, telemetry\nevents/sync-ack, heartbeat, alert
-MQ --> N2 : commands/unlock, alarm\ncommands/configuration
+MQ --> N2 : commands/unlock, close, alarm\ncommands/configuration
 MQ --> BE : Subscribe events của các Node
 BE --> MQ : Publish commands đúng Door / deviceCode
 BE --> DB : Transaction nghiệp vụ / receipt\nVersion ACK / trạng thái gửi
 note top of MQ
   Prefix: smart-door/v1/doors/{doorId}/devices/{deviceCode}/
-  Node chỉ đọc commands/+ của chính mình.
+  Broker cho phép đọc commands/+ của chính Node.
+  Firmware Node 1 subscribe configuration / credentials / access-result.
+  Firmware Node 2 subscribe configuration / unlock / close / alarm.
   Node chỉ publish event topic được liệt kê trong ACL của chính mình.
   Backend dùng user riêng đọc events / ghi commands nhiều Door.
   ACL không thay kiểm tra node_type ở Backend.
@@ -34,11 +36,13 @@ end note
 legend bottom
   QoS 1 cho các luồng đã đặc tả; consumer phải idempotent.
   Retained: chỉ commands/configuration và commands/credentials.
-  Không retained: unlock, access-result, alarm và tất cả events.
-  Unlock / access-result / alarm có thời hạn; không replay mở khóa khi reconnect.
+  Không retained: unlock, close, access-result, alarm và tất cả events.
+  Unlock / close / access-result / alarm có thời hạn; không replay lệnh khi reconnect.
   SENT / PUBACK = Broker nhận; SYNCED = Node ACK phiên bản đã áp dụng.
   ACTIVE cho nghiệp vụ; setup sau claim cho PROVISIONED / DISABLED; RETIRED bị từ chối.
-  Credential / ACL cũ cần thu hồi khi thay Node; workflow replacement chưa hoàn thiện.
+  V13 tự xuất private manifest; supervisor cập nhật password / ACL và reload Broker.
+  Reload không chứng minh phiên cũ đã ngắt; thay Node cần bằng chứng thu hồi V12.
+  Thu hồi bằng CLI restart/ngắt phiên + kiểm tra khóa cũ; chưa có giao diện chuyển bo sang Door khác.
 endlegend
-footer Cập nhật 06/11/2026 | Schema V10 | Offline còn thuộc phạm vi
+footer Đối chiếu source 15/11/2026 | V13 | Sơ đồ 6 tạm hoãn
 @enduml

@@ -1,0 +1,78 @@
+@startuml
+!theme plain
+skinparam shadowing false
+skinparam defaultFontName Arial
+skinparam backgroundColor white
+autonumber
+skinparam maxMessageSize 240
+title 8b. Cài Wi-Fi trên App và ESP32 tự nhận danh tính sau claim
+actor "Chủ nhà" as Owner
+participant "Flutter Android" as App
+participant "ESP32 đang cài\nDeviceEnrollment" as ESP
+participant "Router Wi-Fi nhà" as AP
+participant "Backend\nOnboardingService" as BE
+database "MySQL V13" as DB
+queue "Mosquitto" as MQ
+note over Owner,ESP
+  Điều kiện: bo đã nạp firmware/header đúng vai trò; Door đã claim.
+  Đây là thao tác lặp riêng cho Node 1 rồi Node 2.
+end note
+Owner -> App : Chi tiết cửa → Thiết lập Wi-Fi và kích hoạt
+App -> BE : GET /doors/{doorId}/setup-nodes + JWT\nKhi điện thoại còn truy cập được Backend
+BE -> DB : Kiểm tra chủ cửa; lấy hai inventory unit
+BE --> App : unitCode / nodeType / setupSsid / setupCode
+loop Từng ESP32
+  Owner -> ESP : Cấp nguồn khi chưa có Wi-Fi\nHoặc giữ BOOT/GPIO0 3 giây khi đang chạy
+  ESP -> ESP : Mở SoftAP SmartDoor-{8 ký tự đầu unitCode}\nMật khẩu setupCode; portal hết hạn sau 20 phút
+  Owner -> App : Chọn Cài Wi-Fi NODE_1 hoặc NODE_2\nBấm Mở cài đặt Wi-Fi điện thoại
+  App --> Owner : Hiển thị SSID và mật khẩu thiết lập
+  Owner -> ESP : Trong Android: kết nối SoftAP\nGiữ kết nối dù không có Internet
+  Owner -> App : Quay lại App; mã đã điền sẵn\nCó thể quét QR hoặc nhập mã trên tem
+  App -> ESP : Wi-Fi transport Android → 192.168.4.1/api/info
+  ESP --> App : unitCode / nodeType / connectivity
+  alt Kết nối nhầm bo
+    App --> Owner : Báo sai Node; không gửi Wi-Fi nhà
+  else Đúng bo
+    opt Tìm Wi-Fi thay vì gõ SSID
+      App -> ESP : GET /api/networks + X-Setup-Code
+      ESP --> App : Quét bất đồng bộ; danh sách mạng\nCó thể bấm lại hoặc nhập SSID tay
+    end
+    Owner -> App : Chọn/nhập SSID 2.4 GHz và mật khẩu Wi-Fi nhà
+    App -> ESP : POST /api/wifi + X-Setup-Code\nBody ssid/password; không gửi JWT
+    alt Mã sai / dữ liệu sai / không lưu được
+      ESP --> App : 403 / 400 / 500; không báo thành công
+    else Lưu và đọc kiểm tra NVS thành công
+      ESP --> App : 202 accepted; đã nhận cấu hình Wi-Fi\nChưa chứng minh kết nối Backend thành công
+      ESP -> AP : Kết nối Wi-Fi nhà bằng dữ liệu vừa lưu
+      Owner -> App : Đưa điện thoại về Wi-Fi nhà
+      loop Mỗi 10 giây nếu có Wi-Fi nhưng chưa có danh tính sử dụng được
+        ESP -> BE : POST /api/v1/device-enrollment\nunitCode + bootstrapSecret; URL đã nằm trong private header
+        BE -> DB : Xác minh bootstrap; unit đã gắn; Door đã claim\nTransport chưa revoked; Device không RETIRED
+        alt Bootstrap sai
+          BE --> ESP : 401
+        else Chưa gắn / chưa claim
+          BE --> ESP : 409; chưa cấp danh tính
+        else Đủ điều kiện
+          BE --> ESP : Door ID / deviceCode / credentialId\nMQTT host:port / user / password / signingKey
+          ESP -> ESP : Lưu + đọc kiểm tra identity NVS; restart
+        end
+      end
+      ESP -> AP : Kết nối lại Wi-Fi nhà đã lưu
+      ESP -> MQ : MQTT bằng danh tính riêng; đồng bộ NTP\nSubscribe commands; signed heartbeat / sync-ack
+      MQ -> BE : Event; Backend xác minh + ghi trạng thái
+    end
+  end
+end
+Owner -> App : Đã về mạng nhà, cập nhật trạng thái
+App -> BE : Đọc thiết bị; kiểm tra heartbeat và đồng bộ
+BE --> App : ONLINE/OFFLINE/UNKNOWN riêng từng bo + applied versions
+note over App,BE
+  Wi-Fi nhà gửi trực tiếp đến ESP32, không lưu tại Backend.
+  Đổi Wi-Fi dùng lại portal BOOT; không phải nạp lại firmware.
+  Local: HTTP / MQTT TCP; HTTPS bootstrap yêu cầu CA hợp lệ.
+  Endpoint setup-nodes trong sơ đồ có prefix /api/v1.
+  Kết nối thành công không tự ACTIVE; tiếp tục PIN/config + complete-setup ở sơ đồ 8.
+end note
+
+footer Đối chiếu source 15/11/2026 | V13 | Sơ đồ 6 tạm hoãn
+@enduml

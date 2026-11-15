@@ -3,7 +3,7 @@ title: Tham khảo kỹ thuật
 type: moc
 lang: vi
 tags: [technical-reference]
-updated: 2026-11-06
+updated: 2026-11-15
 ---
 
 # Tham khảo kỹ thuật
@@ -13,7 +13,7 @@ Khu vực tập trung kiến trúc hiện tại và các tài liệu kỹ thuậ
 ## Tài liệu
 
 - [Kiến trúc hệ thống](architecture.md)
-- [Hồ sơ sơ đồ hệ thống V10](system-design-review.md) — 9 nhóm hiện trạng, 2 nhóm phần cứng tham chiếu; sơ đồ 6 tạm hoãn, offline vẫn thuộc phạm vi
+- [Hồ sơ sơ đồ hệ thống V13](system-design-review.md) — 11 nhóm cập nhật, có luồng App kỹ thuật viên và Wi-Fi ESP32; sơ đồ 6 tạm hoãn
 - [Database ERD](database-erd.md)
 - [Khởi tạo và chuyển đổi database](database-setup.md)
 - [Kết nối phần cứng](hardware-wiring.md)

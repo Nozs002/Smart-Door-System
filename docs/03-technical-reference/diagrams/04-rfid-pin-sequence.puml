@@ -3,14 +3,15 @@
 skinparam shadowing false
 skinparam defaultFontName Arial
 skinparam backgroundColor white
+skinparam maxMessageSize 240
 autonumber
 title 4. RFID/PIN online — quyết định cấp quyền tách khỏi thực thi
 actor "Người dùng" as User
-participant "Node 1\nTheo hợp đồng firmware" as N1
+participant "Node 1\nRC522 / keypad / LCD" as N1
 queue "Mosquitto + ACL" as MQ
 participant "Backend\nSigned message / AccessAuthenticationService" as BE
-database "MySQL V10" as DB
-participant "Node 2\nTheo hợp đồng firmware" as N2
+database "MySQL V13" as DB
+participant "Node 2\nServo SG90 / MC-38" as N2
 User -> N1 : Quét RFID / nhập PIN
 N1 -> MQ : events/access-request\nSigned envelope, eventId UUID, method, value, occurredAt
 MQ -> BE : Chỉ đúng topic Door / deviceCode
@@ -19,7 +20,9 @@ BE -> DB : BEGIN; khóa Door; kiểm tra eventId\nKhóa bộ đếm theo Door / 
 alt Yêu cầu nghiệp vụ đã xử lý
   BE -> DB : Đọc quyết định cũ; enqueue ACCESS_RESULT
   note right of BE : Không tăng bộ đếm, không tạo lệnh mở lần hai
-else Đang khóa tạm
+else Chế độ AUTOMATIC (giữ mở)
+  BE -> DB : DENIED / SECURITY_DISABLED + ACCESS_RESULT\nKhông tăng bộ đếm, không tạo lệnh mở
+else Đang khóa tạm trong SECURITY
   BE -> DB : Lưu DENIED / LOCKED_OUT, locked_until\nEnqueue ACCESS_RESULT; không tăng số lần sai
 else Chưa khóa tạm
   BE -> DB : Kiểm tra RFID / PIN đúng Door\nCardholder / credential còn hiệu lực
@@ -45,15 +48,18 @@ N1 -> User : Hiển thị phản hồi
 opt Có lệnh mở hợp lệ và chưa hết hạn
   BE -> MQ : Dispatcher gửi commands/unlock\ncommandId + expiresAt, retain=false
   MQ -> N2 : Lệnh đúng Node 2
-  N2 -> N2 : Kiểm tra hạn; dedupe bền vững commandId\nThực thi relay theo firmware
+  N2 -> N2 : Kiểm tra hạn / NTP; dedupe commandId trong NVS\nPhát lệnh servo 180°, lưu journal trước ACK
   N2 -> MQ : events/command-ack ký HMAC\nEXECUTED / REJECTED
   MQ -> BE : ACK đúng danh tính
   BE -> DB : Cập nhật kết quả lệnh + log thực thi\nLiên kết correlation_id với quyết định
+  N2 -> N2 : Mở bình thường: giữ 10 giây rồi đóng 90°\nBáo nhiệt / AUTOMATIC có chính sách ưu tiên riêng
+  N2 -> MQ : events/telemetry: MC-38 / nhiệt độ / độ ẩm\nlockState=UNKNOWN; không suy từ ACK
 end
 note over BE,DB
   GRANTED là quyết định xác thực; EXECUTED là phản hồi thực thi.
   value (UID/PIN) không lưu vào access log.
-  V10 cho phép kind ACCESS_RESULT / ALARM trong outbox.
+  Node 1 ngừng gửi yêu cầu mới khi đã áp dụng AUTOMATIC.
+  SECURITY_DISABLED bảo vệ khi yêu cầu đến từ cấu hình cũ.
   Outbox kết quả và dispatcher mở khóa chạy độc lập sau commit;
   thứ tự phản hồi Node 1 và thực thi Node 2 không được bảo đảm.
 end note
@@ -61,5 +67,5 @@ legend bottom
   Luồng online đã chạy với Node giả lập. Nhánh offline còn thuộc phạm vi,
   cần thiết kế riêng cache quyền / kênh hai Node; sơ đồ này không mô tả nhánh đó.
 endlegend
-footer Cập nhật 06/11/2026 | Schema V10 | Offline còn thuộc phạm vi
+footer Đối chiếu source 15/11/2026 | V13 | Sơ đồ 6 tạm hoãn
 @enduml

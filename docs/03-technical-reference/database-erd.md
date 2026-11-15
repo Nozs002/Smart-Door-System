@@ -1,16 +1,16 @@
 ---
 title: Database ERD
 type: technical-reference
-version: 4.0
+version: 5.0
 lang: vi
 tags: [database, erd, mysql, ownership, device-lifecycle]
-updated: 2026-11-06
+updated: 2026-11-12
 ---
 
 # Database ERD
 
-Bản hiện tại dùng **Flyway V1–V10**, gồm 19 bảng nghiệp vụ và bảng lịch sử Flyway,
-với 31 khóa ngoại. V10 sửa CHECK của `integration_outbox.kind`, không thêm bảng/cột.
+Bản hiện tại dùng **Flyway V1–V13**, gồm 21 bảng nghiệp vụ và bảng lịch sử Flyway,
+với 35 khóa ngoại. V13 thêm phân quyền kỹ thuật viên, kho thiết bị và bộ lắp đặt.
 `init.sql` vẫn là bootstrap 12 bảng gốc; Backend áp dụng các migration tiếp theo.
 Các bảng mới và sơ đồ quan hệ cập nhật nằm tại mục 5 cuối tài liệu. Xem
 [bàn giao Người 1, Người 4](../05-backend/person1-person4-completion.md) để chạy
@@ -426,3 +426,13 @@ Node gửi trùng yêu cầu. `control_commands.access_method` phân biệt APP/
 temperature/humidity (nullable), door_state, lock_state, observed_at, received_at.
 Index `(door_id, observed_at, id)` dùng đọc mẫu mới nhất theo thời điểm nguồn;
 mẫu đến trễ không thay mẫu mới. Không dùng commanded_lock_state làm số đo.
+
+## 6. Bổ sung onboarding V13
+
+Migration V13 thêm `accounts.role` với CUSTOMER mặc định và TECHNICIAN,
+`device_inventory` lưu định danh ESP32 trước khi gắn vào Door và
+`installation_kits` ghi yêu cầu tạo bộ cửa theo kỹ thuật viên. Cột
+`device_inventory.device_id` unique giữ mỗi board gắn một Device. Hai bảng có
+bốn FK mới, nâng tổng lên 21 bảng nghiệp vụ và 35 FK. Xem
+[ERD đầy đủ V13](diagrams/07-database-erd.svg) và
+[contract onboarding](../../contracts/api/device-onboarding.md).

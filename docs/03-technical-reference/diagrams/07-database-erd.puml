@@ -7,7 +7,7 @@ skinparam nodesep 55
 skinparam ranksep 75
 hide methods
 hide circle
-title 7a. ERD MySQL V12 — 19 bảng nghiệp vụ + lịch sử Flyway, đủ 31 FK
+title 7a. ERD MySQL V13 — 21 bảng nghiệp vụ + lịch sử Flyway, đủ 35 FK
 entity access_logs {
   {field} * id : BIGINT UNSIGNED <<PK>>
   {field} * event_id : VARCHAR(100) <<UQ>>
@@ -32,6 +32,7 @@ entity accounts {
   {field} * auth_version : BIGINT UNSIGNED
   {field} * status : ENUM
   {field} * created_at : DATETIME(3)
+  {field} * role : VARCHAR(20)
 }
 entity alerts {
   {field} * id : BIGINT UNSIGNED <<PK>>
@@ -67,6 +68,13 @@ entity control_commands {
   {field} * access_method : VARCHAR(24)
   {field} * action : VARCHAR(16)
 }
+entity device_inventory {
+  {field} * unit_code : VARCHAR(40) <<PK>>
+  {field} * node_type : VARCHAR(10)
+  {field} * created_by : BIGINT UNSIGNED <<FK>>
+  {field} device_id : BIGINT UNSIGNED NULL <<FK,UQ>>
+  {field} * created_at : DATETIME(3)
+}
 entity device_lifecycle_events {
   {field} * id : BIGINT UNSIGNED <<PK>>
   {field} * event_id : VARCHAR(100) <<UQ>>
@@ -85,8 +93,8 @@ entity device_transport_credentials {
   {field} * credential_id : VARCHAR(36) <<UQ>>
   {field} verified_at : DATETIME(3) NULL
   {field} revoked_at : DATETIME(3) NULL
-  {field} broker_revoked_at : DATETIME(3) NULL
   {field} * created_at : DATETIME(3)
+  {field} broker_revoked_at : DATETIME(3) NULL
 }
 entity devices {
   {field} * id : BIGINT UNSIGNED <<PK>>
@@ -167,6 +175,12 @@ entity flyway_schema_history {
   {field} * execution_time : INT
   {field} * success : TINYINT(1)
 }
+entity installation_kits {
+  {field} * request_id : VARCHAR(36) <<PK>>
+  {field} * technician_id : BIGINT UNSIGNED <<FK>>
+  {field} * door_id : BIGINT UNSIGNED <<FK,UQ>>
+  {field} * created_at : DATETIME(3)
+}
 entity integration_outbox {
   {field} * id : BIGINT UNSIGNED <<PK>>
   {field} * kind : VARCHAR(32)
@@ -246,6 +260,8 @@ doors ||--o{ alerts : door_id
 devices |o--o{ alerts : source_device_id, door_id
 accounts ||--o{ cardholders : account_id
 doors ||--o{ control_commands : door_id, account_id
+accounts ||--o{ device_inventory : created_by
+devices |o--o| device_inventory : device_id
 devices ||--o{ device_lifecycle_events : device_id, door_id
 devices |o--o{ device_lifecycle_events : replacement_device_id, door_id
 doors |o--o{ device_lifecycle_events : door_id, actor_account_id
@@ -257,6 +273,8 @@ doors ||--o| door_configs : door_id
 doors ||--o{ door_telemetry : door_id
 devices ||--o{ door_telemetry : source_device_id
 accounts |o--o{ doors : owner_account_id
+doors ||--o| installation_kits : door_id
+accounts ||--o{ installation_kits : technician_id
 doors ||--o{ integration_outbox : door_id
 devices ||--o{ integration_outbox : device_id, door_id
 doors ||--o{ lockout_statuses : door_id
@@ -272,10 +290,10 @@ legend bottom
   * = NOT NULL; PK = khóa chính; FK = khóa ngoại; UQ = duy nhất.
   Quan hệ vẽ theo khả năng của SQL; provision/service có thể yêu cầu chặt hơn.
   Tất cả FK dùng DELETE RESTRICT; giữ lịch sử thiết bị / thẻ / truy cập.
-  V10: kind outbox = CONFIGURATION | CREDENTIALS | ACCESS_RESULT | ALARM.
+  V13: vai trò Account, kho định danh ESP32 và bộ cửa lắp đặt; V12: bằng chứng thu hồi Broker.
   Composite FK bảo vệ phạm vi; telemetry Device/Door là hai FK độc lập, Backend kiểm tra cùng cửa.
   control_commands.device_code không có FK trực tiếp; Backend kiểm tra mapping Node 2.
-  flyway_schema_history là bảng kỹ thuật, không tính trong 19 bảng nghiệp vụ.
+  flyway_schema_history là bảng kỹ thuật, không tính trong 21 bảng nghiệp vụ.
 endlegend
-footer Metadata V10 kiểm tra ngày 06/11/2026; không chứa dữ liệu người dùng
+footer Metadata V13 kiểm tra 12/11; đối chiếu migration/source 15/11/2026; không chứa dữ liệu người dùng
 @enduml

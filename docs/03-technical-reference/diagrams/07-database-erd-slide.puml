@@ -5,7 +5,7 @@ skinparam defaultFontName Arial
 skinparam backgroundColor white
 hide methods
 hide circle
-title 7b. ERD rút gọn — 19 bảng nghiệp vụ, nhóm theo trách nhiệm
+title 7b. ERD rút gọn — 21 bảng nghiệp vụ, có inventory và installation kits
 entity accounts
 entity cardholders
 entity doors
@@ -25,9 +25,15 @@ entity device_transport_credentials
 entity processed_device_messages
 entity control_commands
 entity door_telemetry
+entity device_inventory
+entity installation_kits
 accounts ||--o{ cardholders
 accounts |o--o{ doors : chủ (NULL trước claim)
 accounts ||--o{ revoked_access_tokens
+accounts ||--o{ device_inventory : kỹ thuật viên tạo
+accounts ||--o{ installation_kits : kỹ thuật viên lắp
+devices |o--o| device_inventory : bo đã gắn
+doors ||--o| installation_kits
 doors ||--o{ devices
 doors ||--o| door_configs
 doors ||--o| system_pins
@@ -45,10 +51,11 @@ doors ||--o{ integration_outbox
 doors ||--o{ control_commands
 doors ||--o{ door_telemetry
 legend bottom
-  Bản slide lược bớt cạnh FK và thuộc tính; xem 7a để có đủ 31 FK.
+  Bản slide lược bớt cạnh FK và thuộc tính; xem 7a để có đủ 35 FK.
   Composite FK giữ phạm vi Door / Account / Device; xóa theo RESTRICT.
   Không xóa lịch sử khi thu hồi RFID hoặc ngừng sử dụng thiết bị.
-  flyway_schema_history là bảng kỹ thuật, không tính trong 19 bảng nghiệp vụ.
+  flyway_schema_history là bảng kỹ thuật, không tính trong 21 bảng nghiệp vụ.
+  accounts.role phân biệt CUSTOMER / TECHNICIAN; role không thay quyền sở hữu Door.
 endlegend
-footer Cập nhật 06/11/2026 | Schema V10 | Offline còn thuộc phạm vi
+footer Đối chiếu source 15/11/2026 | V13 | Sơ đồ 6 tạm hoãn
 @enduml

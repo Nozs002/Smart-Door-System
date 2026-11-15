@@ -1,93 +1,113 @@
 ---
-title: Hồ sơ thiết kế hệ thống và sơ đồ theo hiện trạng V10
+title: Hồ sơ thiết kế hệ thống và sơ đồ theo hiện trạng V13
 type: technical-reference
-version: 2.0
+version: 3.0
 lang: vi
-tags: [architecture, diagrams, review, hardware, mqtt, ownership]
-updated: 2026-11-06
+tags: [architecture, diagrams, review, hardware, mqtt, ownership, onboarding]
+updated: 2026-11-15
 ---
 
 # Hồ sơ thiết kế hệ thống Smart Door
 
-> **Cập nhật 12/11/2026:** source đã có firmware tích hợp Node 1/Node 2,
-> CLOSE và schema V12. Xem [bản sửa trước onboarding](../05-backend/pre-onboarding-fixes.md)
-> để biết trạng thái hiện tại, cách kích hoạt bộ mới, thu hồi Broker và test.
-> Những sơ đồ còn ghi V10 là ảnh chụp thiết kế 06/11, không phải bằng chứng
-> nghiệm thu firmware hiện tại. Sơ đồ 6 tiếp tục tạm hoãn; offline vẫn trong phạm vi.
+Bộ sơ đồ này được đối chiếu source trong workspace ngày **15/11/2026**, gồm
+schema V13, App theo vai trò CUSTOMER/TECHNICIAN, đăng ký ESP32, bàn giao cửa,
+SoftAP cài Wi-Fi và firmware tích hợp hai Node. Tài liệu đi cùng thay đổi
+onboarding V13 trong PR, thay cho mốc thiết kế V10 trước đây.
 
-Hồ sơ này cập nhật bộ sơ đồ theo source tại commit `253d14e` (bản sửa V10),
-đã đưa vào `dev` qua [PR #21](https://github.com/Nozs002/Smart-Door-System/pull/21).
-Thay cho bản rà soát 27/10/2026, hồ sơ phản ánh JWT, đồng bộ, MQTT có ACL,
-RFID/PIN, lệnh mở khóa, lịch sử và telemetry hiện đã có code.
+**Nhóm vẫn làm offline; sơ đồ 6 tạm hoãn theo yêu cầu.** Node 2 có một số
+thao tác tại chỗ, nhưng xác thực RFID/PIN và mở khóa offline giữa hai Node
+chưa hoàn thiện. Không tự chọn ESP-NOW, UART hoặc giao thức khác thay nhóm.
 
-**Phạm vi mới nhất của nhóm: vẫn làm offline; tạm chưa làm sơ đồ 6.** Luồng
-online đủ thông tin được mô tả chi tiết. Node 1 hiện đã lưu snapshot PIN/thẻ,
-nhưng kênh mở offline, hiệu lực quyền offline, thu hồi khi mất mạng và đối soát
-sau reconnect vẫn chưa được chốt hoặc hiện thực đầy đủ.
-Không tự chọn ESP-NOW, dây nối hay cơ chế cache thay nhóm firmware.
+Thiết kế theo code không phải biên bản nghiệm thu phần cứng. Bản onboarding
+đã được thử bằng giả lập; SoftAP, camera, nguồn và cơ khí cần thử trên bo thật.
+Xem [hướng dẫn bàn giao và chạy thử](../05-backend/device-onboarding.md).
 
 ## Mục lục và mức hoàn thiện
 
-| Số | Sơ đồ | Mức hoàn thiện |
+| Số | Sơ đồ | Hiện trạng tài liệu |
 | --- | --- | --- |
-| [1](#diagram-01) | Kiến trúc tổng thể | Hoàn thiện theo hiện trạng phần mềm; firmware/offline có nhãn |
-| [2](#diagram-02) | Khối phần cứng | Hoàn thiện phân vai; model linh kiện và nguồn còn TBD |
-| [3](#diagram-03) | Miền và quan hệ sở hữu | Hoàn thiện |
-| [4](#diagram-04) | RFID/PIN | Hoàn thiện luồng online; offline cần thiết kế riêng |
-| [5](#diagram-05) | Điều khiển từ App | Hoàn thiện luồng online, ACK và timeout |
-| 6 | Cảnh báo và mất kết nối | **Tạm hoãn theo yêu cầu; không phát hành sơ đồ cũ** |
-| [7](#diagram-07) | ERD đầy đủ và rút gọn | Bản đầy đủ đã thêm action V11 và broker_revoked_at V12; 31 FK |
-| [8](#diagram-08) | Provision, claim và kích hoạt | Hoàn thiện luồng backend / MQTT |
-| [9](#diagram-09) | Trạng thái thiết bị | Hoàn thiện hiện trạng, chỉ rõ thay Node còn bị chặn |
-| [10](#diagram-10) | MQTT và ACL | Hoàn thiện hợp đồng hiện tại |
-| [11](#diagram-11) | Triển khai | Hoàn thiện bản local; triển khai Internet/TLS chưa chốt |
-| [12](#diagram-12) | Đấu nối phần cứng | Khung tham chiếu TBD; chưa phải bản thi công |
+| [1](#diagram-01) | Kiến trúc tổng thể | Cập nhật V13, role, SoftAP, bootstrap và manifest Broker |
+| [2](#diagram-02) | Khối phần cứng | Khớp LCD/RC522/keypad và SG90/DHT11/MC-38; nguồn cần xác nhận |
+| [3](#diagram-03) | Miền và sở hữu | Thêm InventoryUnit, InstallationKit và role; tách kỹ thuật viên khỏi chủ cửa |
+| [4](#diagram-04) | RFID/PIN online | Quyết định, khóa tạm, AUTOMATIC, điều khiển servo và telemetry |
+| [5](#diagram-05) | Điều khiển từ App | UNLOCK/CLOSE, ACK, timeout, điều kiện từ chối và trạng thái quan sát |
+| 6 | Cảnh báo và mất kết nối | **Tạm hoãn; không nhúng hoặc phát hành bản cũ** |
+| [7](#diagram-07) | ERD đầy đủ và rút gọn | Cùng V13: 21 bảng nghiệp vụ, 35 FK; đầy đủ có lịch sử Flyway |
+| [8](#diagram-08) | Đăng ký, provision, claim và kích hoạt | Thay CLI trong luồng chính bằng App; có sơ đồ 8b cài Wi-Fi chi tiết |
+| [9](#diagram-09) | Trạng thái thiết bị | Lifecycle, kết nối và trạng thái Door riêng; thay Node có điều kiện V12 |
+| [10](#diagram-10) | MQTT và ACL | Có CLOSE, retained/QoS, danh tính riêng và manifest tự cập nhật |
+| [11](#diagram-11) | Triển khai | Docker/volume/cổng, USB debug và đường LAN riêng của ESP32 |
+| [12](#diagram-12) | Đấu nối | GPIO theo firmware; còn phải xác nhận board, nguồn và dây thực tế |
 
-Có **9 nhóm sơ đồ theo hiện trạng phần mềm**, **2 nhóm tham chiếu phần cứng**
-và **1 nhóm tạm hoãn**. ERD có hai bản nên tổng số cặp `.puml`/`.svg` phát hành
-là 12. Source `.puml` là bản chính; SVG sinh bằng PlantUML để xem trên GitHub.
+Có **11 nhóm đã cập nhật**, gồm **13 cặp `.puml`/`.svg`** do nhóm 7 có hai bản
+ERD và nhóm 8 có thêm sơ đồ Wi-Fi. Sơ đồ 6 nằm ngoài danh sách phát hành.
+Source PlantUML là bản chính; SVG sinh từ source để xem trực tiếp trên GitHub.
 
-“Có code” không đồng nghĩa đã chạy trên ESP32. Mũi tên đến Node mô tả hợp đồng
-firmware cần thực hiện; các luồng phần mềm đã được thử bằng Node giả lập.
+## Thay đổi so với bộ sơ đồ cũ
+
+- Luồng chính không yêu cầu kỹ thuật viên sửa DB hoặc chạy CLI để tạo bộ cửa.
+  App gọi API có phân quyền để đăng ký kho, tạo bộ cửa và cấp mã bàn giao.
+- Đăng ký Node chỉ tạo danh tính trên hệ thống, không nạp chương trình vào bo.
+  Xưởng vẫn nạp firmware/header riêng qua USB; kỹ thuật viên lắp đặt dùng App
+  với bo đã chuẩn bị. QR là tem danh tính, không phải công cụ nạp firmware.
+- Mã Node/setup thuộc từng ESP32; mã claim thuộc Door. Mọi nơi quét QR có
+  đường nhập tay. Chủ nhà claim trước, sau đó ESP32 mới được enrollment.
+- ESP32 nhận Door ID và MQTT identity từ Backend sau claim. Wi-Fi nhà được
+  gửi trực tiếp từ điện thoại đến từng SoftAP, không nhập vào DB/Backend.
+- Khối phần cứng và đấu nối chuyển từ OLED/relay tham chiếu sang LCD/servo
+  của firmware hiện tại. Exit vẫn được ghi là chưa đấu/tích hợp.
+- ERD rút gọn lên V13, bỏ số bảng/FK cũ. Lifecycle bổ sung complete-setup
+  nguyên tử và bằng chứng thu hồi Broker, không vẽ chuyển bo sang Door khác
+  như chức năng đã có.
 
 <a id="diagram-01"></a>
 ## 1. Kiến trúc tổng thể
 
-![Kiến trúc hệ thống](diagrams/01-system-overview.svg)
+![Kiến trúc hệ thống V13](diagrams/01-system-overview.svg)
 
 [Source](diagrams/01-system-overview.puml).
 
-App dùng REST và JWT với Backend. Backend truy cập MySQL qua JDBC và trao đổi
-MQTT với Broker. Mỗi Node dùng credential riêng, Broker giới hạn topic, Backend
-kiểm tra thêm chữ ký và Door/Device/vai trò. App không truy cập DB hay MQTT
-trực tiếp. Thông báo hiện là inbox bền vững và polling foreground, chưa có FCM.
-Kênh trực tiếp giữa hai Node khi offline vẫn cần nhóm thiết kế.
+Flutter gọi REST với JWT; Backend xử lý nghiệp vụ, JDBC/MySQL và MQTT.
+TECHNICIAN có kho/bộ cửa riêng; CUSTOMER claim, thiết lập và điều khiển cửa
+của mình. App không truy cập DB/MQTT trực tiếp. Thông báo hiện dùng inbox và
+polling foreground, chưa có FCM.
+
+SoftAP là đường cài đặt tạm giữa điện thoại và từng ESP32. Sau khi có Wi-Fi
+nhà, ESP32 gọi enrollment qua mạng đến server rồi dùng MQTT với credential
+riêng. Địa chỉ bootstrap phải truy cập được từ nơi đặt bo. Supervisor nhận
+manifest riêng trên volume để cập nhật user/password/ACL của Broker.
 
 <a id="diagram-02"></a>
 ## 2. Khối phần cứng hai Node
 
-![Khối phần cứng](diagrams/02-hardware-blocks.svg)
+![Khối phần cứng theo firmware](diagrams/02-hardware-blocks.svg)
 
 [Source](diagrams/02-hardware-blocks.puml).
 
-Source firmware mới dùng Node 1: RC522, Keypad, **LCD I2C 16×2**; Node 2:
-**servo, DHT11, MC-38**, Buzzer, Exit. Sơ đồ phần cứng cũ còn ghi OLED/relay
-là phương án trước đây; tra bảng GPIO trong README hai sketch khi đấu mô hình.
-Nguồn cấp/cơ khí và kiểm chứng trên board thật vẫn cần nghiệm thu riêng.
+Node 1 có **RC522, keypad 4x3, LCD I2C 16x2**. Node 2 có **servo SG90,
+DHT11, MC-38, buzzer và LED**. Servo điều khiển mô hình cánh cửa; không vẽ
+relay/khóa điện như phần cứng đã tích hợp. Exit chưa có GPIO/luồng tích hợp.
+
+Node 2 có timer đóng sau mở bình thường và phản ứng nhiệt tại chỗ. Điều này
+không chứng minh RFID/PIN offline giữa hai Node đã hoạt động. Nguồn, board và
+cơ khí phải đối chiếu bộ demo thật; xem sơ đồ 12.
 
 <a id="diagram-03"></a>
 ## 3. Mô hình miền và sở hữu
 
-![Miền và sở hữu](diagrams/03-domain-ownership.svg)
+![Miền và sở hữu V13](diagrams/03-domain-ownership.svg)
 
 [Source](diagrams/03-domain-ownership.puml).
 
-Account đăng nhập và sở hữu Door. Cardholder thuộc Account, không cần đăng
-nhập; RFID liên kết Cardholder với một Door của cùng Account. Một bảng lưu
-nhiều khách hàng nhưng API lọc theo Account từ JWT. Door chưa claim chưa có
-chủ. Các Device cũ được giữ; chỉ tối đa một ACTIVE cho mỗi vai trò tại một Door.
-Sơ đồ dùng bội số SQL, nên Door có thể chưa có PIN/config; provision và service
-áp dụng các điều kiện nghiệp vụ chặt hơn trước khi kích hoạt.
+Account đăng nhập và sở hữu Door; Cardholder là hồ sơ người được cấp quyền,
+không bắt buộc có tài khoản đăng nhập. RFID được cấp theo từng Door của cùng
+Account. API lấy accountId từ JWT và lọc theo chủ, dù DB dùng chung bảng.
+
+InventoryUnit là danh tính bo do kỹ thuật viên đăng ký. Khi tạo bộ cửa, nó
+mới liên kết với Device thuộc Door. InstallationKit lưu kỹ thuật viên và
+requestId để retry. Role kỹ thuật viên không cấp quyền mở cửa khách hàng.
+Kho đang theo creator; chưa có luồng chuyển kho giữa kỹ thuật viên hoặc
+chuyển một bo đã gắn sang Door khác. Device cũ được giữ để truy lịch sử.
 
 <a id="diagram-04"></a>
 ## 4. Xác thực RFID/PIN online
@@ -96,173 +116,207 @@ Sơ đồ dùng bội số SQL, nên Door có thể chưa có PIN/config; provis
 
 [Source](diagrams/04-rfid-pin-sequence.puml).
 
-Backend xác minh envelope và vai trò Node 1, khóa Door/bộ đếm theo phương thức,
-kiểm tra quyền thẻ/PIN và ghi quyết định. Đúng quyền được ghi `GRANTED`; nếu
-Node 2 sẵn sàng thì tạo lệnh mở. `CONTROL_UNAVAILABLE` vẫn có thể đi kèm quyết
-định hợp lệ, vì chưa thể điều khiển. Gửi trùng eventId không đếm sai hoặc mở
-lần hai. Đạt ngưỡng sai tạo khóa tạm, cảnh báo, inbox và lệnh còi hết hạn.
+Node 1 đọc thông tin, Backend kiểm tra envelope, vai trò, quyền theo Door,
+bộ đếm sai và khóa tạm. Đúng quyền ghi GRANTED; chỉ tạo lệnh mở khi Node 2
+và transport sẵn sàng. CONTROL_UNAVAILABLE có thể đi cùng quyết định hợp lệ.
+eventId trùng không tăng số lần sai hoặc mở lại. Không lưu UID/PIN rõ vào log.
 
-Log quyết định và log thực thi được liên kết bằng correlationId. Không ghi
-UID/PIN vào log. V10 sửa CHECK để outbox nhận `ACCESS_RESULT` và `ALARM`.
-Offline còn thuộc phạm vi nhưng không được suy ra từ luồng online này.
+Trong AUTOMATIC (tắt bảo mật/giữ mở), Node 1 ngừng gửi yêu cầu mới; yêu cầu
+từ cấu hình cũ nhận SECURITY_DISABLED, không tăng bộ đếm hay kích còi.
+GRANTED khác EXECUTED; servo thực thi và telemetry cánh cửa là các bước riêng.
 
 <a id="diagram-05"></a>
 ## 5. Điều khiển cửa từ App
 
-![Mở khóa từ App](diagrams/05-app-control-sequence.svg)
+![Mở và đóng từ App](diagrams/05-app-control-sequence.svg)
 
 [Source](diagrams/05-app-control-sequence.puml).
 
-`POST /api/v1/doors/{doorId}/commands` lấy Account từ JWT, kiểm tra chủ cửa,
-Door ACTIVE, Node 2 ACTIVE/ONLINE và kết nối MQTT. UUID requestId giữ retry
-nhất quán; tối đa một lệnh đang chờ còn hạn mỗi cửa. Lệnh có hạn 15 giây,
-QoS 1, không retained. Lỗi giao kết quả chưa rõ dẫn đến `UNKNOWN`, không tự
-gửi lại thao tác mở khóa. Không có ACK đúng hạn dẫn đến `TIMED_OUT`; ACK muộn
-không đổi thành thành công. App thăm dò khi đang mở màn điều khiển.
+Mở cửa bằng vuốt; đóng cửa bằng nút và xác nhận. POST commands nhận UNLOCK
+hoặc CLOSE, lấy Account từ JWT và kiểm tra chủ cửa, Door ACTIVE, Node 2
+ACTIVE/ONLINE, MQTT sẵn sàng và không có lệnh trước còn chờ. CLOSE bị chặn
+trong AUTOMATIC; firmware từ chối CLOSE khi đang báo nhiệt.
 
-`SENT`/MQTT PUBACK khác ACK thực thi; `EXECUTED` khác xác nhận vị trí vật lý.
-Phép đo trạng thái cửa/chốt cần firmware và cảm biến thực tế phù hợp.
+UUID requestId chống tạo lệnh lặp; thời hạn 15 giây. Kết quả gửi không rõ là
+UNKNOWN, không tự phát lại thao tác; thiếu ACK đúng hạn là TIMED_OUT. ACK muộn
+không đổi thành thành công. Node lưu journal trước ACK, mở bình thường giữ
+10 giây rồi tự đóng; nhiệt/giữ mở có chính sách riêng.
+
+SENT/PUBACK khác ACK thực thi. EXECUTED/commandedLockState không phải phép đo
+vị trí thật; MC-38 đo cánh cửa, còn telemetry lockState là UNKNOWN vì servo
+không có cảm biến phản hồi chốt.
 
 ## 6. Cảnh báo và mất kết nối — tạm hoãn
 
-Nhóm xác nhận giữ offline và yêu cầu chưa vẽ sơ đồ 6 trong đợt này. Không nhúng
-hay đưa bản sơ đồ 6 cũ vào PR. Khi tiếp tục cần chốt kênh hai Node, dữ liệu
-offline được phép dùng, thu hồi, chống replay, clock/reboot và xử lý hàng đợi
-khi mạng trở lại; không tự phát lại lệnh mở khóa đã hết hạn.
+Giữ yêu cầu offline nhưng chưa vẽ/phát hành sơ đồ 6 trong đợt này. Node 2 đã
+có timer, phản ứng nhiệt và bộ đệm alert hữu hạn trong firmware. Phần còn thiếu
+cho mở bằng RFID/PIN offline gồm kênh hai Node, hiệu lực/thu hồi quyền, chống
+replay và đối soát. Không lấy bản sơ đồ 6 cũ làm mô tả phần đã triển khai.
 
 <a id="diagram-07"></a>
-## 7. ERD V12
+## 7. ERD V13 đầy đủ và rút gọn
 
-![ERD đầy đủ V12](diagrams/07-database-erd.svg)
+![ERD đầy đủ V13](diagrams/07-database-erd.svg)
 
 [Source đầy đủ](diagrams/07-database-erd.puml) ·
-[Bản SVG để phóng to](diagrams/07-database-erd.svg) ·
-[Bảng khóa và CHECK](diagrams/database-constraints-v10.md).
+[SVG để phóng to](diagrams/07-database-erd.svg) ·
+[Khóa và CHECK V13](diagrams/database-constraints-v13.md).
 
-Bản đầy đủ được đối chiếu metadata MySQL V10 ngày 06/11/2026: **19 bảng nghiệp
-vụ + `flyway_schema_history`, 31 FK**, kèm PK, unique, nullable và cột generated.
-Metadata không chứa bản ghi khách hàng. Một số FK là composite để bảo vệ phạm
-vi Door/Account/Device. `door_telemetry` có hai FK độc lập đến Door/Device;
-Backend kiểm tra Device đúng Door và đúng Node 2. `control_commands.device_code`
-không có FK trực tiếp; Backend đối chiếu Device trước khi gửi và nhận ACK.
+Bản đầy đủ giữ metadata MySQL V13 kiểm tra ngày 12/11, đối chiếu migration
+hiện tại: **21 bảng nghiệp vụ + flyway_schema_history, 35 FK**, có cột, PK,
+unique, nullable và generated column. V13 thêm accounts.role, device_inventory
+và installation_kits. Không sửa migration đã áp dụng hoặc đưa dữ liệu người
+dùng vào sơ đồ. Một số FK composite giữ phạm vi Account/Door/Device.
 
-![ERD rút gọn](diagrams/07-database-erd-slide.svg)
+![ERD rút gọn V13](diagrams/07-database-erd-slide.svg)
 
 [Source rút gọn](diagrams/07-database-erd-slide.puml).
 
-Bản slide bỏ thuộc tính và một số cạnh để dễ trình bày. Khi triển khai/review
-DB, dùng bản đầy đủ, [đặc tả DB](database-erd.md) và SQL migration. V10 thay
-CHECK của outbox, không thêm bảng/cột, giữ nguyên dữ liệu và V1–V9 đã áp dụng.
-Các enum cũ như `AUTO_PROXIMITY` còn trong SQL để tương thích dữ liệu, không
-khôi phục chức năng khoảng cách đã bỏ.
+Bản slide cùng 21 bảng nghiệp vụ nhưng lược cạnh/cột. Telemetry có hai FK
+Door/Device độc lập, Backend kiểm tra cùng cửa; control_commands.device_code
+không có FK trực tiếp, Backend đối chiếu Node trước gửi/nhận. Dùng bản đầy đủ,
+[đặc tả DB](database-erd.md) và migration khi kiểm tra ràng buộc.
 
 <a id="diagram-08"></a>
-## 8. Provision, claim, đồng bộ và kích hoạt
+## 8. Đăng ký ESP32, tạo bộ cửa, claim và kích hoạt
 
-![Provision và claim](diagrams/08-provision-claim-sequence.svg)
+![Luồng đăng ký và bàn giao V13](diagrams/08-provision-claim-sequence.svg)
 
 [Source](diagrams/08-provision-claim-sequence.puml).
 
-CLI tạo Door và hai Node PROVISIONED, sinh mã 8 ký tự có hạn 7 ngày, chỉ lưu
-SHA-256. Công cụ MQTT cấp danh tính riêng và cấu hình Broker ACL. Claim khóa
-Door trước mã, kiểm tra lại sau khóa; cùng Account retry nhận Door cũ, Account
-khác không chiếm được cửa. Claim không tự mở khóa hoặc tự ACTIVE.
+Kỹ thuật viên đăng ký hai bo trong Kho ESP32, xuất private header và tem,
+nạp firmware đúng vai trò qua USB tại xưởng. App đăng ký không tự nạp firmware.
+Tem Node chứa unitCode/setupCode; bootstrapSecret chỉ ở file nạp riêng.
+Factory export chỉ cho creator và bị chặn sau claim.
 
-Sau claim, cấu hình được gửi đến cả hai Node, credentials đến Node 1. Node
-áp dụng rồi ACK; heartbeat không thay ACK. Kích hoạt cần danh tính đã verified,
-chưa thu hồi và ACK config mới nhất; Node 1 thêm PIN ACTIVE cùng ACK credentials.
-Setup được phép ở PROVISIONED/DISABLED sau claim để tránh vòng lặp kích hoạt.
+Tạo bộ cửa kiểm tra creator, hai vai trò và bo chưa gắn. Khóa inventory ngăn
+gắn đồng thời, requestId giữ retry nhất quán. Transaction tạo Door UNCLAIMED,
+hai Device PROVISIONED, liên kết inventory, kit và transport credential.
+Broker tự nhận user/ACL qua manifest. Mã claim có 8 ký tự, hiển thị dạng
+XXXX-XXXX, hạn 7 ngày, DB chỉ lưu SHA-256. Nếu mất phản hồi chứa mã, dùng
+Cấp lại mã trước claim, mã cũ hết hiệu lực.
+
+Chủ nhà claim bằng QR hoặc nhập tay. Claim khóa Door trước mã để chỉ một chủ
+thành công; retry cùng Account trả Door cũ, không tạo cửa mới. Claim đưa Door
+về SETUP_PENDING, chưa tự ACTIVE. Sau Wi-Fi, PIN và ACK phiên bản hiện hành,
+complete-setup khóa Door và kích hoạt hai Node trong một transaction.
+
+### 8b. Cài Wi-Fi từng ESP32 và enrollment
+
+![Cài Wi-Fi và enrollment](diagrams/08b-wifi-enrollment-sequence.svg)
+
+[Source](diagrams/08b-wifi-enrollment-sequence.puml) ·
+[API và QR/manual contract](../../contracts/api/device-onboarding.md).
+
+Chủ nhà mở **Thiết lập Wi-Fi và kích hoạt** khi App còn kết nối Backend.
+Chọn Node 1, mở cài đặt Wi-Fi Android và nối SoftAP SmartDoor-… với mật khẩu
+setup trên App/tem. Chấp nhận mạng không có Internet, quay lại App, quét hoặc
+nhập mã, chọn/nhập Wi-Fi nhà 2.4 GHz và bấm **Lưu Wi-Fi vào Node**. App kiểm
+tra đúng unitCode/vai trò trước khi gửi. Làm tương tự với Node 2, mỗi lần quay
+điện thoại về mạng nhà trước cập nhật trạng thái.
+
+BOOT/GPIO0 giữ 3 giây khi firmware đang chạy mở lại portal; chưa lưu Wi-Fi
+thì portal tự mở, hết hạn sau 20 phút. POST local trả 202 chỉ xác nhận lưu
+cấu hình, không bảo đảm đã kết nối server. Mật khẩu Wi-Fi ở NVS của bo,
+không gửi Backend. Có Wi-Fi thì bo bootstrap bằng khóa riêng, nhận Door ID
+và MQTT identity sau claim, lưu rồi restart để kết nối MQTT/NTP và gửi event.
+
+Không nhập IP server ở màn hình Wi-Fi. Bootstrap URL đã nằm trong header;
+MQTT host/port đến từ enrollment. Đổi Wi-Fi không cần nạp lại firmware.
+Readiness hiện dựa trên identity verified và ACK config/credentials đúng
+phiên bản, không bắt buộc heartbeat còn mới; điều khiển từ App có kiểm tra
+ONLINE riêng. Node DISABLED cần thao tác lifecycle riêng để dùng lại.
 
 <a id="diagram-09"></a>
-## 9. Trạng thái thiết bị
+## 9. Lifecycle, kết nối và trạng thái Door
 
-![Trạng thái thiết bị](diagrams/09-device-state.svg)
+![Trạng thái thiết bị và Door](diagrams/09-device-state.svg)
 
 [Source](diagrams/09-device-state.puml).
 
-Lifecycle lưu DB: PROVISIONED, ACTIVE, DISABLED, RETIRED. Trạng thái kết nối suy
-ra riêng: UNKNOWN nếu chưa có heartbeat; ONLINE trong ngưỡng; OFFLINE khi quá
-ngưỡng, mặc định hơn 90 giây. Không tự disable do mất mạng. Retire giữ lịch sử
-và không kích hoạt lại. Thao tác activate/reactivate không bắt nhập lý do.
+Device có PROVISIONED, ACTIVE, DISABLED, RETIRED; inventory chưa gắn chưa nằm
+trong lifecycle Device. Retire giữ lịch sử và không kích hoạt lại; chưa có
+RETIRE trực tiếp từ PROVISIONED. Activate/reactivate không bắt nhập lý do.
 
-`canReplace()` hiện kiểm tra bằng chứng V12: `revoked_at` và `broker_revoked_at`.
-`setup-mqtt.py revoke` cập nhật Broker, restart ngắt phiên cũ, xác minh đăng nhập
-bằng khóa cũ bị từ chối rồi ghi xác nhận. Thiếu bằng chứng vẫn trả 409; Node mới
-cũng phải đồng bộ đủ trước khi thay. Kiểm thử phần mềm chưa thay nghiệm thu ESP32 thật.
+Kết nối độc lập: UNKNOWN nếu chưa có heartbeat; ONLINE trong ngưỡng; OFFLINE
+khi quá ngưỡng, mặc định hơn 90 giây tính theo giờ nhận Backend. Mất mạng
+không tự disable, ONLINE không chứng minh đã áp dụng cấu hình hay đủ quyền.
+
+Thay thiết bị cần Node mới cùng Door/vai trò, sẵn sàng và credential cũ có
+revoked_at cùng broker_revoked_at hợp lệ. CLI thu hồi restart/ngắt phiên và
+kiểm tra khóa cũ bị từ chối. Reload ACL đơn thuần không chứng minh ngắt phiên.
+Đây khác chuyển một bo đang dùng sang Door mới, chức năng đó chưa có trên App.
 
 <a id="diagram-10"></a>
 ## 10. MQTT và quyền topic
 
-![MQTT và ACL](diagrams/10-mqtt-acl-flow.svg)
+![MQTT và ACL hiện tại](diagrams/10-mqtt-acl-flow.svg)
 
 [Source](diagrams/10-mqtt-acl-flow.puml) ·
 [Hợp đồng topic/payload](../../contracts/mqtt/topics.md).
 
-Prefix chính thức là `smart-door/v1/doors/{doorId}/devices/{deviceCode}/`.
-QoS 1, chỉ retained snapshot configuration/credentials. Unlock/access-result/
-alarm và mọi event không retained. Broker giới hạn user theo topic; Backend
-kiểm tra HMAC có bao gồm topic, nonce, thời hạn, mapping DB, lifecycle và vai trò.
-Kiểm tra vai trò không được suy ra chỉ từ ACL. Backend xử lý receipt và nghiệp
-vụ trước MQTT ACK; eventId/version/commandId giữ idempotency khi giao lặp.
+Prefix smart-door/v1/doors/{doorId}/devices/{deviceCode}/ ràng buộc danh tính
+và cửa. QoS 1; retained chỉ configuration/credentials. UNLOCK, CLOSE,
+access-result, alarm và events không retained. Backend kiểm tra HMAC chứa
+topic, nonce, thời hạn, mapping DB, vai trò và lifecycle; ACL không thay các
+kiểm tra này. Consumer chống lặp bằng nonce/eventId/commandId/version.
 
-Snapshot PIN/RFID đang tồn tại trong contract, nhưng chưa đủ chứng minh offline
-đã hoạt động: firmware, cache an toàn, kênh hai Node và thu hồi vẫn cần thiết kế.
+V13 tự xuất manifest riêng cho supervisor Broker, không đưa signingKey vào
+manifest. Password được hash cho Broker; ACL đổi theo danh tính hiện hành.
+Thu hồi phiên cũ vẫn cần workflow V12. Snapshot PIN/thẻ không chứng minh
+luồng mở RFID/PIN offline đã triển khai.
 
 <a id="diagram-11"></a>
 ## 11. Triển khai local
 
-![Triển khai local](diagrams/11-deployment.svg)
+![Triển khai local V13](diagrams/11-deployment.svg)
 
 [Source](diagrams/11-deployment.puml).
 
-Docker chạy Backend, MySQL, Mosquitto và phpMyAdmin. Backend host 8080,
-phpMyAdmin 8081; MQTT host mặc định 1884 → container 1883; MySQL bind loopback
-với cổng `MYSQL_HOST_PORT` (mặc định 3306, local hiện dùng 3307) → container 3306.
-App Android debug qua USB dùng adb reverse, hoặc kết nối IP LAN máy tính.
-Trên máy tính giả lập Node kết nối localhost:1884, không nhầm Broker Windows 1883.
+Compose chạy Backend, MySQL, Mosquitto có supervisor và phpMyAdmin. Host
+8080 là Backend, 8081 là phpMyAdmin; MQTT mặc định 1884 → 1883 trong Docker.
+MySQL chỉ bind loopback theo MYSQL_HOST_PORT, mặc định 3306 → 3306. Volume
+backend-mqtt dùng RW cho Backend và RO cho manifest consumer của Broker.
 
-Compose local dùng HTTP và MQTT TCP, chưa triển khai TLS proxy/listener TLS.
-Triển khai Internet cần phương án riêng về TLS, hostname và ranh giới mạng.
-Dữ liệu MySQL giữ trong volume, không tự được chia sẻ khi clone Git.
+App debug có thể dùng adb reverse qua USB hoặc IP LAN. ESP32 phải truy cập
+IP LAN/server thật, không dùng localhost hoặc hostname mosquitto trong Docker.
+Máy tính có dây Ethernet vẫn dùng được nếu router cho thiết bị Wi-Fi đến LAN.
+Đổi mạng/IP phải kiểm tra bootstrap URL, MQTT_PUBLIC_HOST, cổng và firewall.
+HTTP/MQTT TCP là cấu hình local; triển khai Internet/TLS chưa được coi đã có.
 
 <a id="diagram-12"></a>
-## 12. Khung đấu nối phần cứng
+## 12. Đấu nối theo firmware
 
-![Khung đấu nối chờ chốt](diagrams/12-hardware-wiring.svg)
+![GPIO và nguồn phần cứng](diagrams/12-hardware-wiring.svg)
 
-[Source](diagrams/12-hardware-wiring.puml).
+[Source](diagrams/12-hardware-wiring.puml) ·
+[Bảng GPIO Node 1](../../firmware/node-auth/README.md) ·
+[Bảng GPIO Node 2](../../firmware/node-control/README.md).
 
-Khung này ghi rõ ngoại vi nối vào Node nào; chưa điền GPIO/điện áp chưa được
-nhóm xác nhận. Để thành bản thi công cần: model ESP32/OLED/keypad/cảm biến,
-relay và khóa; nguồn, dòng tải, trạng thái khóa khi mất nguồn, mức kích, GPIO,
-mass/cách ly, bảo vệ tải và cơ chế nhận biết cửa/chốt. Không dùng các chân
-tham chiếu cũ như thông số đã nghiệm thu.
+Sơ đồ đã điền chân SPI RC522, hàng/cột keypad, I2C LCD, PWM servo, DHT11,
+MC-38, buzzer, LED và BOOT. Dùng NodeAuthApp.h, NodeControlApp.h và
+Node2Actuator.h làm căn cứ; không để toàn bộ GPIO là TBD như bản cũ.
 
-## Kiểm chứng và giới hạn bàn giao
+Phần còn cần xác nhận từ bộ demo gồm model board, nguồn servo 5V và dòng tải,
+nguồn/mức logic của RC522 và LCD backpack, vị trí tiếp điểm MC-38 và dây thực
+tế. Servo dùng nguồn phù hợp và chung GND với Node 2. Không suy điện áp nguồn
+từ số GPIO. Exit và dây offline chưa chốt nên không vẽ chân giả định.
+Xem [bảng đấu nối](hardware-wiring.md) để tra và bổ sung kết quả nghiệm thu.
 
-Kiểm tra phần mềm ngày 06/11/2026 trước PR #21:
+## Kiểm tra và giới hạn
 
-- Maven `verify`: **182 test đạt**, không fail/error/skip; đóng gói thành công.
-- Flutter analyze không có vấn đề; **65 test đạt**.
-- Python simulator: **7 test đạt**.
-- MySQL local V10 audit đạt; hồi quy V9 → V10 trên schema riêng đạt, giữ dữ liệu
-  cũ và các ràng buộc ngoài kind; 19 bảng nghiệp vụ, 31 FK.
-- Smoke API/MQTT qua MySQL/Mosquitto thật đạt: RFID/PIN, ACK mở khóa, yêu cầu
-  trùng, khóa tạm/còi, telemetry, inbox/cảnh báo và phân quyền chủ cửa.
-- Đây là Node giả lập. Chưa nghiệm thu firmware, relay/khóa thật hoặc offline.
+Đợt này chỉ cập nhật tài liệu/sơ đồ, không đổi nghiệp vụ hoặc DB. Kiểm tra
+cú pháp toàn bộ PlantUML phát hành, sinh lại SVG, kiểm tra cấu trúc SVG,
+đối chiếu cột/cạnh ERD, đường dẫn và xem ảnh các sơ đồ vừa thay đổi lớn.
+Kết quả chạy kiểm tra được ghi ở [biên bản sơ đồ](diagrams/design-validation-v13.md).
 
-Kiểm tra sơ đồ trong đợt tài liệu: cú pháp PlantUML, sinh lại SVG, đối chiếu
-metadata ERD, liên kết nội bộ và rà soát nhãn hiện trạng/TBD. Không cần chạy lại
-toàn bộ test ứng dụng chỉ vì đổi tài liệu. Xem [hướng dẫn DB](database-setup.md)
-và [test trên App](../06-frontend/access-monitoring.md) để tái hiện phần mềm.
+Các kết quả ứng dụng trước đó được ghi riêng trong
+[tài liệu onboarding](../05-backend/device-onboarding.md): backend 193 test
+cũ và 5 onboarding, Flutter analyze và 77 test, debug APK, hai firmware build,
+migration MySQL V13 và smoke API/MQTT bằng giả lập. Không coi đây là kết quả
+chạy lại trong đợt sửa sơ đồ hoặc bằng chứng đã thử Wi-Fi/khóa trên bo thật.
 
-Kết quả kiểm tra hồ sơ: 12 cặp source/SVG hợp lệ, sơ đồ 6 được loại khỏi đợt
-phát hành; ERD hiển thị đủ 171 cột của 20 bảng (kể cả lịch sử Flyway), 31 cạnh
-FK; 70 liên kết nội bộ và anchor được kiểm tra. Phụ lục có 18 CHECK cùng danh
-sách PK/unique. Chỉ metadata cấu trúc được đưa vào tài liệu, không có dữ liệu
-khách hàng, credential riêng hoặc backup DB.
-
-Xuất ảnh bằng PlantUML 1.2025.2 (Java 21), ở thư mục gốc:
+Sinh ảnh từ thư mục gốc bằng PlantUML JAR local, Java 21:
 
 ```powershell
 $sources = Get-ChildItem docs/03-technical-reference/diagrams/*.puml |
@@ -271,5 +325,5 @@ java -jar <duong-dan-plantuml.jar> -charset UTF-8 -checkonly $sources.FullName
 java -jar <duong-dan-plantuml.jar> -charset UTF-8 -tsvg $sources.FullName
 ```
 
-Jar là công cụ local, không đưa vào Git. Không sửa SVG bằng tay; sửa `.puml`
-rồi xuất lại theo [quy chuẩn PlantUML](../00-getting-started/03-plantuml-conventions.md).
+Không sửa SVG bằng tay. Không đưa JAR, private header, credential hoặc dữ liệu
+khách hàng vào Git. Bản sơ đồ 6 local cũ tiếp tục nằm ngoài nội dung commit.
