@@ -102,6 +102,19 @@ public class DeviceTransportCredentialService {
         return derive("message-signing",key.getCredentialId());
     }
 
+    public String enrollmentSecret(String purpose,String unitCode) {
+        if (!java.util.Set.of("bootstrap", "setup").contains(purpose)) throw new IllegalArgumentException("Invalid enrollment purpose");
+        return Base64.getUrlEncoder().withoutPadding().encodeToString(derive("enrollment-"+purpose,unitCode));
+    }
+
+    @Transactional(readOnly=true)
+    public DeviceCredentialExport current(Long deviceId) {
+        var device=devices.findById(deviceId).orElseThrow();
+        var key=keys.findById(deviceId).filter(k -> k.getRevokedAt()==null).orElseThrow(() -> new ConflictException("Danh tính đã bị thu hồi."));
+        if (device.getLifecycleStatus()==Device.LifecycleStatus.RETIRED) throw new ConflictException("Node đã ngừng sử dụng.");
+        return export(device,key);
+    }
+
     private DeviceCredentialExport export(Device d,DeviceTransportCredential key) {
         return new DeviceCredentialExport(d.getId(),d.getDoorId(),d.getDeviceCode(),d.getNodeType().name(),
                 key.getCredentialId(),"device-"+d.getId()+"-"+key.getCredentialId(),

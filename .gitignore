@@ -6,6 +6,8 @@
 .local/
 /firmware/node-auth/node_auth_config.local.h
 /firmware/node-control/node_control_config.local.h
+/firmware/node-auth/enrollment_config.local.h
+/firmware/node-control/enrollment_config.local.h
 __pycache__/
 
 # IDE and OS

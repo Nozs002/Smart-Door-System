@@ -5,9 +5,12 @@ import java.time.ZoneOffset;
 import com.smartdoor.backend.identity.entity.Account;
 
 public record AccountProfileResponse(Long id, String username, String displayName,
-        Account.Status status, Instant createdAt) {
+        Account.Status status, Instant createdAt, Account.Role role) {
+    public AccountProfileResponse(Long id,String username,String displayName,Account.Status status,Instant createdAt) {
+        this(id,username,displayName,status,createdAt,Account.Role.CUSTOMER);
+    }
     public static AccountProfileResponse from(Account account) {
         return new AccountProfileResponse(account.getId(), account.getUsername(), account.getDisplayName(),
-                account.getStatus(), account.getCreatedAt().toInstant(ZoneOffset.UTC));
+                account.getStatus(), account.getCreatedAt().toInstant(ZoneOffset.UTC), account.getRole());
     }
 }
