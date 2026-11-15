@@ -17,6 +17,11 @@
 constexpr int DHT_PIN = 4, MC38_PIN = 16, BUZZER_PIN = 5, LED_PIN = 2;
 // Calibrated against the user's installed door: HIGH=closed, LOW=open.
 constexpr int MC38_CLOSED_LEVEL = HIGH;
+#include "../shared/DeviceEnrollment.h"
+#if __has_include("enrollment_config.local.h")
+#include "enrollment_config.local.h"
+#endif
+DeviceEnrollment runtime;
 WiFiClient network;
 MqttClient mqtt(network);
 DeviceProtocol::Signer signer;
@@ -206,7 +211,7 @@ void maintainNetwork() {
     linkReady = false;
     if (millis() - lastMqttAttempt < 5000) return;
     lastMqttAttempt = millis();
-    if (!mqtt.connect(ControlConfig::MQTT_HOST, ControlConfig::MQTT_PORT)) {
+    if (!mqtt.connect(runtime.mqttHost.c_str(), runtime.mqttPort)) {
       Serial.print("[MQTT] Loi ket noi: "); Serial.println(mqtt.connectError()); return;
     }
     const char* topics[] = {"configuration", "unlock", "close", "alarm"};
@@ -282,27 +287,33 @@ void setup() {
   digitalWrite(BUZZER_PIN, LOW); digitalWrite(LED_PIN, LOW);
   doorCandidate = digitalRead(MC38_PIN); doorChangedAt = millis(); dht.begin();
   setenv("TZ", "UTC0", 1); tzset();
-  prefix = "smart-door/v1/doors/" + String(ControlConfig::DOOR_ID) + "/devices/" + ControlConfig::DEVICE_CODE;
-  identity = String(ControlConfig::DOOR_ID) + ":" + ControlConfig::DEVICE_CODE + ":" + ControlConfig::CREDENTIAL_ID;
-  configured = strlen(ControlConfig::WIFI_SSID) > 0 && strlen(ControlConfig::MQTT_HOST) > 0 &&
-    ControlConfig::DOOR_ID > 0 && DeviceProtocol::topicCode(ControlConfig::DEVICE_CODE) &&
-    strlen(ControlConfig::MQTT_USERNAME) > 0 && strlen(ControlConfig::MQTT_PASSWORD) > 0 &&
-    signer.begin(ControlConfig::CREDENTIAL_ID, ControlConfig::SIGNING_KEY_BASE64);
+  runtime.legacy(ControlConfig::WIFI_SSID,ControlConfig::WIFI_PASSWORD,ControlConfig::MQTT_HOST,ControlConfig::MQTT_PORT,ControlConfig::DOOR_ID,ControlConfig::DEVICE_CODE,ControlConfig::CREDENTIAL_ID,ControlConfig::MQTT_USERNAME,ControlConfig::MQTT_PASSWORD,ControlConfig::SIGNING_KEY_BASE64);
+#if __has_include("enrollment_config.local.h")
+  runtime.factory(EnrollmentConfig::UNIT_CODE,EnrollmentConfig::BOOTSTRAP_SECRET,EnrollmentConfig::SETUP_CODE,EnrollmentConfig::BOOTSTRAP_URL,EnrollmentConfig::CA_CERT,"NODE_2");
+#endif
+  if (!runtime.begin()) { Serial.println("[SETUP] Configure household Wi-Fi through App. Hold BOOT 3s to reopen setup."); return; }
+  prefix = "smart-door/v1/doors/" + String(runtime.doorId) + "/devices/" + runtime.deviceCode.c_str();
+  identity = String(runtime.doorId) + ":" + runtime.deviceCode.c_str() + ":" + runtime.credentialId.c_str();
+  configured = strlen(runtime.wifiSsid.c_str()) > 0 && strlen(runtime.mqttHost.c_str()) > 0 &&
+    runtime.doorId > 0 && DeviceProtocol::topicCode(runtime.deviceCode.c_str()) &&
+    strlen(runtime.username.c_str()) > 0 && strlen(runtime.password.c_str()) > 0 &&
+    signer.begin(runtime.credentialId.c_str(), runtime.signingKey.c_str());
   if (!configured) { Serial.println("[SETUP] Dien node_control_config.local.h bang credential NODE_2"); return; }
   restoreConfiguration();
   if (!actuator.begin(identity)) Serial.println("[NVS] Nhat ky unlock loi; chan lenh mo tu xa");
   if (!alarmHistory.begin(identity)) Serial.println("[NVS] Nhat ky alarm loi; chan coi tu xa");
   if (!alerts.begin(identity)) Serial.println("[NVS] Outbox canh bao loi; van xu ly tai cho");
   sntp_set_time_sync_notification_cb(onClockSync);
-  WiFi.mode(WIFI_STA); WiFi.setAutoReconnect(true); WiFi.begin(ControlConfig::WIFI_SSID, ControlConfig::WIFI_PASSWORD);
+  if (!runtime.factoryMode()) WiFi.mode(WIFI_STA); WiFi.setAutoReconnect(true); WiFi.begin(runtime.wifiSsid.c_str(), runtime.wifiPassword.c_str());
   configTime(0, 0, "pool.ntp.org", "time.google.com");
-  mqtt.setId(String("esp32-control-") + ControlConfig::DEVICE_CODE + "-" + WiFi.macAddress());
-  mqtt.setUsernamePassword(ControlConfig::MQTT_USERNAME, ControlConfig::MQTT_PASSWORD);
+  mqtt.setId(String("esp32-control-") + runtime.deviceCode.c_str() + "-" + WiFi.macAddress());
+  mqtt.setUsernamePassword(runtime.username.c_str(), runtime.password.c_str());
   mqtt.setCleanSession(true); mqtt.setConnectionTimeout(2000); mqtt.setTimeout(1000); mqtt.onMessage(receiveMessage);
   Serial.println("[SETUP] Node 2: mo 180, tu dong sau 10 giay; dong App/Serial 90. Bao nhiet uu tien giu mo.");
 }
 
 void loop() {
+  runtime.poll(configured);
   if (!configured) { delay(10); return; }
   // Local sensor/alarm/servo work never depends on the Wi-Fi/MQTT connection.
   updateLocalHardware(); maintainNetwork(); processMessages(); updateLocalHardware();

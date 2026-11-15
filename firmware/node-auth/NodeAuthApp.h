@@ -20,6 +20,11 @@
 #endif
 
 // Access remains online; persistent credential synchronization does not enable offline unlock.
+#include "../shared/DeviceEnrollment.h"
+#if __has_include("enrollment_config.local.h")
+#include "enrollment_config.local.h"
+#endif
+DeviceEnrollment runtime;
 WiFiClient network;
 MqttClient mqtt(network);
 AuthProtocol::Signer signer;
@@ -329,7 +334,10 @@ void pollInputs() {
 
 void refreshDisplay() {
   String first, second;
-  if (!configured) { first = "CAU HINH THIEU"; second = "Xem README"; }
+  if (!configured) {
+    first = runtime.factoryMode() ? "CAI WIFI TREN APP" : "CAU HINH THIEU";
+    second = runtime.factoryMode() ? "GIU BOOT 3 GIAY" : "Xem README";
+  }
   else if (!storageReady) { first = "LOI BO NHO"; second = "Kiem tra Node 1"; }
   else if (holdingOpenMode()) { first = "BAO MAT DA TAT"; second = "Che do giu mo"; }
   else if (!pendingId.isEmpty()) { first = "DANG XAC THUC"; second = "Cho backend..."; }
@@ -362,7 +370,7 @@ void maintainNetwork() {
     linkReady = false;
     if (millis() - lastMqttAttempt < 5000) return;
     lastMqttAttempt = millis();
-    if (!mqtt.connect(AuthConfig::MQTT_HOST, AuthConfig::MQTT_PORT)) {
+    if (!mqtt.connect(runtime.mqttHost.c_str(), runtime.mqttPort)) {
       Serial.print("[MQTT] Loi ket noi: "); Serial.println(mqtt.connectError()); return;
     }
     bool subscribed = mqtt.subscribe(prefix + "/commands/configuration", 1) && mqtt.subscribeQoS() == 1 &&
@@ -388,12 +396,17 @@ void setup() {
   keypad.setDebounceTime(30);
   keypad.setHoldTime(900);
   setenv("TZ", "UTC0", 1); tzset();
-  prefix = "smart-door/v1/doors/" + String(AuthConfig::DOOR_ID) + "/devices/" + AuthConfig::DEVICE_CODE;
-  identity = String(AuthConfig::DOOR_ID) + ":" + AuthConfig::DEVICE_CODE + ":" + AuthConfig::CREDENTIAL_ID;
-  configured = strlen(AuthConfig::WIFI_SSID) > 0 && strlen(AuthConfig::MQTT_HOST) > 0 &&
-    AuthConfig::DOOR_ID > 0 && AuthProtocol::topicCode(AuthConfig::DEVICE_CODE) &&
-    strlen(AuthConfig::MQTT_USERNAME) > 0 && strlen(AuthConfig::MQTT_PASSWORD) > 0 &&
-    signer.begin(AuthConfig::CREDENTIAL_ID, AuthConfig::SIGNING_KEY_BASE64);
+  runtime.legacy(AuthConfig::WIFI_SSID,AuthConfig::WIFI_PASSWORD,AuthConfig::MQTT_HOST,AuthConfig::MQTT_PORT,AuthConfig::DOOR_ID,AuthConfig::DEVICE_CODE,AuthConfig::CREDENTIAL_ID,AuthConfig::MQTT_USERNAME,AuthConfig::MQTT_PASSWORD,AuthConfig::SIGNING_KEY_BASE64);
+#if __has_include("enrollment_config.local.h")
+  runtime.factory(EnrollmentConfig::UNIT_CODE,EnrollmentConfig::BOOTSTRAP_SECRET,EnrollmentConfig::SETUP_CODE,EnrollmentConfig::BOOTSTRAP_URL,EnrollmentConfig::CA_CERT,"NODE_1");
+#endif
+  if (!runtime.begin()) { Serial.println("[SETUP] Configure household Wi-Fi through App. Hold BOOT 3s to reopen setup."); return; }
+  prefix = "smart-door/v1/doors/" + String(runtime.doorId) + "/devices/" + runtime.deviceCode.c_str();
+  identity = String(runtime.doorId) + ":" + runtime.deviceCode.c_str() + ":" + runtime.credentialId.c_str();
+  configured = strlen(runtime.wifiSsid.c_str()) > 0 && strlen(runtime.mqttHost.c_str()) > 0 &&
+    runtime.doorId > 0 && AuthProtocol::topicCode(runtime.deviceCode.c_str()) &&
+    strlen(runtime.username.c_str()) > 0 && strlen(runtime.password.c_str()) > 0 &&
+    signer.begin(runtime.credentialId.c_str(), runtime.signingKey.c_str());
   if (!configured) {
     Serial.println("[SETUP] Dien node_auth_config.local.h bang credential NODE_1, khong dung NODE_2");
     refreshDisplay(); return;
@@ -404,17 +417,18 @@ void setup() {
     Serial.println("[CREDENTIALS] BCrypt self-test failed; refuse setup ACK");
   }
   sntp_set_time_sync_notification_cb(onClockSync);
-  WiFi.mode(WIFI_STA); WiFi.setAutoReconnect(true);
-  WiFi.begin(AuthConfig::WIFI_SSID, AuthConfig::WIFI_PASSWORD);
+  if (!runtime.factoryMode()) WiFi.mode(WIFI_STA); WiFi.setAutoReconnect(true);
+  WiFi.begin(runtime.wifiSsid.c_str(), runtime.wifiPassword.c_str());
   configTime(0, 0, "pool.ntp.org", "time.google.com");
-  mqtt.setId(String("esp32-auth-") + AuthConfig::DEVICE_CODE + "-" + WiFi.macAddress());
-  mqtt.setUsernamePassword(AuthConfig::MQTT_USERNAME, AuthConfig::MQTT_PASSWORD);
+  mqtt.setId(String("esp32-auth-") + runtime.deviceCode.c_str() + "-" + WiFi.macAddress());
+  mqtt.setUsernamePassword(runtime.username.c_str(), runtime.password.c_str());
   mqtt.setCleanSession(true); mqtt.setConnectionTimeout(2000); mqtt.setTimeout(1000);
   mqtt.onMessage(receiveMessage);
   Serial.println("[SETUP] Node 1 online-only; cho Wi-Fi, MQTT va NTP");
 }
 
 void loop() {
+  runtime.poll(configured);
   if (!configured) { refreshDisplay(); delay(10); return; }
   maintainNetwork(); processMessages();
   if (!pendingId.isEmpty() && (millis() - pendingStartedAt >= REQUEST_TIMEOUT_MS ||
