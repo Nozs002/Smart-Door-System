@@ -149,7 +149,8 @@ class _ProfileScreenState extends State<ProfileScreen> {
                 ),
               AuthError(message: error),
               const SizedBox(height: 16),
-              if (widget.doorRepository != null) ...[
+              if (profile?.role == 'CUSTOMER' &&
+                  widget.doorRepository != null) ...[
                 Card(
                   child: ListTile(
                     contentPadding: const EdgeInsets.symmetric(
@@ -197,7 +198,8 @@ class _ProfileScreenState extends State<ProfileScreen> {
                 icon: const Icon(Icons.password),
                 label: const Text('Đổi mật khẩu'),
               ),
-              if (widget.credentialRepository != null) ...[
+              if (profile?.role == 'CUSTOMER' &&
+                  widget.credentialRepository != null) ...[
                 const SizedBox(height: 12),
                 OutlinedButton.icon(
                   onPressed: leaving

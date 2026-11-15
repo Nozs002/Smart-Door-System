@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
 
+import '../../onboarding/door_setup_screen.dart';
+
 import '../data/door_models.dart';
 import '../data/door_repository.dart';
 import 'device_detail_screen.dart';
@@ -105,9 +107,11 @@ class _DoorDetailScreenState extends State<DoorDetailScreen> {
     ),
   );
 
-  void _open(Widget screen) =>
-      Navigator.of(context)
-          .push<void>(MaterialPageRoute(builder: (_) => screen));
+  Future<void> _open(Widget screen) async {
+    await Navigator.of(context)
+        .push<void>(MaterialPageRoute(builder: (_) => screen));
+    if (mounted) await _load();
+  }
 
   void _signIn() => widget.onSignInRequested?.call();
 
@@ -171,6 +175,27 @@ class _DoorDetailScreenState extends State<DoorDetailScreen> {
                             ),
                             const SizedBox(height: 8),
                             StatusPill(_door!.status),
+                            if (widget.repository is RestDoorRepository)
+                              TextButton.icon(
+                                icon: const Icon(Icons.wifi),
+                                label: const Text(
+                                  'Thiết lập Wi-Fi và kích hoạt',
+                                ),
+                                onPressed: () => _open(
+                                  DoorSetupScreen(
+                                    client:
+                                        (widget.repository
+                                                as RestDoorRepository)
+                                            .client,
+                                    repository: widget.repository,
+                                    doorId: widget.doorId,
+                                    doorName: _door!.name,
+                                    credentials: widget.credentialRepository,
+                                    settings: widget.settingsRepository,
+                                    onSignInRequested: _signIn,
+                                  ),
+                                ),
+                              ),
                             if (_door!.status == 'SETUP_PENDING') ...[
                               const SizedBox(height: 12),
                               const Text(
