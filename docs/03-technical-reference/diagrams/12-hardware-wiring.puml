@@ -50,5 +50,5 @@ legend bottom
   Đây là sơ đồ đấu nối theo code, chưa nghiệm thu điện/nguồn; không phải thiết kế khóa thương mại.
 endlegend
 
-footer Đối chiếu source 15/11/2026 | V13 | Sơ đồ 6 tạm hoãn
+footer Đối chiếu source 16/11/2026 | V13 | Offline RFID/PIN chưa triển khai
 @enduml

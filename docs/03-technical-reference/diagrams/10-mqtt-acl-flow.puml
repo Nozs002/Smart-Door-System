@@ -44,5 +44,5 @@ legend bottom
   Reload không chứng minh phiên cũ đã ngắt; thay Node cần bằng chứng thu hồi V12.
   Thu hồi bằng CLI restart/ngắt phiên + kiểm tra khóa cũ; chưa có giao diện chuyển bo sang Door khác.
 endlegend
-footer Đối chiếu source 15/11/2026 | V13 | Sơ đồ 6 tạm hoãn
+footer Đối chiếu source 16/11/2026 | V13 | Offline RFID/PIN chưa triển khai
 @enduml

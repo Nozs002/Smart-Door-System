@@ -57,5 +57,5 @@ legend bottom
   flyway_schema_history là bảng kỹ thuật, không tính trong 21 bảng nghiệp vụ.
   accounts.role phân biệt CUSTOMER / TECHNICIAN; role không thay quyền sở hữu Door.
 endlegend
-footer Đối chiếu source 15/11/2026 | V13 | Sơ đồ 6 tạm hoãn
+footer Đối chiếu source 16/11/2026 | V13 | Offline RFID/PIN chưa triển khai
 @enduml

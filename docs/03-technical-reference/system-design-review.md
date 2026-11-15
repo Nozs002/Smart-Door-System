@@ -1,10 +1,10 @@
 ---
 title: Hồ sơ thiết kế hệ thống và sơ đồ theo hiện trạng V13
 type: technical-reference
-version: 3.0
+version: 3.1
 lang: vi
 tags: [architecture, diagrams, review, hardware, mqtt, ownership, onboarding]
-updated: 2026-11-15
+updated: 2026-11-16
 ---
 
 # Hồ sơ thiết kế hệ thống Smart Door
@@ -14,9 +14,9 @@ schema V13, App theo vai trò CUSTOMER/TECHNICIAN, đăng ký ESP32, bàn giao c
 SoftAP cài Wi-Fi và firmware tích hợp hai Node. Tài liệu đi cùng thay đổi
 onboarding V13 trong PR, thay cho mốc thiết kế V10 trước đây.
 
-**Nhóm vẫn làm offline; sơ đồ 6 tạm hoãn theo yêu cầu.** Node 2 có một số
-thao tác tại chỗ, nhưng xác thực RFID/PIN và mở khóa offline giữa hai Node
-chưa hoàn thiện. Không tự chọn ESP-NOW, UART hoặc giao thức khác thay nhóm.
+**Nhóm vẫn làm offline. Sơ đồ 6 đã cập nhật ngày 16/11/2026** theo code phản
+ứng tại chỗ, đệm cảnh báo, MQTT, Backend và App. Xác thực RFID/PIN và mở khóa
+offline giữa hai Node chưa hoàn thiện; không tự chọn ESP-NOW/UART thay nhóm.
 
 Thiết kế theo code không phải biên bản nghiệm thu phần cứng. Bản onboarding
 đã được thử bằng giả lập; SoftAP, camera, nguồn và cơ khí cần thử trên bo thật.
@@ -31,7 +31,7 @@ Xem [hướng dẫn bàn giao và chạy thử](../05-backend/device-onboarding.
 | [3](#diagram-03) | Miền và sở hữu | Thêm InventoryUnit, InstallationKit và role; tách kỹ thuật viên khỏi chủ cửa |
 | [4](#diagram-04) | RFID/PIN online | Quyết định, khóa tạm, AUTOMATIC, điều khiển servo và telemetry |
 | [5](#diagram-05) | Điều khiển từ App | UNLOCK/CLOSE, ACK, timeout, điều kiện từ chối và trạng thái quan sát |
-| 6 | Cảnh báo và mất kết nối | **Tạm hoãn; không nhúng hoặc phát hành bản cũ** |
+| [6](#diagram-06) | Cảnh báo và mất kết nối | Phản ứng cục bộ, NVS, PUBACK/DB, lockout, heartbeat và xử lý alert trên App |
 | [7](#diagram-07) | ERD đầy đủ và rút gọn | Cùng V13: 21 bảng nghiệp vụ, 35 FK; đầy đủ có lịch sử Flyway |
 | [8](#diagram-08) | Đăng ký, provision, claim và kích hoạt | Thay CLI trong luồng chính bằng App; có sơ đồ 8b cài Wi-Fi chi tiết |
 | [9](#diagram-09) | Trạng thái thiết bị | Lifecycle, kết nối và trạng thái Door riêng; thay Node có điều kiện V12 |
@@ -39,8 +39,9 @@ Xem [hướng dẫn bàn giao và chạy thử](../05-backend/device-onboarding.
 | [11](#diagram-11) | Triển khai | Docker/volume/cổng, USB debug và đường LAN riêng của ESP32 |
 | [12](#diagram-12) | Đấu nối | GPIO theo firmware; còn phải xác nhận board, nguồn và dây thực tế |
 
-Có **11 nhóm đã cập nhật**, gồm **13 cặp `.puml`/`.svg`** do nhóm 7 có hai bản
-ERD và nhóm 8 có thêm sơ đồ Wi-Fi. Sơ đồ 6 nằm ngoài danh sách phát hành.
+Có **12 nhóm đã cập nhật**, gồm **14 cặp `.puml`/`.svg`** do nhóm 7 có hai bản
+ERD và nhóm 8 có thêm sơ đồ Wi-Fi. Sơ đồ 6 thay bản tham chiếu cũ bằng luồng
+theo source hiện tại, không coi phần mở bằng RFID/PIN offline đã hoạt động.
 Source PlantUML là bản chính; SVG sinh từ source để xem trực tiếp trên GitHub.
 
 ## Thay đổi so với bộ sơ đồ cũ
@@ -146,12 +147,55 @@ SENT/PUBACK khác ACK thực thi. EXECUTED/commandedLockState không phải phé
 vị trí thật; MC-38 đo cánh cửa, còn telemetry lockState là UNKNOWN vì servo
 không có cảm biến phản hồi chốt.
 
-## 6. Cảnh báo và mất kết nối — tạm hoãn
+<a id="diagram-06"></a>
+## 6. Cảnh báo và mất kết nối
 
-Giữ yêu cầu offline nhưng chưa vẽ/phát hành sơ đồ 6 trong đợt này. Node 2 đã
-có timer, phản ứng nhiệt và bộ đệm alert hữu hạn trong firmware. Phần còn thiếu
-cho mở bằng RFID/PIN offline gồm kênh hai Node, hiệu lực/thu hồi quyền, chống
-replay và đối soát. Không lấy bản sơ đồ 6 cũ làm mô tả phần đã triển khai.
+![Cảnh báo và mất kết nối theo code V13](diagrams/06-alert-offline-flow.svg)
+
+[Source](diagrams/06-alert-offline-flow.puml) ·
+[Hành vi Node 2](../../firmware/node-control/README.md) ·
+[Cấu hình và cảnh báo](../../contracts/api/settings-alerts.md).
+
+Các nhóm trong hình là luồng độc lập, không chờ nhau theo thứ tự trình bày.
+Node 2 phải hoàn tất danh tính runtime trước khi vòng phần cứng chạy.
+
+| Nguồn | Phản ứng / điều kiện theo code |
+| --- | --- |
+| DHT11, HIGH_TEMPERATURE | Khi cờ bật và vượt ngưỡng, mở servo 180° và còi tại chỗ; không chờ mạng/NTP. Nhiệt ưu tiên hơn CLOSE/timer. Mẫu lỗi khi đang báo nhiệt giữ phản ứng; hết nhiệt không tự đóng chỉ vì điều kiện hết. |
+| MC-38, DOOR_OPEN_TOO_LONG | Khi cờ bật và cửa mở quá timeout, còi cho đến khi cửa đóng hoặc tắt cờ; không tự suy vị trí chốt từ servo. |
+| Backend, TOO_MANY_FAILURES | Xác thực online sai đạt ngưỡng theo Door/phương thức tạo khóa tạm, alert/inbox và outbox ALARM. Node 2 hợp lệ nhận trước hạn thì còi 5 giây, không quay servo. |
+
+Chưa có snapshot hợp lệ, Node 2 mặc định bật báo nhiệt ngưỡng 50°C và tắt
+báo cửa mở lâu. Timer mở bình thường 10 giây chỉ đóng khi SECURITY,
+controlEnabled và không báo nhiệt. AUTOMATIC đã cấp quyền giữ mở. Exit chưa
+được tích hợp; không vẽ luồng nhấn Exit như tính năng đã hoạt động.
+
+**Mất mạng và đệm cảnh báo.** Vòng cục bộ tiếp tục, reconnect không phát lại
+lệnh mở/đóng cũ. Outbox NVS tối đa 8 mục giữ eventId/payload/occurredAt qua
+retry/reset; gộp loại đang pending. Lỗi hoặc đầy không dừng phản ứng tại chỗ,
+nhưng không bảo đảm lưu mọi episode. Khi UTC chưa tin cậy, chỉ xử lý tại chỗ;
+chỉ tạo alert cho quan sát còn tồn tại sau đồng bộ giờ, không bịa lịch sử.
+Backend suy UNKNOWN nếu chưa có heartbeat, OFFLINE nếu quá ngưỡng mặc định
+90 giây, riêng từng Node. Đọc trạng thái không tự disable hoặc tạo alert
+OFFLINE mới. App chưa nhận được cảnh báo mới khi chưa có đường về Backend.
+
+**Broker nhận khác Backend lưu.** Có MQTT/NTP thì gửi signed event QoS 1,
+không retained; retry giữ payload/eventId, dùng nonce/envelope mới. Node xóa
+pending sau PUBACK của Broker, không chờ ACK nghiệp vụ từ Backend. Backend
+vẫn có thể từ chối vì lifecycle, cấu hình/ngưỡng hiện tại hoặc dữ liệu sai;
+không bảo đảm mọi sự kiện Node đã gửi đều xuất hiện trên App. Backend chống
+trùng, kiểm tra quyền/role và lưu alert cùng inbox chủ cửa trong transaction.
+HIGH_TEMPERATURE là CRITICAL; hai loại còn lại WARNING. Bảng alerts dùng
+triggered_at cho thời điểm phát sinh, không có received_at riêng như telemetry.
+
+**Xử lý trên App.** Chủ cửa đọc/làm mới danh sách qua REST, chưa có FCM nền.
+Alert có ACTIVE → ACKNOWLEDGED → RESOLVED hoặc ACTIVE → RESOLVED; không mở
+lại RESOLVED. Inbox có read_at riêng, không đồng nhất với ACKNOWLEDGED.
+Đánh dấu alert không tắt còi/servo; hết còi không tự giải quyết alert trên DB.
+
+**Giới hạn offline.** Phản ứng cục bộ và đệm alert đã có code; kênh xác thực
+RFID/PIN Node 1 → Node 2, hiệu lực/thu hồi quyền và đối soát còn cần triển khai.
+Chưa coi sơ đồ hoặc simulator là nghiệm thu phần cứng thật.
 
 <a id="diagram-07"></a>
 ## 7. ERD V13 đầy đủ và rút gọn
@@ -319,11 +363,10 @@ chạy lại trong đợt sửa sơ đồ hoặc bằng chứng đã thử Wi-Fi
 Sinh ảnh từ thư mục gốc bằng PlantUML JAR local, Java 21:
 
 ```powershell
-$sources = Get-ChildItem docs/03-technical-reference/diagrams/*.puml |
-    Where-Object { $_.Name -ne '06-alert-offline-flow.puml' }
+$sources = Get-ChildItem docs/03-technical-reference/diagrams/*.puml
 java -jar <duong-dan-plantuml.jar> -charset UTF-8 -checkonly $sources.FullName
 java -jar <duong-dan-plantuml.jar> -charset UTF-8 -tsvg $sources.FullName
 ```
 
 Không sửa SVG bằng tay. Không đưa JAR, private header, credential hoặc dữ liệu
-khách hàng vào Git. Bản sơ đồ 6 local cũ tiếp tục nằm ngoài nội dung commit.
+khách hàng vào Git. Commit source PlantUML và SVG tương ứng cùng phiên bản.

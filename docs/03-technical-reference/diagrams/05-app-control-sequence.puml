@@ -71,5 +71,5 @@ note over App,N2
   Trạng thái quan sát cần telemetry và cảm biến thực tế.
   Mất mạng sau khi gửi có thể chưa biết tác động thật; không báo thành công giả.
 end note
-footer Đối chiếu source 15/11/2026 | V13 | Sơ đồ 6 tạm hoãn
+footer Đối chiếu source 16/11/2026 | V13 | Offline RFID/PIN chưa triển khai
 @enduml

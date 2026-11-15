@@ -11,6 +11,7 @@ hữu. Mỗi nơi quét QR đều có trường nhập mã thủ công.
 - [Bộ sơ đồ V13 và giải thích luồng](../03-technical-reference/system-design-review.md#diagram-08).
 - [Sơ đồ đăng ký ESP32, tạo bộ cửa, claim và kích hoạt](../03-technical-reference/diagrams/08-provision-claim-sequence.svg).
 - [Sơ đồ cài Wi-Fi từng ESP32 và nhận danh tính từ Backend](../03-technical-reference/diagrams/08b-wifi-enrollment-sequence.svg).
+- [Cảnh báo và mất kết nối theo code](../03-technical-reference/system-design-review.md#diagram-06).
 - [GPIO và đấu nối theo firmware](../03-technical-reference/hardware-wiring.md).
 
 Đăng ký trên App tạo danh tính bo; xưởng nạp firmware/header riêng qua USB.

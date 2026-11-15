@@ -62,5 +62,5 @@ legend bottom
   Offline RFID/PIN giữa hai Node vẫn chưa triển khai; không suy ra từ timer cục bộ.
 endlegend
 
-footer Đối chiếu source 15/11/2026 | V13 | Sơ đồ 6 tạm hoãn
+footer Đối chiếu source 16/11/2026 | V13 | Offline RFID/PIN chưa triển khai
 @enduml

@@ -83,5 +83,5 @@ note over App,DB
   Node đã gắn cửa không được chọn sang cửa khác; chưa có luồng chuyển cửa.
 end note
 
-footer Đối chiếu source 15/11/2026 | V13 | Sơ đồ 6 tạm hoãn
+footer Đối chiếu source 16/11/2026 | V13 | Offline RFID/PIN chưa triển khai
 @enduml

@@ -67,5 +67,5 @@ legend bottom
   Luồng online đã chạy với Node giả lập. Nhánh offline còn thuộc phạm vi,
   cần thiết kế riêng cache quyền / kênh hai Node; sơ đồ này không mô tả nhánh đó.
 endlegend
-footer Đối chiếu source 15/11/2026 | V13 | Sơ đồ 6 tạm hoãn
+footer Đối chiếu source 16/11/2026 | V13 | Offline RFID/PIN chưa triển khai
 @enduml

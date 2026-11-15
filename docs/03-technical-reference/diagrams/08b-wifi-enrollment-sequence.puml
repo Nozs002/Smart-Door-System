@@ -74,5 +74,5 @@ note over App,BE
   Kết nối thành công không tự ACTIVE; tiếp tục PIN/config + complete-setup ở sơ đồ 8.
 end note
 
-footer Đối chiếu source 15/11/2026 | V13 | Sơ đồ 6 tạm hoãn
+footer Đối chiếu source 16/11/2026 | V13 | Offline RFID/PIN chưa triển khai
 @enduml
