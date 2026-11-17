@@ -1,0 +1,14 @@
+spring:
+  main:
+    web-application-type: none
+  jpa:
+    show-sql: false
+
+app:
+  settings-mqtt:
+    enabled: false
+
+logging:
+  level:
+    "[org.hibernate.SQL]": WARN
+    "[org.hibernate.orm.jdbc.bind]": WARN

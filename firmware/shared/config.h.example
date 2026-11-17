@@ -1,0 +1,34 @@
+// shared/config.h.example
+#ifndef CONFIG_H
+#define CONFIG_H
+#include <Arduino.h>
+
+// --- MẠNG & BROKER ---
+const char* WIFI_SSID = "TEN_WIFI";       
+const char* WIFI_PASSWORD = "MAT_KHAU"; 
+const char* MQTT_HOST = "192.168.1.xxx";
+const int MQTT_PORT = 1884;
+
+// --- ĐỊNH DANH HỆ THỐNG ---
+const String DOOR_ID = "1";
+
+// --- NODE 1 (Xác thực) ---
+const String DEVICE_CODE_NODE_1 = "1";
+const char* MQTT_CLIENT_ID_NODE_1 = "1";
+const char* MQTT_USER_NODE_1 = "user_node_1";       
+const char* MQTT_PASSWORD_NODE_1 = "pass_node_1";
+const char* CREDENTIAL_ID_NODE_1 = "cred-id-node-1-tu-db"; // Credential ID thực tế được cấp
+const char* HMAC_SECRET_NODE_1 = "signing_key_node_1";     // Secret key tương ứng
+
+// --- NODE 2 (Thực thi) ---
+const String DEVICE_CODE_NODE_2 = "2";
+const char* MQTT_CLIENT_ID_NODE_2 = "2";
+const char* MQTT_USER_NODE_2 = "user_node_2";       
+const char* MQTT_PASSWORD_NODE_2 = "pass_node_2";
+const char* CREDENTIAL_ID_NODE_2 = "cred-id-node-2-tu-db"; // Credential ID thực tế được cấp
+const char* HMAC_SECRET_NODE_2 = "signing_key_node_2";     // Secret key tương ứng
+
+// --- CẤU HÌNH NGHIỆP VỤ ---
+const float TEMP_THRESHOLD = 50.0; // Ngưỡng cảnh báo nhiệt độ cấu hình động
+
+#endif

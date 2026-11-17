@@ -1,0 +1,9 @@
+**
+!node-auth/
+!node-auth/PinInput.h
+!node-auth/src/
+!node-auth/src/bcrypt/
+!node-auth/src/bcrypt/**
+!tests/
+!tests/native/
+!tests/native/**

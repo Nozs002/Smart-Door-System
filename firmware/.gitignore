@@ -1,0 +1,16 @@
+
+shared/config.h
+
+build/
+*.elf
+*.hex
+*.bin
+*.eep
+*.map
+*.o
+*.a
+
+.vscode/
+
+.DS_Store
+Thumbs.db
