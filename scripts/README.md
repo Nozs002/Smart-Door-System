@@ -45,7 +45,7 @@ Hướng dẫn đầy đủ: [bàn giao Người 1, Người 4](../docs/05-backe
 MQTT Docker từ Windows dùng cổng mặc định **1884**, cổng nội bộ Broker vẫn 1883.
 Nếu đổi `MQTT_HOST_PORT`, truyền cùng giá trị bằng `--port` của simulator hoặc
 `--mqtt-port` của smoke test. Có thể chẩn đoán một cửa bằng
-`python scripts/db-check.py --expect-version 10 --door-id <id>`; script không in
+`python scripts/db-check.py --expect-version 12 --door-id <id>`; script không in
 payload chứa credentials.
 
 Sau khi sửa migration, build image trước bằng `docker compose build backend`,
@@ -61,3 +61,28 @@ log theo correlationId, chống trùng yêu cầu, khóa tạm/còi mô phỏng 
 sensor/history. `device-simulator.py --access-method PIN` hỏi giá trị qua input
 ẩn; `--retry-access` thử gửi trùng, `--attempts` tạo các lần thử độc lập.
 Không truyền thông tin xác thực vào dòng lệnh hoặc công khai `.local/`.
+
+## Thu hồi Node cũ trước khi thay thiết bị
+
+Build Backend có V12 trước. Cài thư viện bằng `python -m pip install -r scripts/requirements.txt`.
+Chuẩn bị Node thay thế cùng Door/vai trò, cấp credential và đồng bộ đủ trước.
+Chạy `python scripts/setup-mqtt.py revoke <old-device-id>` bằng quyền kỹ thuật.
+Lệnh thu hồi danh tính cũ ở Backend, xuất các danh tính còn hiệu lực, cập nhật
+password/ACL, restart Mosquitto để ngắt phiên cũ và thử đăng nhập bằng khóa cũ.
+Chỉ CONNACK từ chối xác thực mới được ghi `broker_revoked_at`; timeout hoặc lỗi
+Broker giữ trạng thái chưa xác nhận và API thay Node vẫn bị chặn.
+Lệnh có thể chạy lại nếu gián đoạn. Sau thành công, chủ cửa dùng chức năng
+thay thiết bị với ID Node mới. Không sửa `revoked_at`/`broker_revoked_at` trong DB.
+Thu hồi là vĩnh viễn cho danh tính Node cũ, không dùng thay cho DISABLE tạm thời.
+Không cấp lại khóa cho Node đã thu hồi; đăng ký Node thay thế.
+
+Các lệnh setup dùng khóa file để tránh chạy đồng thời; `configure --devices`
+không nhận export cũ khác danh tính hiện tại. CLI Java `confirm-revocation` là
+bước nội bộ đặc quyền của script, không phải API cho App tự xác nhận.
+Tool này kiểm tra Broker TCP local tại `127.0.0.1:MQTT_HOST_PORT`; không dùng
+để chứng nhận một Broker TLS/remote chưa cấu hình phép kiểm tra tương ứng.
+
+Kiểm tra thực tế mà không động đến Broker/DB ứng dụng:
+`python scripts/broker-revocation-check.py`. Script tạo Mosquitto riêng với
+credential giả, kiểm tra ngắt phiên cũ và từ chối khóa cũ sau restart, rồi xóa
+đúng container test đó. Cần Docker và `scripts/requirements.txt`.

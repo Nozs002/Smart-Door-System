@@ -1,5 +1,7 @@
 #pragma once
 #include "AuthProtocol.h"
+#include "CredentialSnapshot.h"
+#include "PinInput.h"
 
 // Optional on-device contract tests. No Wi-Fi, RFID, LCD or servo access.
 // Build with -DNODE_AUTH_PROTOCOL_SELF_TEST and read Serial at 115200 baud.
@@ -11,6 +13,52 @@ inline bool runAuthProtocolTests() {
     if (condition) ++passed;
     else { ++failed; Serial.print("FAIL: "); Serial.println(name); }
   };
+  char pin[9] = {}; size_t pinLength = 0;
+  PinInput::Gestures gestures;
+  for (char digit : "123") {
+    if (!digit) continue;
+    check(gestures.event(digit, PinInput::KeyEvent::PRESSED) == 0, "defer fallback digit until release");
+    check(gestures.event(digit, PinInput::KeyEvent::RELEASED) == digit, "short press keeps digit");
+    gestures.event(digit, PinInput::KeyEvent::PRESSED);
+    check(gestures.event(digit, PinInput::KeyEvent::HELD) == (digit == '1' ? '*' : digit == '2' ? '0' : '#'), "hold maps broken bottom-row key");
+    check(gestures.event(digit, PinInput::KeyEvent::HELD) == 0, "hold does not repeat");
+    check(gestures.event(digit, PinInput::KeyEvent::RELEASED) == 0, "release after hold cannot append digit");
+  }
+  gestures.event('3', PinInput::KeyEvent::PRESSED); gestures.reset();
+  check(gestures.event('3', PinInput::KeyEvent::RELEASED) == 0, "blocked input cannot leak key on release");
+  for (char c : "1234") if (c) check(PinInput::press(c, pin, pinLength) == PinInput::Result::NONE, "no automatic PIN submission");
+  check(PinInput::press('#', pin, pinLength) == PinInput::Result::READY, "four digit PIN submits with hash");
+  for (char c : "5678") if (c) PinInput::press(c, pin, pinLength);
+  check(PinInput::press('9', pin, pinLength) == PinInput::Result::TOO_LONG && pinLength == 8, "ninth digit cannot overflow buffer");
+  check(PinInput::press('#', pin, pinLength) == PinInput::Result::READY && strcmp(pin, "12345678") == 0, "eight digits remain intact");
+  PinInput::press('*', pin, pinLength);
+  check(pinLength == 0 && pin[0] == 0 && pin[7] == 0, "clear wipes PIN");
+  PinInput::press('1', pin, pinLength);
+  check(PinInput::press('#', pin, pinLength) == PinInput::Result::TOO_SHORT, "short PIN cannot submit");
+  check(CredentialSnapshot::verifierSelfTest(), "BCrypt independent correct/incorrect PIN vectors");
+  JsonDocument snapshot;
+  deserializeJson(snapshot, "{\"schemaVersion\":1,\"version\":1,\"pinVerifier\":null,\"cards\":[]}");
+  check(CredentialSnapshot::valid(snapshot), "empty full snapshot clears credentials");
+  snapshot.remove("pinVerifier");
+  check(!CredentialSnapshot::valid(snapshot), "missing PIN field is not an explicit removal");
+  snapshot["pinVerifier"] = "$2a$04$abcdefghijklmnopqrstuufUlS0EEB.H3ewsjUNPrWW5qETJaYIty";
+  auto card = snapshot["cards"].as<JsonArray>().add<JsonObject>();
+  card["credentialId"] = 8; card["cardholderId"] = 3; card["uid"] = "AABBCCDD"; card["expiresAt"] = nullptr;
+  check(CredentialSnapshot::valid(snapshot), "valid card and PIN snapshot");
+  JsonDocument previous; CredentialSnapshot::normalize(previous, snapshot);
+  JsonDocument next; CredentialSnapshot::normalize(next, snapshot);
+  check(CredentialSnapshot::updateDecision(next, previous) == CredentialSnapshot::Update::REPLAY, "identical retry can ACK without writing");
+  next["pinVerifier"] = nullptr;
+  check(CredentialSnapshot::updateDecision(next, previous) == CredentialSnapshot::Update::REJECT, "same version cannot change PIN");
+  next["version"] = 2;
+  check(CredentialSnapshot::updateDecision(next, previous) == CredentialSnapshot::Update::REPLACE, "new version applies full replacement");
+  previous["version"] = 3;
+  check(CredentialSnapshot::updateDecision(next, previous) == CredentialSnapshot::Update::REJECT, "stale snapshot cannot roll back revocation");
+  card["expiresAt"] = "2026-02-30T00:00:00Z";
+  check(!CredentialSnapshot::valid(snapshot), "invalid expiry cannot be applied");
+  card["expiresAt"] = nullptr;
+  snapshot["cards"].as<JsonArray>().add(card);
+  check(!CredentialSnapshot::valid(snapshot), "duplicate UID and credential rejected");
   check(AuthProtocol::uuid("b6f294a0-2934-4d48-9e7d-54a924e84848"), "canonical UUID");
   check(!AuthProtocol::uuid("b6f294a029344d489e7d54a924e84848"), "UUID needs separators");
   check(!AuthProtocol::uuid("B6f294a0-2934-4d48-9e7d-54a924e84848"), "UUID must be lowercase");

@@ -1,5 +1,10 @@
 # Bàn giao và kiểm soát phần Người 1, Người 4
 
+> Tài liệu gốc mô tả đợt bàn giao 28/10. Đến 12/11 source đã tích hợp luồng
+> truy cập/điều khiển của Người 3, firmware hai Node và các sửa lỗi V12.
+> Các mục phân công/chưa hoàn thành bên dưới cần đọc theo thời điểm gốc;
+> trạng thái hiện tại và cách test nằm ở [bản sửa trước onboarding](pre-onboarding-fixes.md).
+
 Cập nhật: 28/10/2026. Phạm vi theo thống nhất: hoàn thiện Backend và Flutter của
 **Người 1, Người 4**. Luồng mở khóa, quyết định một lượt truy cập và firmware
 ESP32 thuộc phần khác. Bộ giả lập bên dưới dùng kiểm thử giao tiếp cấu hình và
@@ -287,11 +292,11 @@ riêng. Không sửa trực tiếp DB thành `ACTIVE` để thay thế quy trìn
 - Bộ đếm sai/khóa tạm thực tế, mở cửa từ App, MQTT điều khiển/timeout/log lượt
   truy cập vẫn thuộc **Người 3**. Chỉ cung cấp helper kiểm tra credentials và
   cấu hình để họ tích hợp; không báo các chức năng đó đã hoàn thành.
-- Thay Node tự động còn cần quy trình xác minh thu hồi Broker credential cũ
-  của module Người 2. `canReplace` tiếp tục từ chối khi chưa có bằng chứng đó;
-  ghi `RETIRED` trong DB không tự xóa session Broker. `setup-mqtt.py configure`
-  xuất lại user hiện tại và restart Broker để áp dụng ACL, không tự chứng nhận
-  hoàn thành toàn bộ workflow thay thiết bị.
+- Cập nhật 12/11: đã có `setup-mqtt.py revoke <old-id>` để thu hồi khóa, restart
+  Broker/ngắt phiên cũ và kiểm tra đăng nhập bị từ chối; V12 lưu bằng chứng.
+  `canReplace` vẫn từ chối nếu thiếu bằng chứng hoặc Node mới chưa sẵn sàng.
+  Chỉ `configure` hoặc đổi `RETIRED` trong DB chưa đủ; xem
+  [bản sửa trước onboarding](pre-onboarding-fixes.md).
 - Các trạng thái ACTIVE/UID giả của seed demo không phải danh tính firmware
   đã xác thực. Luồng smoke dùng provision/claim thật và credential mới.
 

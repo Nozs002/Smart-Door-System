@@ -1,0 +1,117 @@
+@startuml
+!theme plain
+skinparam shadowing false
+skinparam defaultFontName Arial
+skinparam backgroundColor white
+skinparam maxMessageSize 260
+autonumber
+title 6. Cảnh báo, xử lý tại chỗ và mất kết nối — theo firmware / Backend V13
+participant "Node 1\nRFID / PIN online" as N1
+participant "Node 2\nCảm biến / servo / NVS" as N2
+queue "Mosquitto\nACL / QoS 1" as MQ
+participant "Backend\nMQTT / Alert / Ownership" as BE
+database "MySQL V13" as DB
+participant "Flutter App" as App
+actor "Chủ cửa" as Owner
+note over N1,Owner
+  Các nhóm dưới là các luồng độc lập, không cần chờ nhau theo thứ tự trình bày.
+  Điều kiện Node 2: đã hoàn tất danh tính runtime; vòng phần cứng được chạy.
+end note
+== A. Phản ứng Node 2 tại chỗ không chờ mạng / Backend ==
+N2 -> N2 : Đọc DHT11 mỗi 2 giây; lọc rung MC-38 50 ms\nDùng snapshot cấu hình đã lưu
+alt Báo nhiệt bật, số đo hợp lệ vượt ngưỡng
+  N2 -> N2 : Servo mở 180° + còi; hủy timer tự đóng\nNhiệt ưu tiên hơn CLOSE / Serial / mode
+else Đang báo nhiệt nhưng mẫu mới lỗi
+  N2 -> N2 : Giữ phản ứng nhiệt trước đó\nChỉ hết khi số đo bình thường hoặc tắt cờ
+else Điều kiện nhiệt đã hết
+  N2 -> N2 : Dừng phần còi nhiệt; không tự đóng chỉ vì hết nhiệt\nCòi cửa mở lâu có thể còn hoạt động riêng
+end
+opt Cờ cửa mở lâu bật, MC-38 mở quá openTimeoutSeconds
+  N2 -> N2 : Còi cho đến khi cửa đóng hoặc tắt cờ\nKhông tự suy ra vị trí chốt từ servo
+end
+note over N2,MQ
+  Chưa có snapshot hợp lệ: mặc định báo nhiệt bật, ngưỡng 50°C; báo cửa mở lâu tắt.
+  Timer mở bình thường giữ 10 giây, chỉ đóng khi SECURITY + controlEnabled và không báo nhiệt.
+  AUTOMATIC đã được cấp quyền giữ mở; chưa có luồng Exit hoặc RFID/PIN offline giữa hai bo.
+end note
+opt Điều kiện HIGH_TEMPERATURE / DOOR_OPEN_TOO_LONG chưa được xếp hàng
+  alt Chưa có UTC tin cậy (NTP hết hạn sau 2 giờ)
+    N2 -> N2 : Vẫn xử lý tại chỗ; chưa tạo alert có timestamp\nChỉ quan sát lại điều kiện còn tồn tại sau đồng bộ giờ
+  else Có UTC tin cậy
+    N2 -> N2 : Xếp hàng NVS: eventId / type / occurredAt / số đo\nGiữ nguyên payload qua retry/reset; gộp loại đang chờ
+    note right of N2
+      Outbox tối đa 8 mục; lỗi/đầy không dừng phản ứng tại chỗ.
+      Retry xếp hàng khi điều kiện còn tồn tại; không bảo đảm lưu đủ mọi episode.
+      Sau reset có thể tạo quan sát mới nếu sự kiện cũ đã được Broker nhận.
+    end note
+  end
+end
+== B. Mất mạng và nhận biết kết nối ==
+par Node 2 tiếp tục vòng cục bộ
+  N2 -> N2 : Thử nối lại Wi-Fi / MQTT; giữ outbox đã lưu\nKhông phát lại lệnh mở/đóng đã nhận trước đó
+else Backend khi đọc trạng thái thiết bị
+  BE -> DB : Đọc last_heartbeat_at riêng từng Node
+  BE -> BE : Chưa có heartbeat: UNKNOWN\nQuá ngưỡng mặc định > 90 giây: OFFLINE
+  App -> BE : Đọc trạng thái cửa với JWT và ownership
+  BE --> App : ONLINE / OFFLINE / UNKNOWN\nKhông tự DISABLE; không tạo alert OFFLINE riêng
+end
+== C. Gửi alert hiện tại hoặc tồn đọng khi mạng sẵn sàng ==
+opt MQTT đã nối, NTP tin cậy, có pending alert; không bị ACK lệnh ưu tiên chặn
+  N2 -> MQ : events/alert; QoS 1, retain=false\nRetry dùng envelope HMAC / nonce mới, cùng eventId và payload
+  par Broker xác nhận bên publish
+    alt Node nhận PUBACK
+      MQ --> N2 : Broker đã nhận message
+      N2 -> N2 : Xóa mục khỏi outbox và lưu NVS\nLỗi lưu thì giữ lại để có thể gửi trùng
+    else Không xác nhận được publish
+      N2 -> N2 : Giữ pending; thử lại khi đủ điều kiện
+    end
+  else Backend xử lý độc lập với PUBACK bên Node
+    MQ -> BE : Alert đúng topic / credential
+    BE -> BE : Từ chối retained; xác minh HMAC, nonce, hạn envelope
+    BE -> DB : Khóa Door; Node 2 ACTIVE, đúng Door/vai trò\nĐối chiếu eventId và payload
+    alt Trùng event hợp lệ đã lưu
+      BE -> DB : Trả alert cũ; không thêm thông báo lần hai
+    else Sai danh tính / lifecycle / payload hoặc cấu hình hiện tại không cho phép
+      BE -> BE : Từ chối; không tạo alert trên App
+    else Sự kiện mới hợp lệ
+      BE -> DB : Một transaction: alerts ACTIVE + owner_notifications\nHIGH_TEMPERATURE=CRITICAL; cửa mở lâu=WARNING
+    end
+    BE --> MQ : MQTT ACK sau commit hoặc từ chối hợp lệ\nLỗi tạm thời: không ACK, chờ Broker giao lại
+  end
+end
+note over N2,BE
+  PUBACK / Serial sent không xác nhận Backend đã lưu DB; không có application ACK alert về Node.
+  Gửi bù vẫn có thể bị từ chối nếu Node không ACTIVE, cờ tắt hoặc ngưỡng hiện tại đã đổi.
+  Alert lưu thời điểm phát sinh ở triggered_at; không thêm received_at không tồn tại trong bảng alerts.
+end note
+== D. Cảnh báo sai RFID/PIN nhiều lần do Backend quyết định ==
+N1 -> MQ : events/access-request ký HMAC
+MQ -> BE : Yêu cầu online; SECURITY, Door / Node 1 ACTIVE
+opt Sai đạt ngưỡng theo Door / phương thức
+  BE -> DB : Transaction: locked_until + access log\nAlert TOO_MANY_FAILURES WARNING + inbox chủ cửa\nOutbox ALARM cho Node 2 ACTIVE; hạn 15 giây
+  BE -> MQ : Sau commit: commands/alarm, retain=false\nKhông thể giao trước hạn thì không phát còi bù
+  MQ -> N2 : Nếu còn hạn: kiểm tra schema / giờ / cấu hình\ncontrolEnabled + SECURITY, dedupe eventId trong NVS
+  N2 -> N2 : Còi 5 giây; ALARM không quay servo\nKhông có command-ack riêng cho ALARM
+end
+== E. Chủ cửa xem và xử lý trên App ==
+Owner -> App : Mở cảnh báo / thông báo hoặc làm mới
+App -> BE : GET /api/v1/alerts và /api/v1/notifications + JWT
+BE -> DB : Lọc cửa thuộc Account; đọc alert / inbox
+BE --> App : Loại, mức độ, trạng thái, thời điểm và số đo
+opt Đánh dấu đã xem / đã giải quyết
+  Owner -> App : Chọn thao tác
+  App -> BE : PATCH /alerts/{id}/status\nACKNOWLEDGED hoặc RESOLVED
+  BE -> DB : Ownership + khóa Door/Alert\nACTIVE → ACKNOWLEDGED → RESOLVED\nHoặc ACTIVE → RESOLVED; không mở lại RESOLVED
+  BE --> App : Trạng thái cảnh báo mới
+end
+note over App,Owner
+  Inbox có read_at riêng; đọc thông báo không tự đổi trạng thái alert.
+  Đánh dấu alert không tắt còi hoặc ra lệnh servo; hết còi không tự RESOLVED alert.
+  App đọc/làm mới qua REST; chưa có FCM push nền.
+end note
+legend bottom
+  Đây là luồng theo code; chưa phải kết quả nghiệm thu ESP32 thật hoặc hệ thống báo cháy thương mại.
+  Phản ứng cục bộ / đệm alert đã có; xác thực RFID/PIN offline Node 1 → Node 2 chưa triển khai.
+endlegend
+footer Đối chiếu source 16/11/2026 | V13 | Cục bộ khác xác thực offline giữa hai Node
+@enduml

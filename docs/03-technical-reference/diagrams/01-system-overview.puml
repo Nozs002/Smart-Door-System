@@ -1,0 +1,50 @@
+@startuml
+!theme plain
+skinparam shadowing false
+skinparam defaultFontName Arial
+skinparam backgroundColor white
+left to right direction
+title 1. Kiến trúc hệ thống V13 — vận hành và thiết lập ESP32
+node "ĐIỆN THOẠI ANDROID" {
+  component "Flutter App\nCUSTOMER / TECHNICIAN\nJWT trong secure storage" as App
+}
+node "TẠI CỬA" {
+  node "ESP32 Node 1 — ngoài cửa\nRC522 / Keypad 4x3 / LCD 16x2" as N1
+  node "ESP32 Node 2 — trong cửa\nSG90 / DHT11 / MC-38 / Buzzer" as N2
+  node "Router / Wi-Fi nhà 2.4 GHz" as Wifi
+  N1 <--> Wifi : Wi-Fi sau thiết lập
+  N2 <--> Wifi : Wi-Fi sau thiết lập
+  N1 .. N2 : Mở bằng RFID/PIN offline chưa có\nKênh hai Node chưa chốt
+}
+node "MÁY CHỦ / PC LOCAL — Docker Compose" {
+  component "Spring Boot Backend\nJWT / ownership / onboarding\nTruy cập / điều khiển / cấu hình / cảnh báo" as BE
+  database "MySQL 8.4\n21 bảng nghiệp vụ\nFlyway V1–V13" as DB
+  queue "Mosquitto + supervisor\nCredential riêng / ACL theo Door và Device\nAnonymous OFF" as Broker
+  artifact "Manifest riêng trên volume\nUser / password / phạm vi topic" as Manifest
+  BE --> DB : JDBC / transaction
+  BE --> Manifest : Xuất danh tính hiện hành
+  Manifest --> Broker : Cập nhật password + ACL; reload
+  BE --> Broker : MQTT QoS 1\nunlock / close / access-result / alarm\nconfiguration / credentials
+  Broker --> BE : MQTT QoS 1\naccess-request / command-ack / sync-ack\nheartbeat / alert / telemetry
+}
+App --> BE : REST/JSON + JWT\nLocal HTTP :8080
+BE --> App : JSON; polling khi foreground\nChưa có thông báo push nền
+App ..> N1 : Thiết lập: nối SoftAP\nHTTP 192.168.4.1; gửi Wi-Fi nhà
+App ..> N2 : Cài riêng từng bo qua SoftAP\nQR hoặc nhập mã thiết lập
+Wifi --> BE : Node gọi device-enrollment sau claim\nBootstrap xác thực; nhận Door ID + MQTT identity
+Wifi --> Broker : Node publish events/*\nEnvelope ký HMAC
+Broker --> Wifi : Node subscribe commands/*\nĐúng Door / deviceCode
+note bottom of App
+  TECHNICIAN đăng ký kho và tạo bộ cửa; CUSTOMER claim và thiết lập.
+  Đăng ký trên App không nạp firmware. Xưởng nạp qua USB một lần.
+  Mật khẩu Wi-Fi nhà gửi trực tiếp sang ESP32, không gửi lên Backend.
+end note
+legend bottom
+  Backend / DB / Broker / Flutter đã thử bằng Node giả lập; firmware hai Node đã build.
+  SoftAP và phần cứng của bản onboarding cần nghiệm thu trên hai bo thật.
+  Local dùng HTTP / MQTT TCP; HTTPS enrollment có CA, MQTT TLS chưa có trong firmware.
+  App không truy cập MySQL hoặc publish MQTT trực tiếp. Offline vẫn trong phạm vi phát triển.
+endlegend
+
+footer Đối chiếu source 16/11/2026 | V13 | Offline RFID/PIN chưa triển khai
+@enduml

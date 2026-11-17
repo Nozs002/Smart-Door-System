@@ -13,6 +13,16 @@ trên App. Backend quản lý sở hữu, kiểm tra quyền theo cửa và lị
 thiết bị. Lifecycle tách khỏi kết nối suy ra từ heartbeat từng Node. Broker và
 Backend kiểm tra danh tính/ACL đúng Door/Node trước nhận sự kiện hoặc gửi lệnh.
 
-Các nội dung này là kiến trúc mục tiêu, chưa xác nhận đã triển khai. Chi tiết
-Backend ở [kiến trúc Backend](../05-backend/architecture.md); schema hiện tại và
-chênh lệch ở [Database ERD](database-erd.md).
+Cập nhật 16/11/2026: Backend/Flutter có JWT, Door/Device, credentials,
+cấu hình/ACK, MQTT có danh tính/ACL, RFID/PIN online, mở/đóng cửa, lịch sử,
+telemetry và luồng TECHNICIAN đăng ký/bàn giao thiết bị, CUSTOMER cài Wi-Fi.
+Database đến V13; API/MQTT đã được kiểm thử bằng Node giả lập với MySQL và
+Mosquitto thật. Firmware hai Node đã có code tích hợp và build thành công.
+Phản ứng nhiệt tại chỗ và bộ đệm alert NVS đã có; RFID/PIN offline giữa hai
+Node vẫn chưa triển khai đầy đủ. Cần nghiệm thu bản onboarding trên bo thật.
+
+Xem [hồ sơ 12 nhóm sơ đồ V13](system-design-review.md), gồm sơ đồ 6 cảnh báo
+và mất kết nối theo code. Chi tiết Backend ở
+[kiến trúc Backend](../05-backend/architecture.md); schema tại
+[Database ERD](database-erd.md). Compose local dùng HTTP/MQTT TCP; chưa có
+phương án TLS vận hành được triển khai.

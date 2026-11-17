@@ -178,3 +178,17 @@ Smoke API/MQTT qua MySQL/Mosquitto thật cũng đạt: PIN/RFID, ACK mở khóa
 cầu trùng, khóa tạm/còi, telemetry, cảnh báo/inbox và quyền sở hữu. Log riêng
 nằm tại `.local/final-v10-smoke.log`, không đưa credential/báo cáo riêng lên Git.
 Kết quả Node giả lập không thay thế kiểm thử firmware và khóa vật lý.
+
+## Nâng cấp V11/V12 sau tích hợp firmware
+
+V11 thêm action UNLOCK/CLOSE cho lệnh cửa; V12 thêm `broker_revoked_at` vào
+`device_transport_credentials` cùng CHECK buộc có thời điểm thu hồi khóa trước
+xác nhận Broker. Các migration giữ nguyên dữ liệu; không sửa V1–V11 đã áp dụng.
+Sau khi nạp firmware tương thích, dùng `docker compose up -d --build backend`.
+Kiểm tra bằng `python scripts/db-check.py --expect-version 12`.
+
+`python scripts/db-fresh-check.py` đã mở rộng kiểm tra V9→V10→V11→V12 trên
+schema riêng: giữ hàng đợi/lệnh/credential cũ, kiểm tra CLOSE và CHECK xác nhận
+thu hồi. Không reset volume. Lệnh thu hồi thực tế dùng công cụ kỹ thuật,
+không sửa các cột thu hồi bằng phpMyAdmin. Xem
+[hướng dẫn và kết quả](../05-backend/pre-onboarding-fixes.md).

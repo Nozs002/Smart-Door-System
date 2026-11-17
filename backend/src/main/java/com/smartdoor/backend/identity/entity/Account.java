@@ -46,6 +46,12 @@ public class Account {
 	private Long authVersion = 0L;
 
 	@Enumerated(EnumType.STRING)
+	@Column(name = "role", nullable = false, length = 20)
+	private Role role = Role.CUSTOMER;
+
+	public enum Role { CUSTOMER, TECHNICIAN }
+
+	@Enumerated(EnumType.STRING)
 	@Column(name = "status", nullable = false, columnDefinition = "ENUM('ACTIVE','DISABLED')")
 	private Status status = Status.ACTIVE;
 

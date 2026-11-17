@@ -5,12 +5,14 @@ class AccountProfile {
     required this.displayName,
     required this.status,
     required this.createdAt,
+    this.role = 'CUSTOMER',
   });
   final int id;
   final String username;
   final String displayName;
   final String status;
   final DateTime createdAt;
+  final String role;
 
   factory AccountProfile.fromJson(Map<String, dynamic> json) {
     final id = json['id'];
@@ -35,6 +37,7 @@ class AccountProfile {
       displayName: name,
       status: status as String,
       createdAt: DateTime.parse(created),
+      role: json['role'] as String? ?? 'CUSTOMER',
     );
   }
 }

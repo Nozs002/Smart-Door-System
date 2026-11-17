@@ -59,6 +59,7 @@ public class SecurityConfiguration {
 						.requestMatchers(HttpMethod.OPTIONS, "/**").permitAll()
 						.requestMatchers(HttpMethod.POST, "/api/v1/auth/login").permitAll()
 						.requestMatchers(HttpMethod.POST, "/api/v1/auth/register").permitAll()
+						.requestMatchers(HttpMethod.POST, "/api/v1/device-enrollment").permitAll()
 						.requestMatchers(PUBLIC_HEALTH_ENDPOINTS).permitAll()
 						.anyRequest().authenticated())
 				.build();

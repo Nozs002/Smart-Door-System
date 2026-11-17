@@ -26,6 +26,10 @@ public class SettingsDeviceReadinessPolicy implements DeviceReadinessPolicy {
         return pin!=null && pin.getStatus()==SystemPin.Status.ACTIVE
                 && config.getCredentialsVersion().equals(device.getAppliedPinVersion());
     }
-    // Replacement still needs the technical Broker-revocation workflow owned by module Device.
-    // Database key revocation alone cannot certify that an old Broker session was removed.
+    @Override public boolean canReplace(Device previous,Device replacement) {
+        var key=keys.findById(previous.getId()).orElse(null);
+        return !previous.getId().equals(replacement.getId()) && key!=null
+                && key.getRevokedAt()!=null && key.getBrokerRevokedAt()!=null
+                && !key.getBrokerRevokedAt().isBefore(key.getRevokedAt());
+    }
 }

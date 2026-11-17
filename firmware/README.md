@@ -15,6 +15,13 @@ Hai sketch hiện tại dùng ArduinoMqttClient và file cấu hình local riên
 4. NTP, WiFi, Preferences và mbedTLS có trong ESP32 Arduino core.
 
 ## Setup ban đầu
+Luồng mới dùng `enrollment_config.local.h` riêng cho từng board, được xuất từ
+App kỹ thuật viên. File này cấp định danh ban đầu, mã thiết lập Wi-Fi và địa chỉ
+enrollment. ESP32 nhận Door ID/MQTT sau khi cửa được gắn và claim. Giữ BOOT ba
+giây khi firmware chạy để mở lại Wi-Fi thiết lập. Xem
+[hướng dẫn đầy đủ](../docs/05-backend/device-onboarding.md).
+
+Các bước dưới áp dụng cho chế độ cấu hình cũ theo bộ cửa đã biết.
 1. Copy file `*_config.h.example` trong từng module thành `*_config.local.h`.
 2. Điền IP Server và danh tính MQTT riêng từ file cấp khóa của đúng node.
 3. Không commit secret. File local được ignore; các helper/config legacy còn

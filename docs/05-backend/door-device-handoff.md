@@ -83,7 +83,8 @@ trong các thư mục trên đều mới. Những chức năng JWT, Cardholder/R
 - Chưa heartbeat là UNKNOWN; chưa quá 90 giây là ONLINE; quá 90 giây là OFFLINE.
   Đúng mốc 90 giây vẫn ONLINE. Heartbeat không sửa lifecycle hoặc version ACK.
 - Timeout backend điều chỉnh bằng `app.device.heartbeat-timeout-seconds` (mặc định
-  90). Chu kỳ gửi 30 giây là mốc thống nhất thử nghiệm, chưa có firmware gửi thật.
+  90). Firmware tích hợp hiện gửi heartbeat khoảng 20 giây; chu kỳ 30 giây trong
+  thiết kế ban đầu là mốc thử nghiệm, không phải timeout offline.
 - Giới hạn claim 5 lần/phút trên Account và IP transport; bộ nhớ có giới hạn,
   một instance. Restart làm mất cửa sổ hiện tại; nhiều instance cần bộ lưu chung.
 
@@ -129,11 +130,13 @@ Triển khai bean `DeviceReadinessPolicy` với bằng chứng đúng Node/phiê
   thiết cho vai trò đã được xác nhận áp dụng. Không suy ra từ việc lưu cấu hình
   vào DB hoặc chỉ nhận heartbeat.
 - `canReplace(previous, replacement)`: ngoài Node mới sẵn sàng, có bằng chứng
-  thu hồi quyền Node cũ theo workflow đã thống nhất. Mặc định trả false.
+  thu hồi quyền Node cũ theo workflow đã thống nhất. Bean MQTT kiểm tra
+  `revoked_at` và `broker_revoked_at` (V12); xem `scripts/setup-mqtt.py revoke`.
 
-`DeviceIntegrationConfiguration` cấp policy từ chối khi chưa có bean tích hợp.
-Vì thế API activate/reactivate/replace mặc định trả 409. Test dùng policy giả;
-không thêm `ready=true` vào request công khai hoặc mặc định trả true để demo.
+`SettingsDeviceReadinessPolicy` là bean tích hợp hiện tại: activate/reactivate
+kiểm tra danh tính và ACK; replace cần thêm xác nhận Broker đã thu hồi khóa cũ.
+`DeviceIntegrationConfiguration` chỉ cấp policy từ chối khi không có bean tích
+hợp. Không thêm `ready=true` hoặc tự sửa cột ACK trong DB để demo.
 
 Disable/retire hiện đổi quyền trong backend và ghi lịch sử. Chúng chưa khẳng
 định Broker đã thu hồi credential, cache RFID/PIN trên ESP32 đã xóa hoặc một
