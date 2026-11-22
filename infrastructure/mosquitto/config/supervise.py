@@ -6,11 +6,102 @@ from pathlib import Path
 import re
 import shutil
 import signal
+import socket
+import struct
 import subprocess
 import time
+import uuid
 
 ROOT = Path('/mosquitto/security')
 MANIFEST = Path('/device-manifest/broker-users.json')
+PROOF = Path('/revocation-proof/revocations.json')
+
+
+def mqtt_field(value):
+    encoded = value.encode('utf-8')
+    if len(encoded) > 65535:
+        raise ValueError('Invalid MQTT field length')
+    return struct.pack('!H', len(encoded)) + encoded
+
+
+def authentication_rejected(username, password, host='127.0.0.1', port=1883):
+    """CONNECT only; require CONNACK auth refusal, not a network/protocol failure."""
+    body = b'\x00\x04MQTT\x04\xc2\x00\x0a' + mqtt_field('revoke-' + uuid.uuid4().hex)
+    body += mqtt_field(username) + mqtt_field(password)
+    remaining, value = bytearray(), len(body)
+    while True:
+        digit, value = value % 128, value // 128
+        remaining.append(digit | (128 if value else 0))
+        if not value:
+            break
+    with socket.create_connection((host, port), timeout=3) as connection:
+        connection.settimeout(3)
+        connection.sendall(b'\x10' + remaining + body)
+        response = b''
+        while len(response) < 4:
+            chunk = connection.recv(4 - len(response))
+            if not chunk:
+                return False
+            response += chunk
+        return response[:3] == b'\x20\x02\x00' and response[3] in (4, 5)
+
+
+def stop_broker(broker):
+    broker.terminate()
+    try:
+        broker.wait(timeout=10)
+    except subprocess.TimeoutExpired:
+        broker.kill()
+        broker.wait(timeout=5)
+
+
+def write_proof(records):
+    PROOF.parent.mkdir(parents=True, exist_ok=True)
+    temporary = PROOF.with_suffix('.next')
+    temporary.write_text(json.dumps(records), encoding='utf-8')
+    # No secrets in this file. Backend mounts the volume read-only as uid 10001.
+    temporary.chmod(0o644)
+    temporary.replace(PROOF)
+
+
+def apply_manifest(content, broker):
+    manifest = json.loads(content)
+    # V13 array manifests remain accepted during a rolling local upgrade.
+    users = manifest if isinstance(manifest, list) else manifest['users']
+    revocations = [] if isinstance(manifest, list) else manifest.get('revocations', [])
+    if not isinstance(users, list) or not isinstance(revocations, list):
+        raise ValueError('Invalid manifest')
+    for record in revocations:
+        if type(record.get('deviceId')) is not int or record['deviceId'] < 1:
+            raise ValueError('Invalid revocation device')
+        if not re.fullmatch(r'[a-f0-9-]{36}', record.get('credentialId', '')) or not isinstance(record.get('revokedAt'), str):
+            raise ValueError('Invalid revocation epoch')
+        expected = 'device-' + str(record['deviceId']) + '-' + record['credentialId']
+        if record.get('username') != expected or not re.fullmatch(r'[A-Za-z0-9_-]+', record.get('password', '')):
+            raise ValueError('Invalid revocation identity')
+    prepare(users)
+    if not revocations:
+        broker.send_signal(signal.SIGHUP)
+        return broker, True
+    # A reload alone cannot prove existing sessions were disconnected.
+    stop_broker(broker)
+    broker = subprocess.Popen(['mosquitto', '-c', '/mosquitto/config/mosquitto.conf'])
+    proofs = []
+    for record in revocations:
+        rejected = False
+        for attempt in range(15):
+            try:
+                rejected = authentication_rejected(record['username'], record['password'])
+                break  # Accepted CONNECT is a failed proof; never equate it to revocation.
+            except OSError:
+                if broker.poll() is not None:
+                    break
+                time.sleep(0.2)
+        if rejected:
+            proofs.append({key: record[key] for key in ('deviceId', 'credentialId', 'revokedAt')} |
+                          {'sessionsDisconnected': True, 'authenticationRejected': True})
+    write_proof(proofs)
+    return broker, len(proofs) == len(revocations)
 
 
 def prepare(users):
@@ -73,10 +164,10 @@ def main():
                 content = MANIFEST.read_bytes()
                 digest = hashlib.sha256(content).digest()
                 if digest != previous:
-                    prepare(json.loads(content))
-                    broker.send_signal(signal.SIGHUP)
-                    previous = digest
-                    print('Applied device MQTT identities and ACL.', flush=True)
+                    broker, proved = apply_manifest(content, broker)
+                    if proved:
+                        previous = digest
+                    print('Applied MQTT manifest; pending revocation proofs are checked.', flush=True)
         except (OSError, ValueError, KeyError, subprocess.SubprocessError):
             print('Device manifest could not be applied. Retrying.', flush=True)
         time.sleep(2)

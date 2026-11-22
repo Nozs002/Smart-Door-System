@@ -1,7 +1,5 @@
 import 'package:flutter/material.dart';
 
-import '../../onboarding/code_input.dart';
-
 import '../data/door_models.dart';
 import '../data/door_repository.dart';
 import 'door_widgets.dart';
@@ -85,21 +83,6 @@ class _ClaimDoorScreenState extends State<ClaimDoorScreen> {
                   ),
                   validator: validateActivationCode,
                   onFieldSubmitted: (_) => _submit(),
-                ),
-                TextButton.icon(
-                  onPressed: _saving
-                      ? null
-                      : () async {
-                          final value = await scanCode(context);
-                          if (value == null || !mounted) return;
-                          try {
-                            _code.text = readCode(value, 'claim');
-                          } catch (error) {
-                            setState(() => _error = error);
-                          }
-                        },
-                  icon: const Icon(Icons.qr_code_scanner),
-                  label: const Text('Quét QR nhận cửa'),
                 ),
                 if (_error != null)
                   Padding(

@@ -75,7 +75,7 @@ public class DeviceTransportCredentialService {
         return result; // Private export used only to verify that Broker rejects this identity.
     }
 
-    /** Privileged local CLI only, after Broker restart and an explicit authentication rejection. */
+    /** Trusted CLI or private Broker proof importer, after disconnect and authentication rejection. */
     @Transactional
     public RevocationConfirmation confirmBrokerRevocation(Long deviceId,String credentialId) {
         lockDevice(deviceId);
@@ -103,7 +103,7 @@ public class DeviceTransportCredentialService {
     }
 
     public String enrollmentSecret(String purpose,String unitCode) {
-        if (!java.util.Set.of("bootstrap", "setup").contains(purpose)) throw new IllegalArgumentException("Invalid enrollment purpose");
+        if (!java.util.Set.of("bootstrap", "setup", "replacement").contains(purpose)) throw new IllegalArgumentException("Invalid enrollment purpose");
         return Base64.getUrlEncoder().withoutPadding().encodeToString(derive("enrollment-"+purpose,unitCode));
     }
 
@@ -113,6 +113,37 @@ public class DeviceTransportCredentialService {
         var key=keys.findById(deviceId).filter(k -> k.getRevokedAt()==null).orElseThrow(() -> new ConflictException("Danh tính đã bị thu hồi."));
         if (device.getLifecycleStatus()==Device.LifecycleStatus.RETIRED) throw new ConflictException("Node đã ngừng sử dụng.");
         return export(device,key);
+    }
+
+    @Transactional
+    public void revokeIfPresent(Long deviceId) {
+        if (keys.existsById(deviceId)) revoke(deviceId);
+    }
+
+    /** Private Broker channel only; never return this export through an Account API. */
+    @Transactional(readOnly=true)
+    public List<java.util.Map<String,Object>> pendingBrokerRevocations() {
+        return keys.findAllByRevokedAtIsNotNullAndBrokerRevokedAtIsNull().stream().map(key -> {
+            var value=export(devices.findById(key.getDeviceId()).orElseThrow(),key);
+            return java.util.Map.<String,Object>of("deviceId",value.deviceId(),"credentialId",value.credentialId(),
+                "username",value.username(),"password",value.password(),"revokedAt",key.getRevokedAt().toString());
+        }).toList();
+    }
+
+    @Transactional
+    public boolean importBrokerProof(Long deviceId,String credentialId,String revokedAt) {
+        lockDevice(deviceId);
+        var key=keys.findById(deviceId).orElse(null);
+        if (key==null || key.getRevokedAt()==null || !key.getCredentialId().equals(credentialId)
+                || !key.getRevokedAt().toString().equals(revokedAt)) return false;
+        confirmBrokerRevocation(deviceId,credentialId);
+        return true;
+    }
+
+    @Transactional(readOnly=true)
+    public boolean brokerRevoked(Long deviceId) {
+        return keys.findById(deviceId).filter(k -> k.getRevokedAt()!=null && k.getBrokerRevokedAt()!=null
+            && !k.getBrokerRevokedAt().isBefore(k.getRevokedAt())).isPresent();
     }
 
     private DeviceCredentialExport export(Device d,DeviceTransportCredential key) {

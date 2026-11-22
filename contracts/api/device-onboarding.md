@@ -1,5 +1,9 @@
 # Device onboarding API
 
+V14 adds [owner-authorized single-Node replacement](node-replacement.md),
+including recovery of a RETIRED role, automatic Broker revocation proof and
+technician binding by code. The V13 kit flow below remains supported.
+
 Account identity comes from JWT. Responses use the existing ApiResponse envelope.
 Sensitive responses have `Cache-Control: no-store`. Accounts registered publicly
 receive CUSTOMER. TECHNICIAN is created by the deployment bootstrap environment.
@@ -23,7 +27,7 @@ Stable inventory locks prevent concurrent binding. Node roles must match.
 
 Factory output includes `unitCode`, `nodeType`, `setupCode`, `setupSsid` and
 `firmwareConfig`. The bootstrap secret belongs only in the prepared board's
-private header. The QR label contains the unit code and local setup code.
+private header. The printed label can show the unit code and local setup code.
 Factory exports are blocked after the Door is claimed. Setup information is
 then available to the owner through the setup-nodes endpoint.
 
@@ -37,16 +41,13 @@ current configuration ACKs and Node 1's current credential ACK. Disabled Nodes
 require an explicit lifecycle action. A completed request can be retried.
 Readiness checks and both activations share a Door lock and transaction.
 
-## QR and manual inputs
+## Codes entered in the App
 
-| Purpose | QR representation | Manual equivalent |
-| --- | --- | --- |
-| Board identity | `smartdoor://unit/{unitCode}?setup={setupCode}` | Unit code printed on the label |
-| Door claim | `smartdoor://claim/{activationCode}` | Activation code printed on handover sheet |
-| Local Wi-Fi setup | Same board QR, including setup parameter | Setup code printed on the board label |
-
-QR is an input mechanism. All paths use the same server authorization and
-validation. Camera denial leaves manual entry available.
+| Purpose | Code |
+| --- | --- |
+| Board identity | `unitCode` from the inventory |
+| Door claim | `activationCode` from the handover |
+| Local Wi-Fi setup | `setupCode` prefilled for the selected board and editable |
 
 ## Local ESP32 setup HTTP
 

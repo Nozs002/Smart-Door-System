@@ -4,6 +4,7 @@ import '../data/door_models.dart';
 import '../data/door_repository.dart';
 import 'door_widgets.dart';
 import 'lifecycle_history_screen.dart';
+import '../../onboarding/replacement_screen.dart';
 
 class DeviceDetailScreen extends StatefulWidget {
   const DeviceDetailScreen({
@@ -58,6 +59,21 @@ class _DeviceDetailScreenState extends State<DeviceDetailScreen> {
   }
 
   Future<void> _change(String action) async {
+    if (action == 'REPLACE' && widget.repository is RestDoorRepository) {
+      final client = (widget.repository as RestDoorRepository).client;
+      await Navigator.push(
+        context,
+        MaterialPageRoute<void>(
+          builder: (_) => ReplacementScreen(
+            client: client,
+            doorId: widget.doorId,
+            deviceId: widget.deviceId,
+          ),
+        ),
+      );
+      if (mounted) await _load();
+      return;
+    }
     final changed = await showDialog<bool>(
       context: context,
       barrierDismissible: false,
@@ -181,11 +197,17 @@ class _DeviceDetailScreenState extends State<DeviceDetailScreen> {
                         label: const Text('Kích hoạt lại thiết bị'),
                       ),
                     if (_device!.lifecycleStatus == 'ACTIVE' ||
-                        _device!.lifecycleStatus == 'DISABLED')
+                        _device!.lifecycleStatus == 'DISABLED' ||
+                        (_device!.lifecycleStatus == 'RETIRED' &&
+                            widget.repository is RestDoorRepository))
                       OutlinedButton.icon(
                         onPressed: () => _change('REPLACE'),
                         icon: const Icon(Icons.swap_horiz),
-                        label: const Text('Thay thế thiết bị'),
+                        label: Text(
+                          _device!.lifecycleStatus == 'RETIRED'
+                              ? 'Bổ sung Node thay thế'
+                              : 'Thay thế thiết bị',
+                        ),
                       ),
                     if (_device!.lifecycleStatus == 'ACTIVE' ||
                         _device!.lifecycleStatus == 'DISABLED')

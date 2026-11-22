@@ -26,6 +26,11 @@ CHECKS = {
     "retired_device_timestamp": "SELECT COUNT(*) FROM devices WHERE lifecycle_status='RETIRED' AND retired_at IS NULL",
 }
 MIGRATED_CHECKS = {
+    "replacement_requests": {
+        "replacement_device_scope": "SELECT COUNT(*) FROM replacement_requests r JOIN devices o ON o.id=r.old_device_id LEFT JOIN devices n ON n.id=r.new_device_id WHERE r.door_id<>o.door_id OR r.node_type<>o.node_type OR (r.new_device_id IS NOT NULL AND (r.door_id<>n.door_id OR r.node_type<>n.node_type))",
+        "replacement_pending_role_duplicates": "SELECT COUNT(*) FROM (SELECT door_id,node_type FROM replacement_requests WHERE status IN ('OPEN','BOUND','REVOKING') GROUP BY door_id,node_type HAVING COUNT(*)>1) x",
+        "replacement_binding_shape": "SELECT COUNT(*) FROM replacement_requests WHERE (status IN ('BOUND','REVOKING','COMPLETED') AND (new_device_id IS NULL OR technician_id IS NULL)) OR (status='COMPLETED' AND completed_at IS NULL)",
+    },
     "door_telemetry": {
         "telemetry_device_scope": "SELECT COUNT(*) FROM door_telemetry t JOIN devices d ON d.id=t.source_device_id WHERE t.door_id<>d.door_id OR d.node_type<>'NODE_2'",
         "telemetry_value_shape": "SELECT COUNT(*) FROM door_telemetry WHERE (temperature IS NOT NULL AND (temperature < -40 OR temperature > 125)) OR (humidity IS NOT NULL AND (humidity < 0 OR humidity > 100)) OR door_state NOT IN ('OPEN','CLOSED','UNKNOWN') OR lock_state NOT IN ('LOCKED','UNLOCKED','UNKNOWN')",

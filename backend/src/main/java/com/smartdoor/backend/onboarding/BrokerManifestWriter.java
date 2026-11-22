@@ -24,10 +24,12 @@ public class BrokerManifestWriter {
     }
     @Scheduled(initialDelay=3000,fixedDelay=3000)
     public void write() throws java.io.IOException {
-        byte[] value=json.writeValueAsBytes(credentials.exportBrokerUsers().stream()
+        var users=credentials.exportBrokerUsers().stream()
                 .sorted(java.util.Comparator.comparing(DeviceTransportCredentialService.DeviceCredentialExport::deviceId))
                 .map(u -> java.util.Map.of("username",u.username(),"password",u.password(),"deviceCode",u.deviceCode(),"doorId",u.doorId()))
-                .toList());
+                .toList();
+        byte[] value=json.writeValueAsBytes(java.util.Map.of("schemaVersion",2,"users",users,
+                "revocations",credentials.pendingBrokerRevocations()));
         if (Files.exists(destination) && java.util.Arrays.equals(value,Files.readAllBytes(destination))) return;
         Files.createDirectories(destination.getParent());
         Path temporary=Files.createTempFile(destination.getParent(),"broker-users-",".tmp");

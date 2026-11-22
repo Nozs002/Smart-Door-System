@@ -44,6 +44,7 @@ services:
       - ./.local/mosquitto:/mosquitto/bootstrap:ro
       - mosquitto-security:/mosquitto/security
       - backend-mqtt:/device-manifest:ro
+      - broker-revocation:/revocation-proof
       - mosquitto-data:/mosquitto/data
       - mosquitto-log:/mosquitto/log
     restart: unless-stopped
@@ -81,6 +82,7 @@ services:
       - "8080:8080"
     volumes:
       - backend-mqtt:/app/mqtt
+      - broker-revocation:/app/broker-proof:ro
     depends_on:
       mysql:
         condition: service_healthy
@@ -94,3 +96,4 @@ volumes:
   mosquitto-log:
   mosquitto-security:
   backend-mqtt:
+  broker-revocation:

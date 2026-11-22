@@ -1,15 +1,16 @@
 openapi: 3.0.3
 info:
   title: Smart Door - Door and Device API
-  version: 1.0.0
+  version: 1.1.0
   description: |
     REST contract cho phần Người 2: quản lý Door, claim, Device và lifecycle.
     Account phải được xác thực và ACTIVE; backend lấy Account từ principal,
     không nhận accountId trong body. Không thuộc Door được trả 404.
     JWT do Người 1 tích hợp; contract bearerAuth không triển khai đăng nhập.
-    Provision/cấp lại mã/đăng ký Node thay thế chỉ có CLI nội bộ.
-    MQTT thật và readiness dựa trên danh tính/ACK là đầu nối chưa tích hợp;
-    mặc định activate/reactivate/replace bị từ chối khi chưa đủ bằng chứng.
+    Provision/cấp lại mã có API TECHNICIAN trong device-onboarding.md.
+    V14 thêm node-replacement.md: chủ cửa cấp mã, kỹ thuật viên gắn bo lẻ,
+    chủ cửa hoàn tất sau ACK và bằng chứng thu hồi Broker tự động.
+    MQTT/readiness dùng danh tính và ACK thật; chưa đủ bằng chứng thì từ chối.
 servers:
   - url: http://localhost:8080
     description: Local Docker backend
@@ -213,13 +214,14 @@ paths:
       summary: Thay Node bằng Device đã được kỹ thuật viên đăng ký
       description: |
         Node mới phải khác Node cũ, cùng Door/vai trò và PROVISIONED.
-        Node cũ phải ACTIVE hoặc DISABLED. Kiểm tra readiness và bằng chứng
+        Node cũ có thể ACTIVE, DISABLED hoặc RETIRED. Kiểm tra readiness và bằng chứng
         thu hồi quyền Node cũ qua policy tích hợp trước khi đổi.
         Transaction retire Node cũ, activate Node mới và ghi sự kiện;
         response là Node mới. Giữ Door và toàn bộ lịch sử Node cũ.
         Không nhận deviceCode tùy ý để tự đăng ký thiết bị từ App.
         Database commit không chứng minh quyền Broker/thiết bị cũ đã bị thu hồi;
-        tích hợp cần adapter và cơ chế retry tương ứng.
+        V14 có private Broker proof importer; App không tự xác nhận thu hồi.
+        Với bo thuộc replacement request, dùng luồng complete trong node-replacement.md.
       requestBody:
         required: true
         content:

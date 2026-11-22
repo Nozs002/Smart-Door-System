@@ -11,7 +11,6 @@ import '../credentials/data/credential_repository.dart';
 import '../credentials/presentation/pin_screen.dart';
 import '../settings/data/settings_repository.dart';
 import '../settings/presentation/door_settings_screen.dart';
-import 'code_input.dart';
 
 class DoorSetupScreen extends StatefulWidget {
   const DoorSetupScreen({
@@ -272,23 +271,6 @@ class _NodeWifiScreenState extends State<NodeWifiScreen> {
     }
   }
 
-  Future<void> scan() async {
-    final value = await scanCode(context);
-    if (value == null || !mounted) return;
-    final uri = Uri.tryParse(value);
-    if (uri?.scheme != 'smartdoor' ||
-        uri?.host != 'unit' ||
-        uri?.pathSegments.singleOrNull != widget.node['unitCode'] ||
-        uri?.queryParameters['setup'] == null) {
-      setState(
-        () => message =
-            'QR không khớp Node đang thiết lập. Bạn có thể nhập mã trên tem.',
-      );
-      return;
-    }
-    setup.text = uri!.queryParameters['setup']!;
-  }
-
   @override
   Widget build(BuildContext context) => Scaffold(
     appBar: AppBar(title: const Text('Cài Wi-Fi ESP32')),
@@ -324,17 +306,15 @@ class _NodeWifiScreenState extends State<NodeWifiScreen> {
           TextFormField(
             controller: setup,
             enabled: !busy,
+            autocorrect: false,
+            enableSuggestions: false,
             decoration: const InputDecoration(
-              labelText: 'Nhập mã thiết lập trên tem',
+              labelText: 'Mã thiết lập của Node',
               border: OutlineInputBorder(),
             ),
-            validator: (v) =>
-                v == null || v.length < 12 ? 'Kiểm tra mã thiết lập.' : null,
-          ),
-          TextButton.icon(
-            onPressed: busy ? null : scan,
-            icon: const Icon(Icons.qr_code_scanner),
-            label: const Text('Quét QR thiết lập'),
+            validator: (v) => v == null || v.trim().length < 12
+                ? 'Kiểm tra mã thiết lập.'
+                : null,
           ),
           TextFormField(
             controller: ssid,
