@@ -50,8 +50,12 @@ class DeviceLifecycleServiceTests {
 	private final DeviceReadinessPolicy readiness = mock(DeviceReadinessPolicy.class);
 	private final com.smartdoor.backend.infrastructure.outbox.OutboxService outbox =
 			mock(com.smartdoor.backend.infrastructure.outbox.OutboxService.class);
+	private final com.smartdoor.backend.infrastructure.mqtt.DeviceTransportCredentialService credentials =
+			mock(com.smartdoor.backend.infrastructure.mqtt.DeviceTransportCredentialService.class);
+	private final com.smartdoor.backend.onboarding.ReplacementRepository replacements =
+			mock(com.smartdoor.backend.onboarding.ReplacementRepository.class);
 	private final DeviceLifecycleService service = new DeviceLifecycleService(ownership, doors, devices,
-			events, readiness, new DeviceConnectionPolicy(CLOCK, 90), CLOCK, outbox);
+			events, readiness, new DeviceConnectionPolicy(CLOCK, 90), CLOCK, outbox, credentials, replacements);
 	private Door door;
 	private Device node;
 

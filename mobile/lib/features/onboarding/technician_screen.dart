@@ -5,6 +5,7 @@ import 'package:flutter/services.dart';
 
 import '../../core/api_client.dart';
 import 'code_input.dart';
+import 'replacement_screen.dart';
 
 class TechnicianScreen extends StatefulWidget {
   const TechnicianScreen({super.key, required this.client, this.onOpenProfile});
@@ -94,9 +95,9 @@ class _TechnicianScreenState extends State<TechnicianScreen> {
         final code = result['activationCode'] as String;
         await showCode(
           context,
-          'Mã nhận cửa',
-          '$code\nHết hạn ${result['expiresAt']}',
-          'smartdoor://claim/$code',
+          title: 'Mã nhận cửa',
+          code: code,
+          detail: 'Hết hạn ${result['expiresAt']}',
         );
       } else {
         ScaffoldMessenger.of(context).showSnackBar(
@@ -130,9 +131,14 @@ class _TechnicianScreenState extends State<TechnicianScreen> {
             child: Column(
               mainAxisSize: MainAxisSize.min,
               children: [
-                SelectableText(
-                  'Node ${result['nodeType']}\nMã $code\nWi-Fi ${result['setupSsid']}\nMã thiết lập $setup',
-                ),
+                Text('Wi-Fi thiết lập: ${result['setupSsid']}'),
+                const SizedBox(height: 8),
+                const Text('Mã định danh bo'),
+                SelectableText(code),
+                CopyCodeButton(code: code, label: 'Sao chép mã bo'),
+                const Text('Mã thiết lập Wi-Fi'),
+                SelectableText(setup),
+                CopyCodeButton(code: setup, label: 'Sao chép mã thiết lập'),
                 const SizedBox(height: 12),
                 const Text(
                   'Lưu cấu hình thành enrollment_config.local.h cạnh sketch đúng Node, rồi nạp firmware một lần.',
@@ -148,18 +154,6 @@ class _TechnicianScreenState extends State<TechnicianScreen> {
                 );
               },
               child: const Text('Sao chép cấu hình nạp'),
-            ),
-            TextButton(
-              onPressed: () {
-                Navigator.pop(context);
-                showCode(
-                  context,
-                  'Tem thiết bị',
-                  '$code\nMã thiết lập $setup',
-                  'smartdoor://unit/$code?setup=$setup',
-                );
-              },
-              child: const Text('Xem QR và mã'),
             ),
             TextButton(
               onPressed: () => Navigator.pop(context),
@@ -239,11 +233,27 @@ class _TechnicianScreenState extends State<TechnicianScreen> {
                     subtitle: Text(
                       '${unit['unitCode']}\n${unit['deviceId'] == null ? 'Chưa gắn cửa' : 'Đã gắn cửa'}',
                     ),
-                    trailing: const Icon(Icons.qr_code),
+                    trailing: const Icon(Icons.chevron_right),
                     onTap: busy ? null : () => factory(unit),
                   );
                 }),
               ],
+            ),
+          ),
+        ),
+        const SizedBox(height: 20),
+        Card(
+          child: ListTile(
+            leading: const Icon(Icons.swap_horiz),
+            title: const Text('Thay Node cho cửa đã bàn giao'),
+            subtitle: const Text('Nhập mã ủy quyền từ chủ cửa'),
+            trailing: const Icon(Icons.chevron_right),
+            onTap: () => Navigator.push(
+              context,
+              MaterialPageRoute<void>(
+                builder: (_) =>
+                    TechnicianReplacementScreen(client: widget.client),
+              ),
             ),
           ),
         ),
@@ -265,18 +275,8 @@ class _TechnicianScreenState extends State<TechnicianScreen> {
                 maxLength: 255,
                 decoration: const InputDecoration(labelText: 'Vị trí'),
               ),
-              CodeField(
-                controller: first,
-                label: 'Mã Node 1',
-                kind: 'unit',
-                enabled: !busy,
-              ),
-              CodeField(
-                controller: second,
-                label: 'Mã Node 2',
-                kind: 'unit',
-                enabled: !busy,
-              ),
+              CodeField(controller: first, label: 'Mã Node 1', enabled: !busy),
+              CodeField(controller: second, label: 'Mã Node 2', enabled: !busy),
               FilledButton(
                 onPressed: busy ? null : createKit,
                 child: const Text('Tạo bộ cửa và mã bàn giao'),
@@ -308,9 +308,9 @@ class _TechnicianScreenState extends State<TechnicianScreen> {
                               if (context.mounted) {
                                 await showCode(
                                   context,
-                                  'Mã nhận cửa mới',
-                                  '$code\nHết hạn ${result['expiresAt']}',
-                                  'smartdoor://claim/$code',
+                                  title: 'Mã nhận cửa mới',
+                                  code: code,
+                                  detail: 'Hết hạn ${result['expiresAt']}',
                                 );
                               }
                             }),

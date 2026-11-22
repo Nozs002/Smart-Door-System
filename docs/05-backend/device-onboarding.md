@@ -1,10 +1,14 @@
 # Luồng kỹ thuật viên, bàn giao và cài Wi-Fi
 
+Luồng bổ sung V14 cho một bo hỏng hoặc vị trí đã RETIRED nằm ở
+[thay Node và phục hồi sau retire](node-replacement.md). Không tạo bộ cửa
+hoặc claim mới để thay một bo; cần Backend/supervisor/Compose cùng bản V14.
+
 Luồng này dùng chung App Android và chọn trang chính theo vai trò từ Backend.
 Tài khoản TECHNICIAN mở trực tiếp **Kho ESP32 và tem thiết bị**, **Tạo bộ cửa**,
 **Các bộ cửa đã tạo**. Nút Hồ sơ ở góc trên dùng xem tài khoản, đổi mật khẩu và
 đăng xuất. Tài khoản khách hàng có dashboard, thêm/claim và quản lý cửa đã sở
-hữu. Mỗi nơi quét QR đều có trường nhập mã thủ công.
+hữu. Bạn có thể gõ hoặc dán mã vào các ô nhập trên App.
 
 ## Sơ đồ bàn giao và cài Wi-Fi
 
@@ -22,13 +26,13 @@ mới cài Wi-Fi từng bo; không cần nhập Wi-Fi hoặc Door ID trực ti�
 
 ```mermaid
 flowchart TD
-    A[Đăng ký định danh hai ESP32 tại xưởng] --> B[Xuất cấu hình riêng và tem QR/mã]
+    A[Đăng ký định danh hai ESP32 tại xưởng] --> B[Xuất cấu hình riêng và mã trên tem]
     B --> C[Nạp firmware đúng vai trò một lần]
     C --> D[Kỹ thuật viên tạo bộ cửa trên App]
-    D --> E[Quét QR hoặc nhập mã hai Node]
+    D --> E[Nhập mã hai Node]
     E --> F[Backend tạo Door và gắn hai Node]
-    F --> G[Bàn giao QR và mã claim]
-    G --> H[Chủ nhà quét hoặc nhập mã nhận cửa]
+    F --> G[Bàn giao mã nhận cửa]
+    G --> H[Chủ nhà nhập mã nhận cửa]
     H --> I[Cài Wi-Fi lần lượt cho Node 1 và Node 2]
     I --> J[Node xác thực và nhận Door ID cùng danh tính MQTT]
     J --> K[Heartbeat và đồng bộ cấu hình/PIN/thẻ]
@@ -69,7 +73,7 @@ chỉ chứa thông tin cần cho Broker, không chứa khóa ký HMAC. Khóa c�
    trong `firmware/node-auth/` hoặc `firmware/node-control/` đúng vai trò.
 4. Nạp sketch tương ứng. File cấu hình có định danh/khóa riêng và địa chỉ
    enrollment. Door ID và Wi-Fi nhà sẽ được nhận trong các bước sau.
-5. Lưu/in QR tem cùng mã định danh và mã thiết lập. Bootstrap secret chỉ nằm
+5. Lưu/in mã định danh và mã thiết lập lên tem. Bootstrap secret chỉ nằm
    trong file nạp riêng. Hai file `enrollment_config.local.h` được Git bỏ qua.
 
 Việc chuẩn bị/nạp firmware thực hiện tại xưởng. Kỹ thuật viên lắp đặt thao tác
@@ -78,22 +82,23 @@ thuật viên, nên dùng cùng tài khoản chuẩn bị và tạo bộ cửa.
 
 ## Kỹ thuật viên tạo và bàn giao cửa
 
-Nhập tên/vị trí, quét hoặc nhập mã Node 1 và Node 2, bấm tạo bộ cửa. Backend
+Nhập tên/vị trí và mã Node 1, Node 2, rồi bấm tạo bộ cửa. Backend
 kiểm tra đúng vai trò, mã không trùng và chưa gắn cửa khác. Hai Node ở
-PROVISIONED, Door UNCLAIMED. App hiển thị QR claim và mã chữ để bàn giao.
+PROVISIONED, Door UNCLAIMED. App hiển thị mã nhận cửa cùng nút sao chép.
 Mã dùng một lần và hết hạn sau bảy ngày. Bộ đã tạo xuất hiện trong danh sách.
 Nếu mất phản hồi/mã bàn giao, dùng **Cấp lại mã** trên bộ chưa claim, mã cũ sẽ
 hết hiệu lực. Sau claim, phần kỹ thuật không xuất lại cấu hình nạp của bộ đó.
 
 ## Chủ nhà nhận và thiết lập
 
-1. Đăng nhập khách hàng, chọn thêm cửa. Quét QR hoặc nhập mã claim.
+1. Đăng nhập khách hàng, chọn thêm cửa và nhập mã nhận cửa.
 2. Mở chi tiết cửa → **Thiết lập Wi-Fi và kích hoạt**. App lấy thông tin thiết
    lập hai Node khi điện thoại còn có Internet/kết nối Backend.
 3. Chọn Node 1. Bật nguồn hoặc giữ BOOT ba giây khi firmware đang chạy để
    Node phát Wi-Fi thiết lập. App hiển thị tên mạng và mật khẩu từ tem.
 4. Bấm mở cài đặt Wi-Fi, kết nối mạng Node và chọn giữ kết nối khi Android báo
-   không có Internet. Trở lại App, quét QR thiết lập hoặc nhập mã trên tem.
+   không có Internet. Trở lại App, kiểm tra mã thiết lập đã điền sẵn hoặc
+   nhập mã trên tem.
 5. Chọn/nhập Wi-Fi nhà 2.4 GHz và mật khẩu, gửi đến Node. App kiểm tra đúng
    danh tính board. Node lưu NVS, kết nối Wi-Fi nhà và gọi enrollment Backend.
 6. Lặp lại cho Node 2. Đưa điện thoại về mạng nhà rồi cập nhật trạng thái.
@@ -108,8 +113,8 @@ chưa có inventory/tem mới tiếp tục dùng cách cấu hình firmware hi�
 ## Kiểm thử và bàn giao
 
 `OnboardingTests` kiểm tra phân quyền, retry tạo bộ, vai trò, claim trước
-enrollment, thu hồi khóa và readiness trước hoàn tất. Flutter kiểm tra QR đúng
-loại và nhập thủ công không cần camera. `db-fresh-check.py` kiểm tra V1–V13 trên
+enrollment, thu hồi khóa và readiness trước hoàn tất. Flutter kiểm tra nhập
+mã và luồng thêm cửa. `db-fresh-check.py` kiểm tra V1–V13 trên
 schema riêng, gồm role mặc định cho account cũ và CHECK/FK của inventory.
 
 Sau khi build/chạy Compose có V13, dùng Python đã cài `scripts/requirements.txt`:
@@ -122,7 +127,7 @@ Smoke tạo account, hai board và Door thử, kiểm tra quyền, enrollment, t
 bộ Broker và kích hoạt qua Node giả lập. Dữ liệu thử được giữ để đối chiếu,
 private export/log nằm trong `.local/`. Không dùng kết quả simulator để nghiệm
 thu Wi-Fi, camera hoặc phần cứng thật. Cần thử trọn luồng bằng hai ESP32 và
-điện thoại Android, gồm từ chối quyền camera, mã sai, Wi-Fi sai và retry.
+điện thoại Android, gồm mã sai, Wi-Fi sai và retry.
 
 Firmware Node 1 có phím dự phòng giữ 1/xóa, giữ 2/nhập 0, giữ 3/gửi PIN.
 Offline vẫn là phạm vi cần phát triển riêng. Mẫu local dùng MQTT TCP, NVS chưa
@@ -134,7 +139,7 @@ cần được hoàn thiện trước triển khai thực tế.
 
 - Backend đã qua 193 test hiện có và 5 test onboarding, gồm từ chối xuất cấu
   hình nạp sau claim và kiểm tra readiness thực tế trước kích hoạt.
-- Flutter analyze sạch, 77 test đạt, gồm QR/nhập mã và 5 ca trang chính theo
+- Flutter analyze sạch, 77 test đạt ở bản V13 ban đầu, gồm 5 ca trang chính theo
   vai trò, khôi phục phiên, đăng xuất, retry và chuyển tài khoản.
 - Build APK debug đạt. Đã xử lý lỗi cache Kotlin khi thư viện Pub ở ổ C còn
   dự án ở ổ D bằng `kotlin.incremental=false`.
@@ -154,14 +159,14 @@ Log riêng gồm `.local/onboarding-smoke.log`, `.local/onboarding-migrations.lo
 `.local/onboarding-db-after.log`, `backend/target/onboarding-tests-final.log`,
 `mobile/analyze-onboarding.log` và `mobile/build-onboarding-final.log`.
 
-Bước nghiệm thu còn lại là camera Android, kết nối SoftAP, lưu/đổi Wi-Fi và
+Bước nghiệm thu còn lại là kết nối SoftAP, lưu/đổi Wi-Fi và
 kích hoạt bằng hai board thật. Android dùng Wi-Fi transport trực tiếp cho các
 request setup, nên điện thoại có thể giữ đường Internet khác trong lúc cài Node.
 Mật khẩu Wi-Fi đi qua kênh local đó và được giữ ở NVS của ESP32.
 
 ## Test thủ công trên App khi chưa có ESP32
 
-Ảnh giao diện dùng để review PR nằm tại
+Ảnh giao diện nhập mã nằm tại
 [trang kỹ thuật viên](../06-frontend/images/technician-home-v13.png) và
 [màn hình cài Wi-Fi](../06-frontend/images/node-wifi-setup-v13.png).
 Ảnh render từ widget thật với dữ liệu tổng hợp; không phải bằng chứng đã
@@ -202,7 +207,7 @@ python -m venv .local/test-tools
    Door chuyển SETUP_PENDING. Bấm hoàn tất khi chưa có ACK phải báo chưa đủ
    điều kiện. Kết nối từng Node ban đầu là UNKNOWN.
 6. Đặt PIN và gửi cấu hình trên màn hình Thiết lập Wi-Fi và kích hoạt. Trước
-   khi có simulator, trạng thái đồng bộ còn chờ. Màn hình Wi-Fi/QR có thể mở,
+   khi có simulator, trạng thái đồng bộ còn chờ. Màn hình cài Wi-Fi có thể mở,
    nhưng việc tìm mạng/lưu Wi-Fi thật cần board phát access point.
 7. Mở hai Terminal PC, chạy một Node mỗi Terminal. Thay mã trong tên file
    bằng unitCode thực tế hoặc dùng đường dẫn mà bước chuẩn bị đã in ra.
@@ -223,9 +228,8 @@ python -m venv .local/test-tools
    Node đó OFFLINE. Chạy lại cùng lệnh sẽ phục hồi heartbeat. Thời gian 600 là
    10 phút, có thể tăng khi cần thử lâu hơn.
 10. Dùng tài khoản khách hàng khác kiểm tra cửa thử không xuất hiện. Thử claim
-    lại cùng mã bằng tài khoản khác phải bị từ chối. Muốn thử quét QR, mở ảnh
-    QR tem/bàn giao trên PC rồi quét bằng điện thoại, giữ trường nhập mã để
-    thử trường hợp từ chối camera.
+    lại cùng mã bằng tài khoản khác phải bị từ chối. Thử dán mã từ nút sao
+    chép trên màn hình bàn giao và kiểm tra mã sai bị từ chối.
 
 Các lệnh simulator xác thực qua enrollment API và dùng danh tính đã được cấp
 cho chính hai Node đó. Không xoay khóa hay sửa DB. File header phải được xuất

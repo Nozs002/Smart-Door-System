@@ -1,23 +1,29 @@
 ---
 title: Database ERD
 type: technical-reference
-version: 5.0
+version: 6.0
 lang: vi
 tags: [database, erd, mysql, ownership, device-lifecycle]
-updated: 2026-11-12
+updated: 2026-11-18
 ---
 
 # Database ERD
 
-Bản hiện tại dùng **Flyway V1–V13**, gồm 21 bảng nghiệp vụ và bảng lịch sử Flyway,
-với 35 khóa ngoại. V13 thêm phân quyền kỹ thuật viên, kho thiết bị và bộ lắp đặt.
+Bản source hiện tại dùng **Flyway V1–V14**, gồm 22 bảng nghiệp vụ và bảng lịch sử
+Flyway, với 40 khóa ngoại. V13 thêm phân quyền kỹ thuật viên, kho thiết bị và bộ
+lắp đặt; V14 thêm `replacement_requests` cho thay một Node có ủy quyền của chủ cửa.
+Xem [bổ sung DB và luồng V14](../05-backend/node-replacement.md#database-và-triển-khai)
+và [migration V14](../../backend/src/main/resources/db/migration/V14__owner_authorized_node_replacement.sql).
+Schema V1–V14 đã được kiểm tra trong MySQL riêng, không nâng DB ứng dụng trong đợt kiểm thử.
 `init.sql` vẫn là bootstrap 12 bảng gốc; Backend áp dụng các migration tiếp theo.
 Các bảng mới và sơ đồ quan hệ cập nhật nằm tại mục 5 cuối tài liệu. Xem
 [bàn giao Người 1, Người 4](../05-backend/person1-person4-completion.md) để chạy
 kiểm tra phiên bản và tính toàn vẹn trên database thực tế.
 
 Xem [hồ sơ sơ đồ, mục ERD](system-design-review.md#diagram-07) để có SVG đầy đủ,
-bản slide và bảng PK/unique/CHECK/FK được đối chiếu metadata MySQL V10.
+bản slide và bảng PK/unique/CHECK/FK được đối chiếu metadata MySQL V13.
+Hình ERD minh họa đến V13. Migration và tài liệu V14 mô tả thêm bảng
+`replacement_requests`, 5 khóa ngoại và ràng buộc một yêu cầu chờ theo vai trò.
 
 Schema khởi tạo mới cho MySQL 8.4 ở [init.sql](../../infrastructure/mysql/init/init.sql).
 [Dữ liệu mẫu](../../infrastructure/mysql/init/mockdata.sql) chỉ dành cho local/demo.
