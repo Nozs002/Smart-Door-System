@@ -156,7 +156,8 @@ public class OnboardingService {
     }
     public List<Map<String,Object>> setupNodes(Long accountId,Long doorId) {
         ownership.requireOwner(accountId,doorId);
-        return units.findAllByDeviceIdIn(devices.findAllByDoorId(doorId).stream().map(Device::getId).toList()).stream()
+        return units.findAllByDeviceIdIn(devices.findAllByDoorId(doorId).stream()
+                .filter(d -> d.getLifecycleStatus()!=Device.LifecycleStatus.RETIRED).map(Device::getId).toList()).stream()
                 .map(u -> Map.<String,Object>of("unitCode",u.getUnitCode(),"nodeType",u.getNodeType(),"deviceId",u.getDeviceId(),
                         "setupCode",setupCode(u.getUnitCode()),"setupSsid",ssid(u.getUnitCode()))).toList();
     }

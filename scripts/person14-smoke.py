@@ -140,7 +140,7 @@ def main():
     folder.mkdir(parents=True, exist_ok=False)
     username, outsider = "p14-" + stamp, "p14-other-" + stamp
     password, new_password = "Test-" + secrets.token_urlsafe(18), "Next-" + secrets.token_urlsafe(18)
-    pin, uid = str(secrets.randbelow(900000) + 100000), secrets.token_hex(4).upper()
+    pin, uid = f"{secrets.randbelow(10000):04d}", secrets.token_hex(4).upper()
     base = args.base_url.rstrip("/")
     request = lambda method, path, data=None, token=None, expected=200: api(base, method, path, data, token, expected)
     for name in (username, outsider):
@@ -274,7 +274,7 @@ def main():
                 assert all("value" not in row and "uid" not in row for row in history)
             latest = request("GET", door_path + "/access-summary", token=token)
             assert latest["cardholderCount"] == 1 and latest["latestAccess"]["cardholderName"] == "E2E cardholder"
-            wrong_pin = "000000" if pin != "000000" else "111111"
+            wrong_pin = "0000" if pin != "0000" else "1111"
             for _ in range(desired["maxFailedAttempts"]):
                 failed_id, decision = access_attempt("PIN", wrong_pin, duplicate=True)
                 assert decision["result"] == "DENIED"

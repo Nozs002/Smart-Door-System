@@ -160,8 +160,8 @@ public class CredentialsManagementService {
     public PinStatus updatePin(Long accountId, Long doorId, UpdatePin request) {
         activeAccount(accountId, true);
         ownership.requireOwnerForUpdate(accountId, doorId);
-        if (request == null || request.pin() == null || !request.pin().matches("[0-9]{4,8}")) {
-            throw new BadRequestException("PIN phải gồm 4–8 chữ số.");
+        if (request == null || request.pin() == null || !request.pin().matches("[0-9]{4}")) {
+            throw new BadRequestException("PIN phải gồm đúng 4 chữ số.");
         }
         SystemPin pin = pins.findById(doorId).orElse(null);
         if (pin == null) {

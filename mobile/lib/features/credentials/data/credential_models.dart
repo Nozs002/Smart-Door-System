@@ -84,4 +84,4 @@ bool validRfidUid(String value) {
       RegExp(r'^[0-9A-F]+$').hasMatch(normalized);
 }
 
-bool validDoorPin(String value) => RegExp(r'^\d{4,8}$').hasMatch(value);
+bool validDoorPin(String value) => RegExp(r'^[0-9]{4}$').hasMatch(value);

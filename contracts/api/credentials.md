@@ -39,8 +39,9 @@ Sai chủ/tài nguyên không tồn tại trả 404; Account ID không lấy t�
 - Vô hiệu hóa Cardholder thu hồi các RFID của họ cùng transaction và đưa
   họ ra khỏi snapshot thiết bị; tăng credentialsVersion tại từng cửa liên quan.
   Kích hoạt lại Cardholder không khôi phục thẻ; chủ cửa phải cấp lại rõ ràng.
-- PIN chung của Door gồm 4–8 chữ số; chỉ lưu BCrypt, không phát PIN rõ. Đổi PIN
-  tăng phiên bản PIN và credentialsVersion; không ảnh hưởng mật khẩu Account.
+- PIN mới của Door phải gồm đúng 4 chữ số; chỉ lưu BCrypt, không phát PIN rõ.
+  Cửa dùng PIN dài hơn cần đặt lại PIN qua App trước khi dùng firmware mới.
+  Đổi PIN tăng phiên bản PIN và credentialsVersion; không ảnh hưởng mật khẩu Account.
 - PIN/RFID/Cardholder-status thay đổi gọi `requestCredentialsSync` cùng
   transaction. Đồng bộ chưa có ACK phải được hiển thị là đang chờ/chưa xác nhận,
   không coi lưu MySQL là thiết bị đã áp dụng.

@@ -98,12 +98,12 @@ void main() {
 
   test('PIN endpoint sends only the new PIN and parses safe status', () async {
     final received = server.first;
-    final result = credentials.changePin(12, '001234');
+    final result = credentials.changePin(12, '0012');
     final request = await received;
     expect(request.method, 'PUT');
     expect(request.uri.path, '/api/v1/doors/12/pin');
     expect(jsonDecode(await utf8.decoder.bind(request).join()), {
-      'pin': '001234',
+      'pin': '0012',
     });
     request.response.write(
       '{"data":{"doorId":12,"configured":true,"status":"ACTIVE","version":8,"changedAt":"2026-10-28T01:00:00Z"}}',
@@ -201,7 +201,8 @@ void main() {
     expect(validRfidUid('a1:b2-c3 d4'), isTrue);
     expect(validRfidUid('AABBCCDDEEFF00'), isTrue);
     expect(validRfidUid('not-a-card'), isFalse);
-    expect(validDoorPin('001234'), isTrue);
+    expect(validDoorPin('0012'), isTrue);
+    expect(validDoorPin('001234'), isFalse);
     expect(validDoorPin('12a4'), isFalse);
     expect(validDoorPin('123'), isFalse);
   });

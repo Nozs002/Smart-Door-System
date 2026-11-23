@@ -104,13 +104,13 @@ void main() {
       await tester.tap(find.text('Đổi PIN của cửa'));
       await tester.pumpAndSettle();
       expect(find.text('Cửa chưa có PIN'), findsOneWidget);
-      await tester.enterText(find.byKey(const Key('doorPin')), '001234');
+      await tester.enterText(find.byKey(const Key('doorPin')), '0012');
       await tester.enterText(find.byKey(const Key('confirmDoorPin')), '9999');
       await tester.tap(find.text('Lưu PIN mới'));
       await tester.pumpAndSettle();
       expect(repository.pinChanges, isEmpty);
       expect(find.text('PIN xác nhận chưa khớp.'), findsOneWidget);
-      await tester.enterText(find.byKey(const Key('confirmDoorPin')), '001234');
+      await tester.enterText(find.byKey(const Key('confirmDoorPin')), '0012');
       repository.pinFailure = const door_api.ApiException(
         'Không thể lưu PIN. Thử lại.',
       );
@@ -123,7 +123,7 @@ void main() {
       repository.pinFailure = null;
       await tester.tap(find.text('Lưu PIN mới'));
       await tester.pumpAndSettle();
-      expect(repository.pinChanges, [(12, '001234')]);
+      expect(repository.pinChanges, [(12, '0012')]);
       expect(find.byType(DoorPinScreen), findsNothing);
       expect(find.text('Đổi PIN của cửa'), findsOneWidget);
       expect(

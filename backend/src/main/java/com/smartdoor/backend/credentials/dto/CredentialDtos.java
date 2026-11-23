@@ -17,8 +17,8 @@ public final class CredentialDtos {
             Instant expiresAt) {
         @Override public String toString() { return "IssueRfid[redacted]"; }
     }
-    public record UpdatePin(@NotBlank @Pattern(regexp = "[0-9]{4,8}",
-            message = "PIN phải gồm 4–8 chữ số.") String pin) {
+    public record UpdatePin(@NotBlank @Pattern(regexp = "[0-9]{4}",
+            message = "PIN phải gồm đúng 4 chữ số.") String pin) {
         @Override public String toString() { return "UpdatePin[redacted]"; }
     }
     public record CardholderView(Long id, String displayName, Cardholder.Status status, Instant createdAt) { }

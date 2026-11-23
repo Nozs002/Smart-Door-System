@@ -7,6 +7,7 @@ import android.content.Intent
 import android.provider.Settings
 import android.net.ConnectivityManager
 import android.net.NetworkCapabilities
+import java.net.Inet4Address
 import java.net.URL
 import java.net.HttpURLConnection
 import org.json.JSONObject
@@ -27,17 +28,22 @@ class MainActivity : FlutterActivity() {
                         result.error("invalid_path", "Invalid setup endpoint", null)
                         return@setMethodCallHandler
                     }
-                    // Use the Wi-Fi transport even while Android routes Internet over cellular.
-                    // This leaves the app's Backend connections on their normal network.
+                    // Use the setup network while Android keeps its usual route to the backend.
                     Thread {
                         var connection: HttpURLConnection? = null
                         try {
                             val manager = getSystemService(CONNECTIVITY_SERVICE) as ConnectivityManager
-                            val wifi = manager.allNetworks.firstOrNull { network ->
-                                manager.getNetworkCapabilities(network)
+                            val wifi = manager.allNetworks.filter { network ->
+                                val isWifi = manager.getNetworkCapabilities(network)
                                     ?.hasTransport(NetworkCapabilities.TRANSPORT_WIFI) == true
-                            } ?: throw IllegalStateException("Connect to the Node Wi-Fi first")
+                                isWifi && manager.getLinkProperties(network)?.linkAddresses?.any { link ->
+                                    val address = link.address
+                                    address is Inet4Address &&
+                                        address.hostAddress?.startsWith("192.168.4.") == true
+                                } == true
+                            }.singleOrNull() ?: throw IllegalStateException("Connect to a single Node Wi-Fi first")
                             connection = wifi.openConnection(URL("http://192.168.4.1$path")) as HttpURLConnection
+                            connection.useCaches = false
                             connection.connectTimeout = 5000
                             connection.readTimeout = 10000
                             connection.instanceFollowRedirects = false

@@ -92,13 +92,15 @@ class CredentialsManagementTests {
     }
     @Test
     void pinIsBcryptOnlyInPersistenceAndViewNeverContainsIt() {
-        PinStatus status=service.updatePin(1L,5L,new UpdatePin("123456"));
+        assertThatThrownBy(() -> service.updatePin(1L,5L,new UpdatePin("001234")))
+                .isInstanceOf(BadRequestException.class);
+        PinStatus status=service.updatePin(1L,5L,new UpdatePin("0012"));
         var saved=org.mockito.ArgumentCaptor.forClass(SystemPin.class);
         verify(pins).saveAndFlush(saved.capture());
-        assertThat(saved.getValue().getPinHash()).isNotEqualTo("123456").startsWith("$2");
-        assertThat(passwords.matches("123456",saved.getValue().getPinHash())).isTrue();
+        assertThat(saved.getValue().getPinHash()).isNotEqualTo("0012").startsWith("$2");
+        assertThat(passwords.matches("0012",saved.getValue().getPinHash())).isTrue();
         assertThat(status.configured()).isTrue();
-        assertThat(status.toString()).doesNotContain("123456",saved.getValue().getPinHash());
+        assertThat(status.toString()).doesNotContain("0012",saved.getValue().getPinHash());
         verify(settings).requestCredentialsSync(1L,5L,ChangeReason.PIN_CHANGED);
     }
     @Test

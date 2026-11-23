@@ -78,7 +78,7 @@ def main():
     if len(request('GET', f'/api/v1/doors/{door_id}/setup-nodes', token=owner)) != 2:
         raise RuntimeError('Missing owner setup metadata')
     request('POST', f'/api/v1/doors/{door_id}/complete-setup', token=owner, expected=409)
-    request('PUT', f'/api/v1/doors/{door_id}/pin', {'pin': '123456'}, owner)
+    request('PUT', f'/api/v1/doors/{door_id}/pin', {'pin': '1234'}, owner)
     processes, logs = [], []
     try:
         # Allow the automatic manifest pipeline to update Broker before connecting simulators.
