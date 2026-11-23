@@ -74,6 +74,43 @@ class OnboardingTests {
                 .andExpect(status().isForbidden());
         assertThatThrownBy(() -> service.register(customer.getId(),Device.NodeType.NODE_1)).isInstanceOf(AccessDeniedException.class);
     }
+
+    @Test
+    void technicianPortalRequestsUseExistingApiEnvelope() throws Exception {
+        var technician = account(Account.Role.TECHNICIAN);
+        var token = login.login(new LoginRequest(technician.getUsername(), "test-password-123")).accessToken();
+        String authorization = "Bearer " + token;
+        var mvc = MockMvcBuilders.webAppContextSetup(context).apply(springSecurity()).build();
+        var node1 = service.register(technician.getId(), Device.NodeType.NODE_1);
+        var node2 = service.register(technician.getId(), Device.NodeType.NODE_2);
+
+        mvc.perform(get("/api/v1/accounts/me").header("Authorization", authorization))
+                .andExpect(status().isOk()).andExpect(jsonPath("$.data.role").value("TECHNICIAN"));
+        mvc.perform(get("/api/v1/technician/inventory").header("Authorization", authorization))
+                .andExpect(status().isOk()).andExpect(jsonPath("$.data.length()").value(2));
+        mvc.perform(get("/api/v1/technician/inventory/{code}/factory", node1.getUnitCode())
+                        .header("Authorization", authorization))
+                .andExpect(status().isOk())
+                .andExpect(header().string("Cache-Control", "no-store"))
+                .andExpect(jsonPath("$.data.firmwareConfig").isString());
+
+        String requestId = UUID.randomUUID().toString();
+        mvc.perform(post("/api/v1/technician/kits").header("Authorization", authorization)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("""
+                                {"requestId":"%s","name":"Web test","location":"Front",
+                                "node1Code":"%s","node2Code":"%s"}
+                                """.formatted(requestId, node1.getUnitCode(), node2.getUnitCode())))
+                .andExpect(status().isOk()).andExpect(jsonPath("$.data.activationCode").isString());
+        mvc.perform(post("/api/v1/technician/kits/{id}/claim-code", requestId)
+                        .header("Authorization", authorization))
+                .andExpect(status().isOk()).andExpect(jsonPath("$.data.activationCode").isString());
+        mvc.perform(get("/api/v1/technician/kits").header("Authorization", authorization))
+                .andExpect(status().isOk()).andExpect(jsonPath("$.data[0].devices.length()").value(2));
+        mvc.perform(get("/api/v1/technician/replacements").header("Authorization", authorization))
+                .andExpect(status().isOk()).andExpect(jsonPath("$.data").isArray());
+    }
+
     @Test void kitRetryDoesNotCreateDuplicateDoorAndBoardsCannotBeRebound() {
         var kit=kit();
         var retry=service.createKit(kit.technician.getId(),kit.request,"Bộ thử",null,kit.first,kit.second);
