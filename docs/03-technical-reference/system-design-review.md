@@ -18,9 +18,9 @@ onboarding V13 trong PR, thay cho mốc thiết kế V10 trước đây.
 ứng tại chỗ, đệm cảnh báo, MQTT, Backend và App. Xác thực RFID/PIN và mở khóa
 offline giữa hai Node chưa hoàn thiện; không tự chọn ESP-NOW/UART thay nhóm.
 
-Thiết kế theo code không phải biên bản nghiệm thu phần cứng. Bản onboarding
-đã được thử bằng giả lập; SoftAP, camera, nguồn và cơ khí cần thử trên bo thật.
-Xem [hướng dẫn bàn giao và chạy thử](../05-backend/device-onboarding.md).
+Nhóm đã thử luồng bàn giao mã và kết nối SoftAP trên hai ESP32 thật. Nguồn
+cấp và cơ khí vẫn cần đối chiếu khi lắp bộ cửa. Xem
+[hướng dẫn bàn giao và chạy thử](../05-backend/device-onboarding.md).
 
 ## Mục lục và mức hoàn thiện
 
@@ -50,9 +50,9 @@ Source PlantUML là bản chính; SVG sinh từ source để xem trực tiếp t
   App gọi API có phân quyền để đăng ký kho, tạo bộ cửa và cấp mã bàn giao.
 - Đăng ký Node chỉ tạo danh tính trên hệ thống, không nạp chương trình vào bo.
   Xưởng vẫn nạp firmware/header riêng qua USB; kỹ thuật viên lắp đặt dùng App
-  với bo đã chuẩn bị. QR là tem danh tính, không phải công cụ nạp firmware.
-- Mã Node/setup thuộc từng ESP32; mã claim thuộc Door. Mọi nơi quét QR có
-  đường nhập tay. Chủ nhà claim trước, sau đó ESP32 mới được enrollment.
+  với bo đã chuẩn bị và nhập mã trên tem.
+- Mã Node/setup thuộc từng ESP32. Mã nhận cửa thuộc Door. Chủ nhà nhập mã
+  nhận cửa trước, sau đó ESP32 mới được enrollment.
 - ESP32 nhận Door ID và MQTT identity từ Backend sau claim. Wi-Fi nhà được
   gửi trực tiếp từ điện thoại đến từng SoftAP, không nhập vào DB/Backend.
 - Khối phần cứng và đấu nối chuyển từ OLED/relay tham chiếu sang LCD/servo
@@ -240,7 +240,7 @@ Broker tự nhận user/ACL qua manifest. Mã claim có 8 ký tự, hiển thị
 XXXX-XXXX, hạn 7 ngày, DB chỉ lưu SHA-256. Nếu mất phản hồi chứa mã, dùng
 Cấp lại mã trước claim, mã cũ hết hiệu lực.
 
-Chủ nhà claim bằng QR hoặc nhập tay. Claim khóa Door trước mã để chỉ một chủ
+Chủ nhà nhập mã nhận cửa. Claim khóa Door trước mã để chỉ một chủ
 thành công; retry cùng Account trả Door cũ, không tạo cửa mới. Claim đưa Door
 về SETUP_PENDING, chưa tự ACTIVE. Sau Wi-Fi, PIN và ACK phiên bản hiện hành,
 complete-setup khóa Door và kích hoạt hai Node trong một transaction.
@@ -250,7 +250,7 @@ complete-setup khóa Door và kích hoạt hai Node trong một transaction.
 ![Cài Wi-Fi và enrollment](diagrams/08b-wifi-enrollment-sequence.svg)
 
 [Source](diagrams/08b-wifi-enrollment-sequence.puml) ·
-[API và QR/manual contract](../../contracts/api/device-onboarding.md).
+[API và các mã dùng trên App](../../contracts/api/device-onboarding.md).
 
 Chủ nhà mở **Thiết lập Wi-Fi và kích hoạt** khi App còn kết nối Backend.
 Chọn Node 1, mở cài đặt Wi-Fi Android và nối SoftAP SmartDoor-… với mật khẩu
@@ -286,10 +286,10 @@ Kết nối độc lập: UNKNOWN nếu chưa có heartbeat; ONLINE trong ngư�
 khi quá ngưỡng, mặc định hơn 90 giây tính theo giờ nhận Backend. Mất mạng
 không tự disable, ONLINE không chứng minh đã áp dụng cấu hình hay đủ quyền.
 
-Thay thiết bị cần Node mới cùng Door/vai trò, sẵn sàng và credential cũ có
-revoked_at cùng broker_revoked_at hợp lệ. CLI thu hồi restart/ngắt phiên và
-kiểm tra khóa cũ bị từ chối. Reload ACL đơn thuần không chứng minh ngắt phiên.
-Đây khác chuyển một bo đang dùng sang Door mới, chức năng đó chưa có trên App.
+V14 cho phép chủ cửa cấp mã thay Node và kỹ thuật viên gắn một bo chưa dùng
+đúng vai trò. Chủ cửa có thể bổ sung bo vào vị trí đã RETIRED. Backend kiểm tra
+bo mới đã sẵn sàng và xác nhận thu hồi phiên của bo cũ trước khi hoàn tất.
+[Xem quy trình thay Node](../05-backend/node-replacement.md).
 
 <a id="diagram-10"></a>
 ## 10. MQTT và quyền topic
@@ -307,8 +307,9 @@ kiểm tra này. Consumer chống lặp bằng nonce/eventId/commandId/version.
 
 V13 tự xuất manifest riêng cho supervisor Broker, không đưa signingKey vào
 manifest. Password được hash cho Broker; ACL đổi theo danh tính hiện hành.
-Thu hồi phiên cũ vẫn cần workflow V12. Snapshot PIN/thẻ không chứng minh
-luồng mở RFID/PIN offline đã triển khai.
+Khi thay Node bằng V14, supervisor khởi động lại Broker để ngắt các phiên
+và kiểm tra credential cũ bị từ chối trước khi ghi bằng chứng thu hồi. Việc
+mở cửa bằng RFID/PIN offline còn cần thiết kế và kiểm thử riêng.
 
 <a id="diagram-11"></a>
 ## 11. Triển khai local

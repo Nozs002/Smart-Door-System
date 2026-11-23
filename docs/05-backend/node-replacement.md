@@ -110,8 +110,7 @@ triển khai phải có cả Backend lẫn supervisor/Compose mới thì proof m
 
 Kết quả kiểm tra ngày 18/11/2026: **204 test Backend, 81 test Flutter và
 22 test Python đều đạt**; `flutter analyze` không có vấn đề. Backend đóng
-gói thành công. Migration MySQL và Broker được kiểm tra riêng như dưới đây;
-chưa chạy một lượt end-to-end bằng ESP32 thật hoặc cập nhật V14 vào DB ứng dụng.
+gói thành công. Migration MySQL và Broker được kiểm tra riêng trong đợt đó.
 
 - Backend: kiểm tra quyền cửa/role, sai vai trò hoặc kho, mã hết hạn/dùng lại,
   retry đồng thời, hủy, nguồn RETIRED, chờ proof và giữ lịch sử/chủ cửa.
@@ -124,10 +123,10 @@ chưa chạy một lượt end-to-end bằng ESP32 thật hoặc cập nhật V1
 - Broker thật trong container riêng: phiên cũ đã kết nối bị ngắt, đăng nhập
   cũ bị từ chối, danh tính mới vẫn đăng nhập được và file proof khớp được tạo.
 
-Các thử nghiệm trên không chứng minh SoftAP/GPIO/servo của bo mới đã chạy
-trên phần cứng thật. Luồng RFID/PIN offline giữa hai bo chưa được bổ sung.
-Các sơ đồ V13 đang được chuyển đổi trong workspace được giữ nguyên; dùng
-migration và tài liệu V14 này làm phần bổ sung cho thực thể replacement_requests.
+Nhóm đã thử thay Node 2 trên hai ESP32 thật và mở chốt bằng PIN hiện hành
+sau khi thay. Luồng RFID/PIN offline giữa hai bo chưa được bổ sung.
+Xem [ERD cơ sở dữ liệu](../03-technical-reference/database-erd.md) và migration
+V14 để đối chiếu bảng `replacement_requests` cùng các ràng buộc.
 
 ## Ảnh giao diện để đối chiếu
 

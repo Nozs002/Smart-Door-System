@@ -21,17 +21,17 @@ loop Mỗi bo: chọn NODE_1 hoặc NODE_2
   BE -> DB : Kiểm tra role; tạo unitCode UUID / vai trò / created_by
   BE --> App : Danh tính bo; chưa có Device / Door
   App -> BE : GET /technician/inventory/{unitCode}/factory
-  BE --> App : QR/mã thiết lập + private firmware header\nChỉ creator; cấm xuất sau claim
+  BE --> App : Mã bo, mã thiết lập và header firmware riêng\nChỉ creator; cấm xuất sau claim
   Tech -> USB : Sao chép header riêng; chọn sketch đúng vai trò
   USB -> Nodes : Nạp firmware qua USB; cấu hình bootstrap riêng từng bo
-  Tech -> Nodes : Dán tem QR + mã nhập tay tương ứng
+  Tech -> Nodes : Dán tem ghi mã bo và mã thiết lập
 end
 note over App,Nodes
-  QR Node chứa unitCode + setupCode, không chứa bootstrapSecret.
+  Tem ghi unitCode và setupCode. Header riêng giữ bootstrapSecret.
   Chưa nạp Door ID hoặc Wi-Fi nhà; hai thông tin này đến sau.
 end note
 == Tạo bộ cửa và bàn giao ==
-Tech -> App : Tên/vị trí + quét hoặc nhập mã hai Node
+Tech -> App : Nhập tên/vị trí và mã hai Node
 App -> BE : POST /technician/kits; requestId UUID + JWT
 BE -> DB : Khóa Account; tìm requestId đã commit
 alt Retry requestId đã commit
@@ -39,14 +39,14 @@ alt Retry requestId đã commit
 else Bộ mới hợp lệ
   BE -> DB : Khóa inventory theo thứ tự\nKiểm tra creator, đúng vai trò, chưa gắn và không trùng
   BE -> DB : Một transaction: Door UNCLAIMED, 2 Device PROVISIONED\nGắn inventory; kit; config; lifecycle; transport identity\nMã claim hash SHA-256, hạn 7 ngày
-  BE --> App : Bộ cửa + mã claim / QR bàn giao
+  BE --> App : Bộ cửa và mã nhận cửa
 else Sai vai trò / đã gắn / không thuộc kỹ thuật viên
   BE --> App : Từ chối; không tạo bộ cửa một phần
 end
 BE -> MQ : Tự cập nhật password / ACL qua private manifest\nKhông cần sửa DB hay chạy configure để tạo bộ mới
-Tech -> Owner : Bàn giao bộ thiết bị và QR/mã claim của Door
+Tech -> Owner : Bàn giao bộ thiết bị và mã nhận cửa
 == Claim và thiết lập bằng tài khoản CUSTOMER ==
-Owner -> App : Đăng nhập; Thêm cửa; quét QR hoặc nhập mã claim
+Owner -> App : Đăng nhập, chọn Thêm cửa và nhập mã nhận cửa
 App -> BE : Claim; Account từ JWT
 BE -> DB : Khóa Door trước rồi mã; kiểm tra lại mã / chủ
 alt Cùng Account retry, cửa vẫn thuộc Account
