@@ -1,0 +1,12 @@
+#pragma once
+
+const char* WIFI_SSID = "";
+const char* WIFI_PASSWORD = "";
+const char* MQTT_HOST = "";
+const uint16_t MQTT_PORT = 1884;
+const char* MQTT_USERNAME = "";
+const char* MQTT_PASSWORD = "";
+const char* CREDENTIAL_ID = "";
+const char* SIGNING_KEY_BASE64 = "";
+const char* DEVICE_CODE = "";
+const int DOOR_ID = 5; // Đổi theo trường doorId trong file.

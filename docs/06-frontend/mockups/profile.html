@@ -1,0 +1,61 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>SmartLock System - Hồ sơ tài khoản</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;600;700&family=Outfit:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="style.css" />
+</head>
+<body>
+  <div class="app-container dashboard-home profile-page">
+    <div class="status-bar">
+      <span>09:41</span>
+      <div class="status-right"><span>●●●</span><span>LTE</span><span>78%</span></div>
+    </div>
+    <main class="screen active">
+      <div class="screen-content">
+        <div class="flex justify-between items-center">
+          <a class="back-btn" href="dashboard.html" aria-label="Quay lại dashboard">
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M15 18l-6-6 6-6" /></svg>
+          </a>
+          <button class="theme-toggle" id="theme-toggle" title="Chuyển giao diện" aria-label="Chuyển giao diện sáng hoặc tối"></button>
+        </div>
+        <header class="profile-page-heading">
+          <h1 class="dash-title">Hồ sơ tài khoản</h1>
+          <p>Thông tin tài khoản của bạn</p>
+        </header>
+
+        <section class="profile-panel profile-summary" aria-labelledby="profile-name">
+          <img class="profile-photo" src="https://i.pravatar.cc/100?img=5" alt="Ảnh đại diện tài khoản mẫu" width="88" height="88" />
+          <span class="profile-demo-label">Dữ liệu mẫu</span>
+          <h2 id="profile-name">Khách hàng demo</h2>
+          <p class="profile-username">@customer.demo</p>
+          <span class="profile-account-status"><span aria-hidden="true">●</span> Đang hoạt động</span>
+        </section>
+
+        <section class="profile-panel" aria-labelledby="profile-details-title">
+          <h2 id="profile-details-title" class="profile-section-title">Thông tin tài khoản</h2>
+          <dl class="profile-details">
+            <div><dt>Tên hiển thị</dt><dd>Khách hàng demo</dd></div>
+            <div><dt>Tên đăng nhập</dt><dd>customer.demo</dd></div>
+            <div><dt>Mã tài khoản</dt><dd class="profile-account-id">#1</dd></div>
+            <div><dt>Ngày tạo tài khoản</dt><dd><time datetime="2026-10-14T00:00:00Z">14/10/2026</time></dd></div>
+          </dl>
+        </section>
+
+        <a class="profile-panel profile-doors-link" href="dashboard.html">
+          <span class="profile-doors-icon" aria-hidden="true">
+            <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M4 21h16M6 21V3h12v18M14 12h.01" /></svg>
+          </span>
+          <span><strong>Cửa của bạn</strong><span>3 cửa · Xem và điều khiển</span></span>
+          <svg class="profile-link-arrow" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="m9 6 6 6-6 6" /></svg>
+        </a>
+      </div>
+    </main>
+  </div>
+  <script src="script.js"></script>
+</body>
+</html>

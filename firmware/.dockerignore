@@ -1,0 +1,11 @@
+**
+!node-auth/
+!node-auth/PinInput.h
+!node-auth/src/
+!node-auth/src/bcrypt/
+!node-auth/src/bcrypt/**
+!node-control/
+!node-control/RelockOnDoorClose.h
+!tests/
+!tests/native/
+!tests/native/**

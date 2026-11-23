@@ -1,0 +1,174 @@
+<!doctype html>
+<html lang="vi">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="referrer" content="no-referrer">
+  <meta http-equiv="Content-Security-Policy" content="default-src 'none'; script-src 'self'; style-src 'self'; connect-src 'self'; base-uri 'none'; form-action 'none'">
+  <title>Kỹ thuật viên | Smart Door</title>
+  <link rel="stylesheet" href="/technician/portal.css">
+  <script defer src="/technician/portal.js"></script>
+</head>
+<body>
+  <main id="sign-in" class="sign-in">
+    <section class="sign-in-brand" aria-label="Smart Door">
+      <div class="brand"><span class="brand-mark" aria-hidden="true"></span> Smart Door</div>
+      <div class="sign-in-intro">
+        <p class="eyebrow">Khu vực kỹ thuật</p>
+        <p class="sign-in-title">Quản lý thiết bị<br>và lắp đặt cửa.</p>
+        <p>Đăng ký bo ESP32, chuẩn bị bộ cửa và theo dõi các yêu cầu thay Node.</p>
+      </div>
+    </section>
+    <section class="sign-in-panel">
+      <form id="login-form" class="sign-in-form">
+        <h1>Đăng nhập</h1>
+        <p class="muted">Sử dụng tài khoản kỹ thuật viên Smart Door.</p>
+        <label>Tên đăng nhập<input name="username" autocomplete="username" maxlength="100" required autofocus></label>
+        <label>Mật khẩu<input name="password" type="password" autocomplete="current-password" maxlength="72" required></label>
+        <p id="login-error" class="feedback" role="alert" hidden></p>
+        <button class="button primary" type="submit">Đăng nhập</button>
+      </form>
+    </section>
+  </main>
+
+  <div id="workspace" class="workspace" hidden>
+    <aside class="sidebar">
+      <div class="brand"><span class="brand-mark" aria-hidden="true"></span> Smart Door</div>
+      <nav aria-label="Kỹ thuật viên">
+        <button type="button" data-view="inventory" aria-current="page"><span class="menu-icon chip-icon" aria-hidden="true"></span> Kho ESP32</button>
+        <button type="button" data-view="kits"><span class="menu-icon kit-icon" aria-hidden="true"></span> Tạo bộ cửa</button>
+        <button type="button" data-view="replacements"><span class="menu-icon swap-icon" aria-hidden="true">⇄</span> Thay Node</button>
+      </nav>
+      <div class="account">
+        <span id="account-initial" class="avatar" aria-hidden="true"></span>
+        <div><strong id="account-name"></strong><small>Kỹ thuật viên</small></div>
+        <button id="logout" class="button logout" type="button">Đăng xuất</button>
+      </div>
+    </aside>
+
+    <main class="dashboard">
+      <header class="page-header">
+        <div>
+          <p class="eyebrow">Quản lý lắp đặt</p>
+          <h1 id="page-title" tabindex="-1">Kho ESP32</h1>
+          <p id="page-summary" class="muted"></p>
+        </div>
+        <div class="header-actions">
+          <button id="refresh" class="button secondary" type="button">Làm mới</button>
+          <button id="open-register" class="button primary" type="button">+ Đăng ký bo</button>
+        </div>
+      </header>
+      <p id="notice" class="feedback" role="status" hidden></p>
+
+      <section id="inventory" aria-labelledby="page-title">
+        <div class="stats">
+          <div class="stat"><span>Tổng số bo</span><strong id="board-total">–</strong></div>
+          <div class="stat"><span>Bo còn trong kho</span><strong id="board-available">–</strong></div>
+          <div class="stat"><span>Bo đã gắn cửa</span><strong id="board-assigned">–</strong></div>
+        </div>
+        <div class="card">
+          <div class="card-heading inventory-heading">
+            <h2>Danh sách bo</h2>
+            <div class="filters">
+              <input id="board-search" type="search" aria-label="Tìm theo mã bo" placeholder="Tìm theo mã bo">
+              <select id="board-filter" aria-label="Lọc loại Node"><option value="">Tất cả Node</option><option value="NODE_1">Node 1</option><option value="NODE_2">Node 2</option></select>
+              <select id="board-status" aria-label="Lọc trạng thái"><option value="">Mọi trạng thái</option><option value="available">Còn trong kho</option><option value="assigned">Đã gắn cửa</option></select>
+            </div>
+          </div>
+          <div class="table-scroll">
+            <table>
+              <thead><tr><th scope="col">Mã định danh bo</th><th scope="col">Loại Node</th><th scope="col">Trạng thái</th><th scope="col">Cửa</th><th scope="col">Thao tác</th></tr></thead>
+              <tbody id="board-rows"></tbody>
+            </table>
+          </div>
+        </div>
+      </section>
+
+      <section id="kits" aria-labelledby="page-title" hidden>
+        <div class="card form-card">
+          <h2>Thông tin bộ cửa</h2>
+          <form id="kit-form">
+            <div class="form-grid">
+              <label>Tên cửa<input name="name" maxlength="100" placeholder="Ví dụ Cửa chính" required></label>
+              <label>Vị trí <span class="optional">(không bắt buộc)</span><input name="location" maxlength="255" placeholder="Ví dụ Tầng 1"></label>
+              <label>Mã bo Node 1<input name="node1Code" list="node1-list" maxlength="40" placeholder="Chọn hoặc nhập mã bo" required></label>
+              <label>Mã bo Node 2<input name="node2Code" list="node2-list" maxlength="40" placeholder="Chọn hoặc nhập mã bo" required></label>
+            </div>
+            <datalist id="node1-list"></datalist><datalist id="node2-list"></datalist>
+            <button class="button primary" type="submit">Tạo bộ cửa</button>
+          </form>
+        </div>
+        <div class="card">
+          <div class="card-heading"><h2>Bộ cửa đã tạo</h2></div>
+          <div class="table-scroll">
+            <table><thead><tr><th scope="col">Cửa</th><th scope="col">Thiết bị</th><th scope="col">Trạng thái</th><th scope="col">Thao tác</th></tr></thead><tbody id="kit-rows"></tbody></table>
+          </div>
+        </div>
+      </section>
+
+      <section id="replacements" aria-labelledby="page-title" hidden>
+        <div class="card form-card">
+          <h2>Gắn bo thay thế</h2>
+          <p class="muted">Tải cấu hình và nạp firmware cho bo mới trước khi gắn bo. Mã ủy quyền do chủ cửa cấp.</p>
+          <form id="replacement-form">
+            <div class="form-grid">
+              <label>Mã ủy quyền<input name="authorizationCode" maxlength="100" autocomplete="off" spellcheck="false" placeholder="RPL-…" required></label>
+              <label>Mã bo thay thế<input name="unitCode" list="replacement-list" maxlength="40" placeholder="Chọn hoặc nhập mã bo" required></label>
+            </div>
+            <datalist id="replacement-list"></datalist>
+            <button type="submit" class="button primary">Gắn bo thay thế</button>
+          </form>
+        </div>
+        <div class="card">
+          <div class="card-heading"><h2>Lịch sử thay Node</h2></div>
+          <div class="table-scroll">
+            <table><thead><tr><th scope="col">Cửa</th><th scope="col">Bo cũ</th><th scope="col">Bo thay thế</th><th scope="col">Trạng thái</th></tr></thead><tbody id="replacement-rows"></tbody></table>
+          </div>
+        </div>
+      </section>
+    </main>
+  </div>
+
+  <dialog id="register-dialog" aria-labelledby="register-title">
+    <form id="register-form">
+      <h2 id="register-title">Đăng ký bo ESP32</h2>
+      <label>Loại Node
+        <select name="nodeType" required>
+          <option value="" selected disabled>Chọn loại Node</option>
+          <option value="NODE_1">Node 1 · Đọc thẻ và PIN</option>
+          <option value="NODE_2">Node 2 · Điều khiển khóa</option>
+        </select>
+      </label>
+      <p id="register-error" class="feedback" role="alert" hidden></p>
+      <div class="dialog-actions"><button class="button secondary" type="button" data-close="register-dialog">Hủy</button><button class="button primary" type="submit">Đăng ký bo</button></div>
+    </form>
+  </dialog>
+
+  <dialog id="factory-dialog" aria-labelledby="factory-title">
+    <h2 id="factory-title">Chuẩn bị bo tại xưởng</h2>
+    <dl class="details">
+      <div><dt>Mã định danh bo</dt><dd id="factory-code"></dd></div>
+      <div><dt>Mạng Wi-Fi thiết lập</dt><dd id="factory-ssid"></dd></div>
+      <div><dt>Mã thiết lập Wi-Fi</dt><dd id="factory-setup"></dd></div>
+    </dl>
+    <p id="factory-instruction" class="muted"></p>
+    <label class="factory-config-label" for="factory-config">Nội dung cấu hình nạp</label>
+    <textarea id="factory-config" rows="9" readonly spellcheck="false" aria-describedby="factory-instruction"></textarea>
+    <p id="factory-copy-status" class="muted" role="status" hidden></p>
+    <div class="dialog-actions">
+      <button class="button secondary" type="button" data-close="factory-dialog">Đóng</button>
+      <button id="download" class="button secondary" type="button">Tải file .h</button>
+      <button id="copy-config" class="button primary" type="button">Sao chép cấu hình nạp</button>
+    </div>
+  </dialog>
+
+  <dialog id="claim-dialog" aria-labelledby="claim-title">
+    <h2 id="claim-title">Mã bàn giao cửa</h2>
+    <p id="claim-door" class="muted"></p>
+    <p id="claim-code" class="claim-code"></p>
+    <p id="claim-expiry" class="muted"></p>
+    <p id="copy-status" class="muted" role="status" hidden></p>
+    <div class="dialog-actions"><button class="button secondary" type="button" data-close="claim-dialog">Đóng</button><button id="copy-code" class="button primary" type="button">Sao chép mã</button></div>
+  </dialog>
+</body>
+</html>

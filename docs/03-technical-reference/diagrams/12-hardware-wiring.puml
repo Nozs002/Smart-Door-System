@@ -1,0 +1,54 @@
+@startuml
+!theme plain
+skinparam shadowing false
+skinparam defaultFontName Arial
+skinparam backgroundColor white
+left to right direction
+title 12. Đấu nối theo GPIO firmware — nguồn/module thực tế cần nghiệm thu
+rectangle "NODE 1 — ESP32 Auth" {
+  node "ESP32\nModel board thực tế cần xác nhận" as N1
+  component "RC522\nSS=5; RST=15\nSCK=18; MISO=19; MOSI=23" as RFID
+  component "Keypad 4x3\nR1/R2/R3/R4 = 13/14/27/26\nC1/C2/C3 = 25/33/32" as Key
+  component "LCD I2C 16x2\nSDA=21; SCL=22\nĐịa chỉ mặc định 0x27" as LCD
+  N1 <--> RFID : SPI + CS/RST
+  Key --> N1 : Ma trận phím
+  N1 --> LCD : I2C
+}
+rectangle "NODE 2 — ESP32 Control" {
+  node "ESP32\nModel board thực tế cần xác nhận" as N2
+  component "SG90\nSignal GPIO18\nMở 180° / đóng 90°" as Servo
+  component "DHT11 module 3 chân\nDATA=4; VCC=3V3; GND" as Temp
+  component "MC-38\nGPIO16 ↔ công tắc ↔ GND\nINPUT_PULLUP" as DoorSensor
+  component "Buzzer module 3 chân\nSignal=5; VCC=3V3; GND\nHIGH=kêu theo firmware" as Buzzer
+  component "LED\nGPIO2 → 220 Ω → anode\nCathode → GND" as Led
+  N2 --> Servo : PWM
+  Temp --> N2 : DATA
+  DoorSensor --> N2 : Mức đọc cánh cửa
+  N2 --> Buzzer : Signal
+  N2 --> Led : Chỉ thị lệnh; không đo chốt
+}
+component "Nguồn USB cho hai board\nTheo board thực tế" as USB
+component "Nguồn servo 5V phù hợp tải\nĐịnh mức/dòng thực tế cần xác nhận" as FiveV
+USB --> N1
+USB --> N2
+FiveV --> Servo : V+ / GND tải
+FiveV -- N2 : Chung GND với Node 2
+note bottom of LCD
+  Nguồn RC522 / LCD và mức logic I2C phải kiểm tra đúng module.
+  Không suy điện áp cấp chỉ từ chân GPIO; không đưa 5V vào GPIO ESP32.
+  Nếu backpack LCD kéo I2C lên 5V, cần xử lý chuyển mức phù hợp.
+end note
+note bottom of DoorSensor
+  Hiệu chỉnh mô hình trong firmware: HIGH=CLOSED, LOW=OPEN.
+  Kiểm tra lại vị trí nam châm / tiếp điểm trên bộ demo của nhóm.
+  MC-38 chỉ quan sát cánh cửa; servo không có phản hồi vị trí chốt.
+end note
+legend bottom
+  GPIO0/BOOT trên từng board: giữ 3 giây khi đang chạy để mở SoftAP cài Wi-Fi.
+  Không có dây offline giữa hai ESP32 được chốt; chưa gán GPIO cho Exit.
+  GPIO trích từ NodeAuthApp.h / NodeControlApp.h / Node2Actuator.h; board/nguồn cần đối chiếu.
+  Đây là sơ đồ đấu nối theo code, chưa nghiệm thu điện/nguồn; không phải thiết kế khóa thương mại.
+endlegend
+
+footer Đối chiếu source 16/11/2026 | V13 | Offline RFID/PIN chưa triển khai
+@enduml

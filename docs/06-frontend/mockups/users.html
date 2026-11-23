@@ -1,0 +1,62 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>SmartLock System - Users</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;600;700&family=Outfit:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="style.css" />
+</head>
+<body>
+  <div class="app-container dashboard-home">
+    <div class="status-bar" style="color:#fff;text-shadow:0 1px 4px rgba(0,0,0,0.3)">
+      <span>09:41</span>
+      <div class="status-right">
+        <button class="theme-toggle" id="theme-toggle" title="Chuyển giao diện"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 12.79A9 9 0 1111.21 3 7 7 0 0021 12.79z" /></svg></button>
+        <span>●●●</span><span>LTE</span><span>78%</span>
+      </div>
+    </div>
+
+    <div class="screen active" style="background:transparent">
+      <div class="screen-content">
+        <button class="back-btn" onclick="window.location.href='dashboard.html'" aria-label="Quay lại Dashboard"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M15 18l-6-6 6-6" /></svg></button>
+        <div class="access-page-header"><h1>Quản lý người dùng</h1><button class="access-primary-btn" disabled title="Chưa có API tạo người dùng">+ Thêm</button></div>
+
+        <div class="card access-summary"><div><strong>4</strong><span>Người dùng đã đăng ký</span></div><span id="active-user-count" class="settings-status active">3 hoạt động</span></div>
+        <div class="access-note">Vô hiệu hóa người dùng sẽ thu hồi toàn bộ thẻ RFID và vân tay. Dữ liệu lịch sử vẫn được giữ lại.</div>
+        <p id="user-action-status" class="settings-save-status" role="status" aria-live="polite"></p>
+
+        <div class="list-item user-list-item" data-user-id="1" data-user-name="Quản trị viên" data-user-status="ACTIVE">
+          <div class="icon-box cyan font-bold">QT</div><div class="user-list-content"><p class="settings-item-title">Quản trị viên</p><p class="settings-item-subtitle">ADMIN · 1 thẻ đang hoạt động</p></div><span class="settings-status active">Hoạt động</span><button class="access-icon-btn danger user-status-btn">Vô hiệu hóa</button>
+        </div>
+        <div class="list-item user-list-item" data-user-id="2" data-user-name="Nguyễn Hoàng An" data-user-status="ACTIVE">
+          <div class="icon-box cyan font-bold">NA</div><div class="user-list-content"><p class="settings-item-title">Nguyễn Hoàng An</p><p class="settings-item-subtitle">USER · 1 thẻ đang hoạt động</p></div><span class="settings-status active">Hoạt động</span><button class="access-icon-btn danger user-status-btn">Vô hiệu hóa</button>
+        </div>
+        <div class="list-item user-list-item" data-user-id="3" data-user-name="Trần Gia Bình" data-user-status="ACTIVE">
+          <div class="icon-box cyan font-bold">TB</div><div class="user-list-content"><p class="settings-item-title">Trần Gia Bình</p><p class="settings-item-subtitle">USER · 1 thẻ đang hoạt động</p></div><span class="settings-status active">Hoạt động</span><button class="access-icon-btn danger user-status-btn">Vô hiệu hóa</button>
+        </div>
+
+        <p class="settings-section-label" style="margin-top:8px">ĐÃ VÔ HIỆU HÓA</p>
+        <div class="list-item user-list-item is-disabled" data-user-id="4" data-user-name="Lê Minh Chi" data-user-status="DISABLED">
+          <div class="icon-box red font-bold">LC</div><div class="user-list-content"><p class="settings-item-title">Lê Minh Chi</p><p class="settings-item-subtitle">Thẻ và vân tay đã bị thu hồi</p></div><span class="settings-status inactive">Vô hiệu hóa</span><button class="access-icon-btn user-status-btn">Kích hoạt lại</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="modal-overlay" id="user-status-modal" role="dialog" aria-modal="true" aria-labelledby="user-status-modal-title">
+    <div class="modal-content confirmation-card">
+      <h2 id="user-status-modal-title">Xác nhận vô hiệu hóa</h2>
+      <p id="user-status-modal-message"></p>
+      <div class="confirmation-warning" id="user-status-modal-warning"></div>
+      <div class="confirmation-actions">
+        <button type="button" class="settings-action-btn" id="cancel-user-status-btn">Hủy</button>
+        <button type="button" class="access-primary-btn danger-action" id="confirm-user-status-btn">Vô hiệu hóa</button>
+      </div>
+    </div>
+  </div>
+  <script src="script.js"></script>
+</body>
+</html>

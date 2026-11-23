@@ -1,0 +1,2 @@
+ALTER TABLE control_commands
+    ADD COLUMN action VARCHAR(16) NOT NULL DEFAULT 'UNLOCK';

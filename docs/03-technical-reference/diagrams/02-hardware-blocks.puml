@@ -1,0 +1,51 @@
+@startuml
+!theme plain
+skinparam shadowing false
+skinparam defaultFontName Arial
+skinparam backgroundColor white
+left to right direction
+title 2. Khối phần cứng — theo firmware hai ESP32 hiện tại
+rectangle "NGOÀI CỬA — NODE 1" {
+  component "RC522\nĐọc UID thẻ RFID" as RFID
+  component "Keypad ma trận 4x3\nPIN 4–8 số; # gửi; * xóa" as Key
+  component "LCD I2C 16x2\nĐịa chỉ mặc định 0x27" as LCD
+  node "ESP32 Node 1\nGửi RFID/PIN đến Backend\nHiển thị kết quả xác thực" as N1
+  RFID --> N1 : SPI
+  Key --> N1 : 4 hàng + 3 cột
+  N1 --> LCD : I2C
+}
+rectangle "TRONG CỬA — NODE 2" {
+  component "DHT11\nNhiệt độ / độ ẩm" as Temp
+  component "MC-38\nQuan sát cánh cửa" as State
+  component "Nút Exit\nChưa đấu / chưa tích hợp" as Exit
+  node "ESP32 Node 2\nĐiều khiển / telemetry / cảnh báo" as N2
+  component "Servo SG90\nMở 180° / đóng 90°\nMô hình kéo cánh cửa" as Servo
+  component "Buzzer module + LED\nCòi / chỉ thị lệnh" as Buzzer
+  Temp --> N2 : GPIO4
+  State --> N2 : GPIO16
+  Exit ..> N2 : Chưa gán GPIO
+  N2 --> Servo : PWM GPIO18
+  N2 --> Buzzer : GPIO5 / GPIO2
+}
+node "Router / Wi-Fi nhà 2.4 GHz" as AP
+N1 <--> AP : Wi-Fi + MQTT qua Broker
+N2 <--> AP : Wi-Fi + MQTT qua Broker
+N1 .. N2 : Kênh xác thực RFID/PIN offline chưa triển khai
+component "Nguồn cho hai board\nUSB theo model board" as LogicPower
+component "Nguồn servo 5V\nDòng tải / nguồn thực tế cần xác nhận" as ServoPower
+LogicPower --> N1
+LogicPower --> N2
+ServoPower --> Servo : Nguồn tải; chung GND Node 2
+note bottom of N2
+  Firmware có phản ứng nhiệt tại chỗ và timer tự đóng sau mở bình thường.
+  Nhiệt ưu tiên hơn CLOSE / timer; chưa phải hệ thống báo cháy chứng nhận.
+  ACK xác nhận phát lệnh servo; MC-38 đo cánh cửa, không đo vị trí chốt.
+end note
+legend bottom
+  Mô hình hiện dùng LCD và servo; không dùng OLED / relay trong bản tích hợp.
+  Nguồn, model board và dây thực tế cần nghiệm thu; xem sơ đồ 12.
+  Hai board trần dùng thử onboarding, không chứng minh tác động khóa vật lý.
+endlegend
+
+footer Đối chiếu source 16/11/2026 | V13 | Offline RFID/PIN chưa triển khai
+@enduml
