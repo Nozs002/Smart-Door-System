@@ -1,5 +1,6 @@
 #pragma once
 #include "ControlState.h"
+#include "RelockOnDoorClose.h"
 #include <limits.h>
 
 inline bool runControlTests() {
@@ -29,7 +30,7 @@ inline bool runControlTests() {
   check(!DeviceProtocol::topicCode("node/+/bad"), "topic injection");
   check(DeviceProtocol::uuid("b6f294a0-2934-4d48-9e7d-54a924e84848"), "full UUID");
   check(!DeviceProtocol::uuid("9e7d54a924e84848"), "truncated UUID rejected");
-  ControlPolicy::AutoClose timer;
+  ControlPolicy::RelockOnDoorClose relock;
   ControlPolicy::SecurityMode mode;
   check(mode.next(true, false) == ControlPolicy::ModeEffect::NONE, "no close on first secure boot");
   mode.applied(true);
@@ -40,15 +41,14 @@ inline bool runControlTests() {
   check(mode.next(true, true) == ControlPolicy::ModeEffect::NONE, "fire blocks mode close");
   mode.applied(true);
   check(mode.next(true, false) == ControlPolicy::ModeEffect::NONE, "do not close automatically after fire clears");
-  check(!timer.due(10000, true), "no close on boot");
-  timer.opened(100);
-  check(!timer.due(10099, true), "hold full ten seconds");
-  check(timer.due(10100, true), "close after ten seconds");
-  check(!timer.due(10100, false), "fire blocks auto close");
-  timer.cancel();
-  check(!timer.due(50000, true), "emergency/manual close cancels timer");
-  timer.opened(ULONG_MAX - 5000UL);
-  check(timer.due(5000UL, true), "auto close across millis rollover");
+  check(!relock.update(true, true), "no close on boot");
+  relock.arm();
+  check(!relock.update(true, true), "closed signal at unlock does not relock");
+  check(!relock.update(true, false), "open door stays unlocked");
+  check(!relock.update(false, true), "unstable sensor cannot relock");
+  check(relock.update(true, true), "MC38 closing relocks after opening");
+  relock.cancel();
+  check(!relock.update(true, true), "cannot relock twice");
   Serial.print("Control tests passed: "); Serial.print(passed);
   Serial.print(", failed: "); Serial.println(failed);
   return failed == 0;

@@ -5,7 +5,7 @@
 #include <Preferences.h>
 #include <time.h>
 #include "../shared/DeviceProtocol.h"
-#include "ControlState.h"
+#include "RelockOnDoorClose.h"
 
 // Bounded journal: expired entries can be reused, live entries never evicted.
 // Persist REJECTED before moving; a reset in the movement window must never
@@ -133,23 +133,26 @@ class Node2Actuator {
       return;
     }
     moving_ = slot;
-    autoClose_.cancel();
     entries_[slot].ackPending = false;
     started_ = millis();
     commandedOpen_ = entries_[slot].action == "UNLOCK";
+    if (commandedOpen_ && closeAllowed) relock_.arm();
+    else relock_.cancel();
     servo_.write(commandedOpen_ ? OPEN_ANGLE : CLOSED_ANGLE);
     Serial.println(commandedOpen_ ? "Servo: mo cua 180 do" : "Servo: dong cua 90 do");
   }
 
   // Call before checking network so movement completion works while offline.
-  void tick(bool closeAllowed) {
+  void tick(bool closeAllowed, bool sensorKnown, bool doorClosed) {
+    if (!closeAllowed) relock_.cancel();
+    // Track the sensor even during UNLOCK movement, so a quick cycle is not lost.
+    bool closeOnSensor = relock_.update(sensorKnown, doorClosed);
     if (moving_ < 0) {
-      if (autoClose_.due(millis(), closeAllowed)) {
-        autoClose_.cancel();
-        if (servo_.attached()) {
-          servo_.write(CLOSED_ANGLE); commandedOpen_ = false;
-          Serial.println("[AUTO] Dong cua 90 do sau 10 giay giu mo");
-        }
+      if (closeOnSensor && servo_.attached()) {
+        relock_.cancel();
+        servo_.write(CLOSED_ANGLE);
+        commandedOpen_ = false;
+        Serial.println("[AUTO] MC38 CLOSED: dong chot 90 do");
       }
       return;
     }
@@ -165,7 +168,6 @@ class Node2Actuator {
       return;
     }
     entries_[slot].ackPending = true;
-    if (entries_[slot].action == "UNLOCK" && closeAllowed) autoClose_.opened(millis());
     Serial.println("Da luu ket qua EXECUTED; cho gui ACK");
   }
 
@@ -185,7 +187,7 @@ class Node2Actuator {
           if (servo_.attached()) {
             servo_.write(CLOSED_ANGLE);
             commandedOpen_ = false;
-            autoClose_.cancel();
+            relock_.cancel();
             changed = true;
             Serial.println("Servo: dong chot 90 do (lenh Serial)");
           }
@@ -209,7 +211,7 @@ class Node2Actuator {
     // A mode change supersedes an unfinished command, whose durable reservation
     // is still REJECTED. Do not later ACK that interrupted movement as executed.
     if (moving_ >= 0) { entries_[moving_].ackPending = true; moving_ = -1; }
-    autoClose_.cancel(); servo_.write(CLOSED_ANGLE); commandedOpen_ = false;
+    relock_.cancel(); servo_.write(CLOSED_ANGLE); commandedOpen_ = false;
     Serial.println("[MODE] Bat bao mat: dong cua 90 do");
     return true;
   }
@@ -220,7 +222,7 @@ class Node2Actuator {
   }
 
   bool keepOpen(const char* message) {
-    autoClose_.cancel();
+    relock_.cancel();
     if (moving_ >= 0 && entries_[moving_].action == "CLOSE") {
       // REJECTED was durably reserved before movement. Never ACK an interrupted
       // close as EXECUTED when the emergency response reverses that movement.
@@ -270,7 +272,7 @@ class Node2Actuator {
   unsigned long started_ = 0;
   bool ready_ = false;
   bool commandedOpen_ = false;
-  ControlPolicy::AutoClose autoClose_;
+  ControlPolicy::RelockOnDoorClose relock_;
   Preferences store_;
   Servo servo_;
   String identity_;
