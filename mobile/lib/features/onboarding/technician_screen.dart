@@ -1,10 +1,11 @@
 import 'dart:math';
 
 import 'package:flutter/material.dart';
-import 'package:flutter/services.dart';
 
 import '../../core/api_client.dart';
 import 'code_input.dart';
+import 'replacement_screen.dart';
+import 'technician_inventory_screen.dart';
 
 class TechnicianScreen extends StatefulWidget {
   const TechnicianScreen({super.key, required this.client, this.onOpenProfile});
@@ -15,7 +16,7 @@ class TechnicianScreen extends StatefulWidget {
 }
 
 class _TechnicianScreenState extends State<TechnicianScreen> {
-  List<dynamic> units = [], kits = [];
+  List<dynamic> kits = [];
   bool busy = false;
   String? error;
   final name = TextEditingController(), location = TextEditingController();
@@ -36,19 +37,14 @@ class _TechnicianScreenState extends State<TechnicianScreen> {
     super.dispose();
   }
 
-  Future<void> refresh() async {
-    await action(() async {
-      final values = await Future.wait([
-        widget.client.request('GET', '/api/v1/technician/inventory'),
-        widget.client.request('GET', '/api/v1/technician/kits'),
-      ]);
-      if (mounted) {
-        setState(() {
-          units = values[0] as List;
-          kits = values[1] as List;
-        });
-      }
-    });
+  Future<void> refresh() => action(loadKits);
+
+  Future<void> loadKits() async {
+    final result = await widget.client.request(
+      'GET',
+      '/api/v1/technician/kits',
+    );
+    if (mounted) kits = result as List;
   }
 
   Future<void> action(Future<void> Function() work) async {
@@ -94,9 +90,9 @@ class _TechnicianScreenState extends State<TechnicianScreen> {
         final code = result['activationCode'] as String;
         await showCode(
           context,
-          'Mã nhận cửa',
-          '$code\nHết hạn ${result['expiresAt']}',
-          'smartdoor://claim/$code',
+          title: 'Mã nhận cửa',
+          code: code,
+          detail: 'Hết hạn ${result['expiresAt']}',
         );
       } else {
         ScaffoldMessenger.of(context).showSnackBar(
@@ -108,66 +104,7 @@ class _TechnicianScreenState extends State<TechnicianScreen> {
         );
       }
       requestId = null;
-      kits =
-          await widget.client.request('GET', '/api/v1/technician/kits') as List;
-    });
-  }
-
-  Future<void> factory(Map<String, dynamic> unit) async {
-    await action(() async {
-      final result = await widget.client.request(
-        'GET',
-        '/api/v1/technician/inventory/${unit['unitCode']}/factory',
-      ) as Map<String, dynamic>;
-      if (!mounted) return;
-      final code = result['unitCode'] as String,
-          setup = result['setupCode'] as String;
-      await showDialog<void>(
-        context: context,
-        builder: (_) => AlertDialog(
-          title: const Text('Chuẩn bị thiết bị tại xưởng'),
-          content: SingleChildScrollView(
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                SelectableText(
-                  'Node ${result['nodeType']}\nMã $code\nWi-Fi ${result['setupSsid']}\nMã thiết lập $setup',
-                ),
-                const SizedBox(height: 12),
-                const Text(
-                  'Lưu cấu hình thành enrollment_config.local.h cạnh sketch đúng Node, rồi nạp firmware một lần.',
-                ),
-              ],
-            ),
-          ),
-          actions: [
-            TextButton(
-              onPressed: () async {
-                await Clipboard.setData(
-                  ClipboardData(text: result['firmwareConfig'] as String),
-                );
-              },
-              child: const Text('Sao chép cấu hình nạp'),
-            ),
-            TextButton(
-              onPressed: () {
-                Navigator.pop(context);
-                showCode(
-                  context,
-                  'Tem thiết bị',
-                  '$code\nMã thiết lập $setup',
-                  'smartdoor://unit/$code?setup=$setup',
-                );
-              },
-              child: const Text('Xem QR và mã'),
-            ),
-            TextButton(
-              onPressed: () => Navigator.pop(context),
-              child: const Text('Đóng'),
-            ),
-          ],
-        ),
-      );
+      await loadKits();
     });
   }
 
@@ -199,51 +136,33 @@ class _TechnicianScreenState extends State<TechnicianScreen> {
             style: TextStyle(color: Theme.of(context).colorScheme.error),
           ),
         Card(
-          child: Padding(
-            padding: const EdgeInsets.all(16),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.stretch,
-              children: [
-                Text(
-                  'Kho ESP32 và tem thiết bị',
-                  style: Theme.of(context).textTheme.titleLarge,
-                ),
-                const SizedBox(height: 12),
-                Wrap(
-                  spacing: 12,
-                  children: ['NODE_1', 'NODE_2']
-                      .map(
-                        (role) => OutlinedButton(
-                          onPressed: busy
-                              ? null
-                              : () => action(() async {
-                                  await widget.client.request(
-                                    'POST',
-                                    '/api/v1/technician/inventory',
-                                    body: {'nodeType': role},
-                                  );
-                                  units = await widget.client.request(
-                                    'GET',
-                                    '/api/v1/technician/inventory',
-                                  ) as List;
-                                }),
-                          child: Text('Đăng ký $role'),
-                        ),
-                      )
-                      .toList(),
-                ),
-                ...units.map((value) {
-                  final unit = value as Map<String, dynamic>;
-                  return ListTile(
-                    title: Text('${unit['nodeType']}'),
-                    subtitle: Text(
-                      '${unit['unitCode']}\n${unit['deviceId'] == null ? 'Chưa gắn cửa' : 'Đã gắn cửa'}',
-                    ),
-                    trailing: const Icon(Icons.qr_code),
-                    onTap: busy ? null : () => factory(unit),
-                  );
-                }),
-              ],
+          child: ListTile(
+            leading: const Icon(Icons.inventory_2_outlined),
+            title: const Text('Kho ESP32 và tem thiết bị'),
+            subtitle: const Text('Đăng ký bo, xem mã và cấu hình nạp'),
+            trailing: const Icon(Icons.chevron_right),
+            onTap: () => Navigator.push(
+              context,
+              MaterialPageRoute<void>(
+                builder: (_) =>
+                    TechnicianInventoryScreen(client: widget.client),
+              ),
+            ),
+          ),
+        ),
+        const SizedBox(height: 20),
+        Card(
+          child: ListTile(
+            leading: const Icon(Icons.swap_horiz),
+            title: const Text('Thay Node cho cửa đã bàn giao'),
+            subtitle: const Text('Nhập mã ủy quyền từ chủ cửa'),
+            trailing: const Icon(Icons.chevron_right),
+            onTap: () => Navigator.push(
+              context,
+              MaterialPageRoute<void>(
+                builder: (_) =>
+                    TechnicianReplacementScreen(client: widget.client),
+              ),
             ),
           ),
         ),
@@ -265,18 +184,8 @@ class _TechnicianScreenState extends State<TechnicianScreen> {
                 maxLength: 255,
                 decoration: const InputDecoration(labelText: 'Vị trí'),
               ),
-              CodeField(
-                controller: first,
-                label: 'Mã Node 1',
-                kind: 'unit',
-                enabled: !busy,
-              ),
-              CodeField(
-                controller: second,
-                label: 'Mã Node 2',
-                kind: 'unit',
-                enabled: !busy,
-              ),
+              CodeField(controller: first, label: 'Mã Node 1', enabled: !busy),
+              CodeField(controller: second, label: 'Mã Node 2', enabled: !busy),
               FilledButton(
                 onPressed: busy ? null : createKit,
                 child: const Text('Tạo bộ cửa và mã bàn giao'),
@@ -308,9 +217,9 @@ class _TechnicianScreenState extends State<TechnicianScreen> {
                               if (context.mounted) {
                                 await showCode(
                                   context,
-                                  'Mã nhận cửa mới',
-                                  '$code\nHết hạn ${result['expiresAt']}',
-                                  'smartdoor://claim/$code',
+                                  title: 'Mã nhận cửa mới',
+                                  code: code,
+                                  detail: 'Hết hạn ${result['expiresAt']}',
                                 );
                               }
                             }),

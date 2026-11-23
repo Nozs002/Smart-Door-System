@@ -127,11 +127,11 @@ class _DoorPinScreenState extends State<DoorPinScreen> {
                       autocorrect: false,
                       keyboardType: TextInputType.number,
                       decoration: const InputDecoration(
-                        labelText: 'PIN mới (4–8 chữ số)',
+                        labelText: 'PIN mới (4 chữ số)',
                       ),
                       validator: (value) => validDoorPin(value ?? '')
                           ? null
-                          : 'Nhập PIN gồm 4–8 chữ số.',
+                          : 'Nhập PIN gồm đúng 4 chữ số.',
                     ),
                     const SizedBox(height: 16),
                     TextFormField(

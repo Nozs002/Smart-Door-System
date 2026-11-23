@@ -38,6 +38,7 @@ class RoleAuthApi extends FakeAuthApi {
 class TechnicianClient extends ApiClient {
   TechnicianClient(AuthSession session) : super(tokenProvider: session);
   final paths = <String>[];
+  final inventory = <Map<String, dynamic>>[];
 
   @override
   Future<dynamic> request(
@@ -47,8 +48,8 @@ class TechnicianClient extends ApiClient {
     Map<String, dynamic>? body,
   }) async {
     paths.add(path);
-    if (path == '/api/v1/technician/inventory' ||
-        path == '/api/v1/technician/kits') {
+    if (path == '/api/v1/technician/inventory') return inventory;
+    if (path == '/api/v1/technician/kits') {
       return <dynamic>[];
     }
     throw StateError('Unexpected request');
@@ -65,7 +66,7 @@ void main() {
     return (session, client);
   }
 
-  testWidgets('restored technician lands on direct installation sections', (
+  testWidgets('large ESP32 inventory stays separate from door creation', (
     tester,
   ) async {
     tester.view.physicalSize = const Size(390, 844);
@@ -73,6 +74,10 @@ void main() {
     addTearDown(tester.view.resetPhysicalSize);
     addTearDown(tester.view.resetDevicePixelRatio);
     final (session, client) = await prepare(RoleAuthApi());
+    client.inventory.addAll([
+      for (var i = 0; i < 50; i++)
+        {'unitCode': 'demo-board-$i', 'nodeType': 'NODE_1', 'deviceId': null},
+    ]);
     await tester.pumpWidget(
       SmartDoorApp(
         session: session,
@@ -84,12 +89,26 @@ void main() {
     expect(find.byType(TechnicianScreen), findsOneWidget);
     expect(find.byType(DashboardScreen), findsNothing);
     expect(find.text('Kho ESP32 và tem thiết bị'), findsOneWidget);
-    expect(find.text('Đăng ký NODE_1'), findsOneWidget);
-    expect(find.text('Đăng ký NODE_2'), findsOneWidget);
-    expect(find.byType(ExpansionTile), findsNothing);
+    expect(
+      find.text('Tạo bộ cửa và mã bàn giao').hitTestable(),
+      findsOneWidget,
+    );
+    expect(find.textContaining('demo-board-0'), findsNothing);
+    expect(client.paths, isNot(contains('/api/v1/technician/inventory')));
     expect(find.text('Thêm cửa'), findsNothing);
     expect(find.text('Quản lý cửa'), findsNothing);
     expect(find.text('Quản lý lắp đặt'), findsNothing);
+    await tester.tap(find.text('Kho ESP32 và tem thiết bị'));
+    await tester.pumpAndSettle();
+    expect(find.text('Đăng ký NODE_1'), findsOneWidget);
+    expect(find.text('Đăng ký NODE_2'), findsOneWidget);
+    expect(find.textContaining('demo-board-0'), findsOneWidget);
+    await tester.pageBack();
+    await tester.pumpAndSettle();
+    expect(
+      find.text('Tạo bộ cửa và mã bàn giao').hitTestable(),
+      findsOneWidget,
+    );
     await tester.scrollUntilVisible(
       find.text('Các bộ cửa đã tạo'),
       250,

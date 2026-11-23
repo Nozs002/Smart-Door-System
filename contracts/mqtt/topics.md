@@ -51,12 +51,11 @@ Node từ chối retained/hết hạn/sai schema/action và CLOSE khi đang báo
 Nhật ký lưu đầy đủ commandId cùng action; lệnh trùng chỉ ACK, không quay lại.
 Các bản ghi cũ chưa có action được hiểu là UNLOCK. ID trùng nhưng khác action
 không được thực thi. Nếu báo nhiệt chen ngang chuyển động đóng, Node mở lại
-và trả REJECTED cho CLOSE. Nhiệt độ có ưu tiên cao hơn lệnh đóng và timer.
+và trả REJECTED cho CLOSE. Nhiệt độ có ưu tiên cao hơn lệnh đóng và MC-38.
 
-Sau mở bình thường, Node 2 giữ 10 giây rồi đóng 90° bằng timer monotonic tại
-chỗ; lệnh trùng không gia hạn timer. Lệnh mở mới hợp lệ bắt đầu một khoảng giữ
-mở mới. Không replay timer hoặc lệnh cũ sau reset. Sau mở khẩn cấp do nhiệt,
-không tự đóng dù điều kiện đã hết. Dữ liệu MC-38 là xác nhận cánh cửa thực tế.
+Sau mở bình thường, Node 2 chờ MC-38 thấy cửa mở rồi đóng ổn định trước khi
+quay servo về 90°. Reset hủy việc chờ cảm biến. Sau mở khẩn cấp do nhiệt, cần
+đóng chủ động khi điều kiện đã hết. MC-38 đo trạng thái thực tế của cánh cửa.
 
 ### Cấu hình, đồng bộ và sự kiện
 
@@ -119,11 +118,9 @@ Node 1 bản tích hợp hỗ trợ BCrypt `$2a$`/`$2b$`/`$2y$`, cost 4–12; Ba
 hiện tạo cost 10. Giới hạn snapshot CREDENTIALS là **16384 byte JSON UTF-8**;
 vượt giới hạn phải báo lỗi giao, không cắt bớt danh sách hay ACK thành công.
 Node lưu toàn bộ snapshot vào NVS trước ACK, chống rollback theo version và
-gắn cache với danh tính Door/Device/credentialId. Keypad nhập PIN 4–8 số rồi
-bấm `#` để gửi; `*` xóa. Quyết định truy cập vẫn tại Backend; bộ lưu snapshot
-chưa triển khai luồng mở offline giữa hai Node.
-Keypad có phím dự phòng khi hàng cuối hỏng: giữ 1 để xóa, giữ 2 để nhập 0,
-giữ 3 để gửi (khoảng 0,9 giây). Không thay đổi payload hoặc quy tắc PIN của API.
+gắn cache với danh tính Door/Device/credentialId. Keypad tự gửi ở số thứ tư;
+`*` xóa dãy đang nhập. Quyết định truy cập vẫn tại Backend. Payload MQTT giữ
+định dạng như cũ để firmware cũ có thể gửi yêu cầu xác thực.
 
 ## Payload ACK
 

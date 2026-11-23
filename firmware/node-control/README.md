@@ -1,9 +1,10 @@
 # Node 2: điều khiển, cảm biến và cảnh báo
 
 Thay cho sketch legacy, giữ góc đã kiểm tra trên mô hình: **mở 180°, đóng 90°**.
-Servo kéo trực tiếp cánh cửa. Sau lệnh mở bình thường hoàn tất, giữ mở **10 giây**
-rồi tự đóng 90°, kể cả mất mạng. Có thể đóng ngay qua nút Đóng cửa trên App hoặc
-`CLOSE` + Newline trên Serial. Báo nhiệt hủy timer và chặn cả hai cách đóng.
+Sau lệnh mở bình thường, đưa cánh cửa về vị trí đóng. Node 2 chờ MC-38
+báo **OPEN → CLOSED** rồi quay servo về 90°, kể cả khi mất kết nối MQTT sau
+khi mở. Có thể đóng thủ công bằng nút Đóng cửa trên App hoặc `CLOSE` + Newline
+trên Serial. Báo nhiệt hủy việc chờ MC-38 và chặn lệnh đóng.
 Không replay lệnh cũ khi reset/reconnect. Riêng AUTOMATIC đã lưu và được cấp quyền sẽ tiếp tục giữ mở sau reset; SECURITY không tự quay chỉ vì boot.
 
 ## Cấu hình và nạp
@@ -44,11 +45,10 @@ vì SG90 không có cảm biến phản hồi vị trí; MC-38 chỉ đo cánh c
 - `commands/close`: cùng cơ chế xác thực, TTL, journal và ACK như UNLOCK,
   action CLOSE phải khớp topic. Đang báo nhiệt trả REJECTED, không đóng.
   Nếu báo nhiệt xuất hiện giữa chuyển động đóng thì mở lại và từ chối CLOSE.
-- Timer monotonic giữ mở 10 giây bắt đầu sau khi lưu kết quả EXECUTED của lệnh
-  mở (chờ ổn định 700 ms). ID trùng không gia hạn; lệnh mở mới hợp lệ khởi động
-  khoảng giữ mở mới. Đóng bằng App/Serial hủy timer. Không dùng openTimeoutSeconds
-  cho timer này và không tạo command ACK giả cho tự đóng. Nhật ký lưu thêm action,
-  các bản ghi cũ thiếu action được hiểu là UNLOCK.
+- Sau mỗi lệnh mở hợp lệ, MC-38 phải thấy cánh cửa mở rồi đóng ổn định.
+  CLOSED lúc vừa mở khóa chưa đủ để đóng chốt. Đóng bằng App/Serial, báo nhiệt
+  hoặc chuyển sang giữ mở sẽ hủy việc chờ cảm biến. Tự đóng tại chỗ không tạo
+  ACK của lệnh App. `openTimeoutSeconds` chỉ dùng cho cảnh báo cửa mở lâu.
 - Lưu commandId/kết quả trước/sau tác động servo. Trùng ID chỉ gửi lại kết quả,
   không quay lại; nhật ký giữ tối đa 32 lệnh, chỉ thay mục hết hạn. Mất điện
   giữa quay và lưu kết quả có thể để lại REJECTED dù servo đã nhận lệnh;
@@ -100,9 +100,9 @@ cấu hình hiện tại đã tắt hoặc ngưỡng đã đổi; kiểm tra App
 ## Kiểm tra trên hai board
 
 1. Chờ Node 2 ONLINE và applied_config_version bằng bản mong muốn.
-2. Mở từ App/thẻ/PIN → servo 180°, control_commands EXECUTED; giữ mở 10 giây
-   rồi servo 90°. Thử nút Đóng cửa + xác nhận để đóng trước hạn; CLOSE Serial
-   vẫn hoạt động. Tự đóng phải còn chạy khi ngắt Wi-Fi sau khi lệnh mở hoàn tất.
+2. Mở từ App/thẻ/PIN. Servo về 180° và lệnh báo EXECUTED. Giữ cánh cửa mở
+   hơn 10 giây để kiểm tra servo vẫn ở 180°. Đóng cánh cửa và xem log
+   `[AUTO] MC38 CLOSED` cùng servo về 90°. Lặp lại khi ngắt Wi-Fi sau lệnh mở.
 3. Đưa/tách nam châm → CLOSED/OPEN trên Serial, door_telemetry và trang giám sát.
 4. DHT11 có số đo nhiệt/ẩm; tháo Data khi đã ngắt nguồn rồi bật lại → số đo lỗi
    phải thành null. Không phát lệnh mở mới do một số đo NaN.
@@ -157,8 +157,8 @@ Flutter analyze/build APK và DDL V11 trên bảng TEMP MySQL. Các ca tự đó
 
 ## Tắt/bật chế độ bảo mật
 
-- Tắt trên App (`AUTOMATIC`): mở 180° và giữ mở, hủy timer 10 giây; không nhận CLOSE từ App/Serial.
-- Bật lại (`SECURITY`): đóng 90°; các lần mở bằng RFID/PIN/App tiếp theo tự đóng sau 10 giây.
+- Tắt trên App (`AUTOMATIC`): mở 180° và giữ mở, hủy chờ MC-38; không nhận CLOSE từ App/Serial.
+- Bật lại (`SECURITY`): đóng 90°. Các lần mở bằng RFID/PIN/App tiếp theo chờ MC-38 báo cánh cửa đã mở rồi đóng.
 - Báo nhiệt ưu tiên mở; khi hết báo nhiệt không tự đóng lại. Cảnh báo cửa mở lâu là công tắc riêng, vẫn kêu nếu bật và vượt timeout.
 - Snapshot có `controlEnabled=true` mới cho phép tác động mode/remote/Serial. Backend mới cấp cờ khi Door và Node 2 ACTIVE; setup chỉ lưu và ACK. Snapshot cũ thiếu cờ không cấp quyền. Cờ và cấu hình được lưu NVS để dùng khi mất mạng; thay đổi quyền server cần giao snapshot mới.
 - Nạp lại cả Node 1 và Node 2, rebuild Backend/App rồi đồng bộ lại cấu hình. Tắt bảo mật, chờ ACK Node 2, kiểm tra giữ mở hơn 10 giây; bật lại, kiểm tra servo đóng và thẻ/PIN hoạt động. Thử Hủy ở hộp xác nhận: cửa không đổi mode.

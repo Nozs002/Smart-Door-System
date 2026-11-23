@@ -93,12 +93,12 @@ class CredentialsApiTests {
                         .header("Authorization", bearer()))
                 .andExpect(status().isOk());
         String response = mvc.perform(put("/api/v1/doors/{id}/pin", door.getId()).header("Authorization", bearer())
-                        .contentType(MediaType.APPLICATION_JSON).content("{\"pin\":\"314159\"}"))
+                        .contentType(MediaType.APPLICATION_JSON).content("{\"pin\":\"0314\"}"))
                 .andExpect(status().isOk()).andExpect(jsonPath("$.data.configured").value(true))
                 .andExpect(jsonPath("$.data.version").value(1)).andReturn().getResponse().getContentAsString();
         String verifier = pins.findById(door.getId()).orElseThrow().getPinHash();
-        assertThat(passwords.matches("314159", verifier)).isTrue();
-        assertThat(response).doesNotContain("314159", verifier, "pinHash", "pinVerifier");
+        assertThat(passwords.matches("0314", verifier)).isTrue();
+        assertThat(response).doesNotContain("0314", verifier, "pinHash", "pinVerifier");
         assertThat(configs.findById(door.getId()).orElseThrow().getCredentialsVersion()).isEqualTo(4);
     }
 
@@ -109,6 +109,9 @@ class CredentialsApiTests {
                         .contentType(MediaType.APPLICATION_JSON).content("{\"pin\":\"1234\"}"))
                 .andExpect(status().isNotFound());
         assertThat(pins.findById(incomplete.getId())).isEmpty();
+        mvc.perform(put("/api/v1/doors/{id}/pin", door.getId()).header("Authorization", bearer())
+                        .contentType(MediaType.APPLICATION_JSON).content("{\"pin\":\"314159\"}"))
+                .andExpect(status().isBadRequest());
         mvc.perform(put("/api/v1/doors/{id}/pin", door.getId()).header("Authorization", bearer())
                         .contentType(MediaType.APPLICATION_JSON).content("{\"pin\":\"12a4\"}"))
                 .andExpect(status().isBadRequest());

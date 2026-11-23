@@ -37,11 +37,15 @@ public class DeviceLifecycleService {
 	private final DeviceConnectionPolicy connections;
 	private final Clock clock;
 	private final com.smartdoor.backend.infrastructure.outbox.OutboxService outbox;
+	private final com.smartdoor.backend.infrastructure.mqtt.DeviceTransportCredentialService credentials;
+	private final com.smartdoor.backend.onboarding.ReplacementRepository replacements;
 
 	public DeviceLifecycleService(DoorOwnershipService ownership, DoorRepository doors,
 			DeviceRepository devices, DeviceLifecycleEventRepository events,
 			DeviceReadinessPolicy readiness, DeviceConnectionPolicy connections, Clock clock,
-			com.smartdoor.backend.infrastructure.outbox.OutboxService outbox) {
+			com.smartdoor.backend.infrastructure.outbox.OutboxService outbox,
+			com.smartdoor.backend.infrastructure.mqtt.DeviceTransportCredentialService credentials,
+			com.smartdoor.backend.onboarding.ReplacementRepository replacements) {
 		this.ownership = ownership;
 		this.doors = doors;
 		this.devices = devices;
@@ -50,6 +54,8 @@ public class DeviceLifecycleService {
 		this.connections = connections;
 		this.clock = clock;
 		this.outbox = outbox;
+		this.credentials = credentials;
+		this.replacements = replacements;
 	}
 
 	public DeviceView changeLifecycle(Long accountId, Long doorId, Long deviceId, Action action,
@@ -66,6 +72,9 @@ public class DeviceLifecycleService {
 		switch (action) {
 			case ACTIVATE -> {
 				requireStatus(device, LifecycleStatus.PROVISIONED);
+				if (replacements.findByNewDeviceId(deviceId).filter(r -> !r.getStatus().equals("COMPLETED")).isPresent()) {
+					throw new ConflictException("Bo thuộc yêu cầu thay Node. Hãy hoàn tất thay thế để kiểm tra thu hồi kết nối cũ.");
+				}
 				requireReady(door, device);
 				requireFreeSlot(device);
 				target = LifecycleStatus.ACTIVE;
@@ -85,6 +94,7 @@ public class DeviceLifecycleService {
 			}
 			case RETIRE -> {
 				requireReplaceable(device);
+				credentials.revokeIfPresent(device.getId());
 				target = LifecycleStatus.RETIRED;
 				eventType = EventType.RETIRED;
 			}
@@ -110,7 +120,7 @@ public class DeviceLifecycleService {
 		}
 		Device previous = requireDeviceForUpdate(oldDeviceId, doorId);
 		Device replacement = requireDeviceForUpdate(replacementDeviceId, doorId);
-		requireReplaceable(previous);
+		requireReplacementSource(previous);
 		requireStatus(replacement, LifecycleStatus.PROVISIONED);
 		if (previous.getNodeType() != replacement.getNodeType()) {
 			throw new ConflictException("Thiết bị thay thế phải có cùng vai trò Node với thiết bị cũ.");
@@ -125,7 +135,7 @@ public class DeviceLifecycleService {
 			throw new ConflictException("Đã có thiết bị khác đang hoạt động ở vai trò Node này.");
 		}
 		LifecycleStatus previousStatus = previous.getLifecycleStatus();
-		applyStatus(previous, LifecycleStatus.RETIRED);
+		if (previousStatus != LifecycleStatus.RETIRED) applyStatus(previous, LifecycleStatus.RETIRED);
 		// Flush old slot before activating the new one: MySQL's generated-column
 		// unique constraint must never observe two ACTIVE devices in the same slot.
 		devices.saveAndFlush(previous);
@@ -136,6 +146,9 @@ public class DeviceLifecycleService {
 		recordEvent(replacement, accountId, EventType.ACTIVATED, LifecycleStatus.PROVISIONED,
 				LifecycleStatus.ACTIVE, null, validatedReason);
 		reconcileDoorStatus(door);
+		replacements.findByNewDeviceId(replacement.getId()).ifPresent(request -> {
+			request.setStatus("COMPLETED"); request.setCompletedAt(now()); replacements.save(request);
+		});
 		return connections.view(replacement);
 	}
 
@@ -145,7 +158,7 @@ public class DeviceLifecycleService {
 		doors.findByIdForUpdate(doorId)
 				.orElseThrow(() -> new ResourceNotFoundException("Không tìm thấy cửa."));
 		Device previous = requireDeviceForUpdate(oldDeviceId, doorId);
-		requireReplaceable(previous);
+		requireReplacementSource(previous);
 		String validatedReason = validateReason(reason, true);
 		if (newDeviceCode == null || !newDeviceCode.strip().matches("[A-Za-z0-9][A-Za-z0-9._-]{0,99}")) {
 			throw new BadRequestException("Mã thiết bị phải có 1–100 ký tự chữ cái không dấu, chữ số, dấu chấm, gạch dưới hoặc gạch ngang.");
@@ -164,6 +177,25 @@ public class DeviceLifecycleService {
 		recordEvent(replacement, null, EventType.PROVISIONED, null, LifecycleStatus.PROVISIONED,
 				null, validatedReason);
 		return connections.view(replacement);
+	}
+
+	/** Owner-authorized cancellation of a staged replacement, before cutover begins. */
+	public void cancelStagedReplacement(Long accountId, Long doorId, Long deviceId, String reason) {
+		Door door = ownership.requireOwnerForUpdate(accountId, doorId);
+		Device device = requireDeviceForUpdate(deviceId, doorId);
+		requireStatus(device, LifecycleStatus.PROVISIONED);
+		credentials.revokeIfPresent(deviceId);
+		applyStatus(device, LifecycleStatus.RETIRED);
+		devices.saveAndFlush(device);
+		recordEvent(device, accountId, EventType.RETIRED, LifecycleStatus.PROVISIONED,
+				LifecycleStatus.RETIRED, null, validateReason(reason, true));
+		reconcileDoorStatus(door);
+	}
+
+	private static void requireReplacementSource(Device device) {
+		if (device.getLifecycleStatus() == LifecycleStatus.PROVISIONED) {
+			throw new ConflictException("Không thể dùng Node chưa từng kích hoạt làm nguồn thay thế.");
+		}
 	}
 
 	private void requireReady(Door door, Device device) {

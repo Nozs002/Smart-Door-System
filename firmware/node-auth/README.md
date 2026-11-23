@@ -17,7 +17,7 @@ hay cửa thực sự mở; xem kết quả lệnh và MC-38 trên App.
    Giữ signingKey dạng Base64. Không dùng khóa Node 2 hoặc chạy lại issue nếu
    export hiện tại còn hiệu lực. Ví dụ demo là cửa 5/thiết bị 10/TEST-MAIN-N1.
 5. Chọn ESP32 Dev Module, đúng COM, Upload; Serial Monitor 115200 baud.
-6. Claim cửa, đặt PIN 4–8 số trên App, gửi cấu hình và đồng bộ PIN/thẻ. Chờ
+6. Claim cửa, đặt PIN đúng 4 số trên App, gửi cấu hình và đồng bộ PIN/thẻ. Chờ
    MQTT, NTP, heartbeat và ACK cả CONFIGURATION/CREDENTIALS rồi kích hoạt Node 1.
    Kiểm tra `last_seen_at`, `applied_config_version`, `applied_pin_version`.
 
@@ -39,31 +39,21 @@ CA/hostname trước khi gửi RFID/PIN thật, không tắt kiểm tra chứng 
 LCD 16x2 dùng chữ không dấu. RC522 lỗi thì vẫn dùng keypad được; không nối
 servo vào Node 1. Sketch không dùng shared/network/wifi_manager.cpp.
 
-## Demo khi hàng `* 0 #` bị hỏng
+## Nhập PIN trên keypad
 
-Firmware có phím dự phòng, không cần đổi PIN thành 4 số hoặc bỏ số 0:
+Bấm ngắn từng số. Node 1 gửi yêu cầu xác thực ngay khi nhận số thứ tư.
+Phím `*` xóa dãy đang nhập. Nếu phím `0` vẫn hỏng, dùng PIN 4 số không chứa
+số 0 cho buổi demo. Ba phím cuối chung hàng R4 nối vào **GPIO26**.
+Ngắt nguồn trước khi kiểm tra dây hàng R4 hoặc chạy sketch
+`hardware-tests/node-1/keypad_test/` để kiểm tra từng phím.
 
-| Thao tác | Kết quả |
-| --- | --- |
-| Bấm ngắn 1–9 | Nhập số đó; riêng 1/2/3 nhận khi thả phím |
-| Giữ `1` khoảng 0,9 giây | Xóa toàn bộ PIN đang nhập |
-| Giữ `2` khoảng 0,9 giây | Nhập **một số 0** |
-| Giữ `3` khoảng 0,9 giây | Gửi PIN 4–8 số |
-
-Ví dụ PIN `1203`: bấm ngắn **1**, bấm ngắn **2**, giữ **2**, bấm ngắn **3**,
-rồi giữ **3** để gửi. Thả phím sau mỗi thao tác. Giữ không lặp và không chèn
-thêm 1/2/3 vào PIN. Các phím `*`, `0`, `#` vẫn dùng bình thường nếu phần cứng tốt.
-LCD nhắc thao tác giữ. Phải Upload lại sketch Node 1 để có chức năng này.
-
-Đây là cách nhập dự phòng, không sửa phần cứng. Ba phím cuối chung hàng R4,
-đang nối **GPIO26** trong `rowPins`; ngắt nguồn rồi kiểm tra dây R4/jack/chân
-keypad, chạy `hardware-tests/node-1/keypad_test/` để kiểm tra từng phím.
+Cửa đang dùng PIN dài hơn 4 số cần đặt PIN mới trên App và đợi đồng bộ.
 
 ## Hành vi
 
-- Keypad nhận PIN 4–8 số, `#` gửi, `*` xóa, sau 20 giây không nhập tự xóa.
-  Không tự gửi ở số thứ tư; số thứ chín bị từ chối. PIN hiển thị bằng dấu sao;
-  không log PIN/UID/envelope/khóa, không lưu PIN rõ vào NVS.
+- Keypad tự gửi khi nhập đủ 4 số và xóa dãy còn dang dở sau 20 giây.
+  PIN hiển thị bằng dấu sao. Node không ghi thông tin xác thực vào log hay
+  lưu PIN rõ trong NVS.
 - Một lượt xác thực có UUID và hạn 15 giây. Chỉ nhận kết quả đúng eventId,
   còn hạn, schema/result hợp lệ và không retained. Không tự retry/replay
   yêu cầu sau reconnect, kể cả khi không chắc Broker đã nhận.

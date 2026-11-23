@@ -104,8 +104,8 @@ của Account khác trả `404`. Các thời điểm không có offset là UTC t
 
 ## Chế độ bảo mật trên mô hình servo
 
-- `SECURITY`: Node 1 gửi RFID/PIN đến Backend; mở hợp lệ thì Node 2 mở 180° và tự đóng 90° sau 10 giây.
-- `AUTOMATIC` (tắt bảo mật): Node 2 mở và giữ ở 180°, hủy bộ đếm tự đóng. Node 1 không gửi RFID/PIN; LCD hiển thị chế độ giữ mở. Không sử dụng cảm biến khoảng cách.
+- `SECURITY`: Node 1 gửi RFID/PIN đến Backend. Node 2 mở 180° và quay về 90° khi MC-38 phát hiện cửa đã mở rồi đóng.
+- `AUTOMATIC` (tắt bảo mật): Node 2 mở và giữ ở 180°, hủy việc chờ MC-38. Node 1 dừng gửi RFID/PIN và LCD hiển thị chế độ giữ mở.
 - Chuyển `AUTOMATIC` → `SECURITY` đóng 90°; App yêu cầu xác nhận trước khi lưu cả hai chiều chuyển chế độ. Thiết bị ngoại tuyến chỉ áp dụng khi nhận cấu hình; lưu REST thành công chưa chứng minh cửa đã chuyển động.
 - CLOSE mới khi giữ mở trả `409`; CLOSE đang chờ bị hủy trước dispatch nếu mode đã đổi. Yêu cầu RFID/PIN đến muộn trả DENIED/`SECURITY_DISABLED`, không cộng lần sai, không tạo lệnh mở hay còi xác thực. Lockout cũ không bị xóa.
 - Báo nhiệt ưu tiên mở và chặn đóng. Khi hết báo nhiệt không tự đóng; cần CLOSE trong SECURITY. Công tắc báo cháy/cửa mở lâu vẫn độc lập; muốn giữ mở yên lặng cần tắt riêng cảnh báo cửa mở lâu.

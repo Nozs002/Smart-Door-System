@@ -13,28 +13,17 @@ inline bool runAuthProtocolTests() {
     if (condition) ++passed;
     else { ++failed; Serial.print("FAIL: "); Serial.println(name); }
   };
-  char pin[9] = {}; size_t pinLength = 0;
-  PinInput::Gestures gestures;
-  for (char digit : "123") {
-    if (!digit) continue;
-    check(gestures.event(digit, PinInput::KeyEvent::PRESSED) == 0, "defer fallback digit until release");
-    check(gestures.event(digit, PinInput::KeyEvent::RELEASED) == digit, "short press keeps digit");
-    gestures.event(digit, PinInput::KeyEvent::PRESSED);
-    check(gestures.event(digit, PinInput::KeyEvent::HELD) == (digit == '1' ? '*' : digit == '2' ? '0' : '#'), "hold maps broken bottom-row key");
-    check(gestures.event(digit, PinInput::KeyEvent::HELD) == 0, "hold does not repeat");
-    check(gestures.event(digit, PinInput::KeyEvent::RELEASED) == 0, "release after hold cannot append digit");
+  char pin[PinInput::LENGTH + 1] = {};
+  size_t pinLength = 0;
+  for (char digit : {'0', '1', '2'}) {
+    check(PinInput::press(digit, pin, pinLength) == PinInput::Result::NONE, "do not submit a partial PIN");
   }
-  gestures.event('3', PinInput::KeyEvent::PRESSED); gestures.reset();
-  check(gestures.event('3', PinInput::KeyEvent::RELEASED) == 0, "blocked input cannot leak key on release");
-  for (char c : "1234") if (c) check(PinInput::press(c, pin, pinLength) == PinInput::Result::NONE, "no automatic PIN submission");
-  check(PinInput::press('#', pin, pinLength) == PinInput::Result::READY, "four digit PIN submits with hash");
-  for (char c : "5678") if (c) PinInput::press(c, pin, pinLength);
-  check(PinInput::press('9', pin, pinLength) == PinInput::Result::TOO_LONG && pinLength == 8, "ninth digit cannot overflow buffer");
-  check(PinInput::press('#', pin, pinLength) == PinInput::Result::READY && strcmp(pin, "12345678") == 0, "eight digits remain intact");
+  check(PinInput::press('#', pin, pinLength) == PinInput::Result::NONE, "hash does not submit");
+  check(PinInput::press('3', pin, pinLength) == PinInput::Result::READY && strcmp(pin, "0123") == 0,
+        "fourth digit submits and preserves leading zero");
+  check(PinInput::press('9', pin, pinLength) == PinInput::Result::NONE && pin[4] == 0, "PIN buffer stays bounded");
   PinInput::press('*', pin, pinLength);
-  check(pinLength == 0 && pin[0] == 0 && pin[7] == 0, "clear wipes PIN");
-  PinInput::press('1', pin, pinLength);
-  check(PinInput::press('#', pin, pinLength) == PinInput::Result::TOO_SHORT, "short PIN cannot submit");
+  check(pinLength == 0 && pin[0] == 0 && pin[3] == 0, "clear wipes PIN");
   check(CredentialSnapshot::verifierSelfTest(), "BCrypt independent correct/incorrect PIN vectors");
   JsonDocument snapshot;
   deserializeJson(snapshot, "{\"schemaVersion\":1,\"version\":1,\"pinVerifier\":null,\"cards\":[]}");

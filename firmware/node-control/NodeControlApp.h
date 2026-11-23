@@ -106,7 +106,8 @@ void updateLocalHardware() {
     if (!security) remoteAlarm = false;
   }
   bool previousTargetOpen = actuator.commandedOpen();
-  actuator.tick(!fireActive && security && controlEnabled);
+  actuator.tick(!fireActive && security && controlEnabled,
+                doorKnown && doorStable == doorCandidate, doorStable == MC38_CLOSED_LEVEL);
   if (previousTargetOpen != actuator.commandedOpen()) telemetryPending = true;
   bool doorEnabled = localConfigValid && configuration["doorOpenAlertEnabled"].as<bool>();
   unsigned long timeout = localConfigValid ? configuration["openTimeoutSeconds"] | 0UL : 0;
@@ -204,7 +205,9 @@ void processMessages() {
 void maintainNetwork() {
   if (WiFi.status() != WL_CONNECTED) {
     if (linkReady) mqtt.stop(); linkReady = false;
-    if (millis() - lastWifiAttempt >= 15000) { lastWifiAttempt = millis(); WiFi.reconnect(); }
+    if (!runtime.factoryMode() && millis() - lastWifiAttempt >= 15000) {
+      lastWifiAttempt = millis(); WiFi.reconnect();
+    }
     return;
   }
   if (!mqtt.connected()) {
@@ -304,7 +307,11 @@ void setup() {
   if (!alarmHistory.begin(identity)) Serial.println("[NVS] Nhat ky alarm loi; chan coi tu xa");
   if (!alerts.begin(identity)) Serial.println("[NVS] Outbox canh bao loi; van xu ly tai cho");
   sntp_set_time_sync_notification_cb(onClockSync);
-  if (!runtime.factoryMode()) WiFi.mode(WIFI_STA); WiFi.setAutoReconnect(true); WiFi.begin(runtime.wifiSsid.c_str(), runtime.wifiPassword.c_str());
+  if (!runtime.factoryMode()) {
+    WiFi.mode(WIFI_STA);
+    WiFi.setAutoReconnect(true);
+    WiFi.begin(runtime.wifiSsid.c_str(), runtime.wifiPassword.c_str());
+  }
   configTime(0, 0, "pool.ntp.org", "time.google.com");
   mqtt.setId(String("esp32-control-") + runtime.deviceCode.c_str() + "-" + WiFi.macAddress());
   mqtt.setUsernamePassword(runtime.username.c_str(), runtime.password.c_str());

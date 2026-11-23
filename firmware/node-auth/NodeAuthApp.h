@@ -37,7 +37,6 @@ char keys[4][3] = {{'1','2','3'}, {'4','5','6'}, {'7','8','9'}, {'*','0','#'}};
 byte rowPins[4] = {13, 14, 27, 26};
 byte colPins[3] = {25, 33, 32};
 Keypad keypad(makeKeymap(keys), rowPins, colPins, 4, 3);
-PinInput::Gestures pinGestures;
 constexpr unsigned long REQUEST_TIMEOUT_MS = 15000, PIN_IDLE_MS = 20000;
 constexpr size_t MAX_MESSAGE = CredentialSnapshot::MAX_BYTES, QUEUE_SIZE = 4;
 struct Incoming { String topic; String payload; bool retained = false; };
@@ -52,7 +51,7 @@ unsigned long lastWifiAttempt = 0, lastMqttAttempt = 0, lastHeartbeat = 0;
 unsigned long lastHeartbeatAttempt = 0, lastAckAttempt = 0, lastRfidPoll = 0;
 String prefix, identity, configEventId, credentialsEventId;
 unsigned long lastCredentialsAckAttempt = 0;
-char pinBuffer[9] = {};
+char pinBuffer[PinInput::LENGTH + 1] = {};
 size_t pinLength = 0;
 unsigned long lastKeyAt = 0;
 String pendingId, pendingMethod;
@@ -279,22 +278,29 @@ void submitAccess(const char* method, const String& value) {
 }
 
 void handlePinKey(char key) {
-  if (key) {
-    if (key == '*') { erasePin(); noticeDuration = 0; }
-    else if ((key >= '0' && key <= '9') || key == '#') {
-      if (!configured || !linkReady || !trustedClock() || !hasConfiguration()) {
-        erasePin(); showNotice("CHUA SAN SANG", "Kiem tra ket noi");
-      } else if (pinLockedUntil > AuthProtocol::nowMs()) {
-        erasePin(); showNotice("PIN TAM KHOA", "Thu lai sau");
-      } else {
-        auto result = PinInput::press(key, pinBuffer, pinLength);
-        lastKeyAt = millis(); noticeDuration = 0;
-        if (result == PinInput::Result::READY) {
-          String value(pinBuffer); erasePin(); submitAccess("PIN", value); value = "";
-        } else if (result == PinInput::Result::TOO_SHORT) showNotice("PIN CAN 4-8 SO", "Giu3 Gui; 1 Xoa");
-        else if (result == PinInput::Result::TOO_LONG) showNotice("TOI DA 8 SO", "Giu3 Gui; 1 Xoa");
-      }
-    }
+  if (key == '*') {
+    erasePin();
+    noticeDuration = 0;
+    return;
+  }
+  if (key < '0' || key > '9') return;
+  if (!configured || !linkReady || !trustedClock() || !hasConfiguration()) {
+    erasePin();
+    showNotice("CHUA SAN SANG", "Kiem tra ket noi");
+    return;
+  }
+  if (pinLockedUntil > AuthProtocol::nowMs()) {
+    erasePin();
+    showNotice("PIN TAM KHOA", "Thu lai sau");
+    return;
+  }
+  lastKeyAt = millis();
+  noticeDuration = 0;
+  if (PinInput::press(key, pinBuffer, pinLength) == PinInput::Result::READY) {
+    String value(pinBuffer);
+    erasePin();
+    submitAccess("PIN", value);
+    value = "";
   }
 }
 
@@ -302,21 +308,11 @@ void pollInputs() {
   if (pinLength && millis() - lastKeyAt >= PIN_IDLE_MS) erasePin();
   bool holdingOpen = holdingOpenMode();
   if (holdingOpen) erasePin();
-  bool inputAllowed = pendingId.isEmpty() && !holdingOpen;
-  if (!inputAllowed) pinGestures.reset();
-  if (keypad.getKeys()) {
-    for (size_t i = 0; i < LIST_MAX; ++i) {
-      if (!keypad.key[i].stateChanged || !inputAllowed) continue;
-      char logical = 0;
-      switch (keypad.key[i].kstate) {
-        case PRESSED: logical = pinGestures.event(keypad.key[i].kchar, PinInput::KeyEvent::PRESSED); break;
-        case HOLD: logical = pinGestures.event(keypad.key[i].kchar, PinInput::KeyEvent::HELD); break;
-        case RELEASED: logical = pinGestures.event(keypad.key[i].kchar, PinInput::KeyEvent::RELEASED); break;
-        default: break;
+  if (keypad.getKeys() && !holdingOpen) {
+    for (size_t i = 0; i < LIST_MAX && pendingId.isEmpty(); ++i) {
+      if (keypad.key[i].stateChanged && keypad.key[i].kstate == PRESSED) {
+        handlePinKey(keypad.key[i].kchar);
       }
-      handlePinKey(logical);
-      // A submit during this scan blocks any other keys in the same scan.
-      if (!pendingId.isEmpty()) { inputAllowed = false; pinGestures.reset(); }
     }
   }
   if (!rfidReady || millis() - lastRfidPoll < 50) return;
@@ -346,8 +342,8 @@ void refreshDisplay() {
   else if (!linkReady) { first = "MAT MQTT"; second = "Dang ket noi..."; }
   else if (!trustedClock()) { first = "DONG BO GIO..."; second = "Cho NTP"; }
   else if (!hasConfiguration()) { first = "CHO CAU HINH"; second = "Gui lai tu App"; }
-  else if (pinLength) { first = "PIN: GIU3 DE GUI"; for (size_t i = 0; i < pinLength; ++i) second += '*'; }
-  else { first = "QUET THE / PIN"; second = millis() / 4000 % 2 ? "Giu3: Gui PIN" : "Giu1:Xoa 2:So0"; }
+  else if (pinLength) { first = "NHAP PIN 4 SO"; for (size_t i = 0; i < pinLength; ++i) second += '*'; }
+  else { first = "QUET THE / PIN"; second = "Nhap PIN 4 so"; }
   first = first.substring(0, 16); second = second.substring(0, 16);
   if (first == screenLine1 && second == screenLine2) return;
   screenLine1 = first; screenLine2 = second;
@@ -362,7 +358,9 @@ void maintainNetwork() {
   if (WiFi.status() != WL_CONNECTED) {
     if (linkReady) { mqtt.stop(); erasePin(); Serial.println("[NET] Mat Wi-Fi"); }
     linkReady = false;
-    if (millis() - lastWifiAttempt >= 15000) { lastWifiAttempt = millis(); WiFi.reconnect(); }
+    if (!runtime.factoryMode() && millis() - lastWifiAttempt >= 15000) {
+      lastWifiAttempt = millis(); WiFi.reconnect();
+    }
     return;
   }
   if (!mqtt.connected()) {
@@ -394,7 +392,6 @@ void setup() {
   rfidReady = version != 0 && version != 0xff;
   if (!rfidReady) Serial.println("[HW] RC522 chua san sang; van co the dung keypad");
   keypad.setDebounceTime(30);
-  keypad.setHoldTime(900);
   setenv("TZ", "UTC0", 1); tzset();
   runtime.legacy(AuthConfig::WIFI_SSID,AuthConfig::WIFI_PASSWORD,AuthConfig::MQTT_HOST,AuthConfig::MQTT_PORT,AuthConfig::DOOR_ID,AuthConfig::DEVICE_CODE,AuthConfig::CREDENTIAL_ID,AuthConfig::MQTT_USERNAME,AuthConfig::MQTT_PASSWORD,AuthConfig::SIGNING_KEY_BASE64);
 #if __has_include("enrollment_config.local.h")
@@ -417,8 +414,11 @@ void setup() {
     Serial.println("[CREDENTIALS] BCrypt self-test failed; refuse setup ACK");
   }
   sntp_set_time_sync_notification_cb(onClockSync);
-  if (!runtime.factoryMode()) WiFi.mode(WIFI_STA); WiFi.setAutoReconnect(true);
-  WiFi.begin(runtime.wifiSsid.c_str(), runtime.wifiPassword.c_str());
+  if (!runtime.factoryMode()) {
+    WiFi.mode(WIFI_STA);
+    WiFi.setAutoReconnect(true);
+    WiFi.begin(runtime.wifiSsid.c_str(), runtime.wifiPassword.c_str());
+  }
   configTime(0, 0, "pool.ntp.org", "time.google.com");
   mqtt.setId(String("esp32-auth-") + runtime.deviceCode.c_str() + "-" + WiFi.macAddress());
   mqtt.setUsernamePassword(runtime.username.c_str(), runtime.password.c_str());

@@ -30,9 +30,9 @@ cùng kiểm tra chủ cửa, ACTIVE/ONLINE, hạn lệnh, ACK và chống trùn
 ACK EXECUTED của CLOSE cập nhật commandedLockState=LOCKED; đây vẫn chỉ là
 trạng thái lệnh, không phải cảm biến. Lịch sử CLOSE dùng reason CLOSE_<status>.
 
-Mô hình servo kéo trực tiếp cánh cửa: mở 180°, đóng 90°. Firmware giữ mở 10 giây
-sau khi hoàn tất lệnh UNLOCK rồi tự đóng tại chỗ, kể cả mất mạng. CLOSE từ App
-đóng ngay và hủy timer. Báo nhiệt hủy timer, chặn CLOSE và giữ mở; sau hết báo
-nhiệt phải đóng chủ động. Không dùng openTimeoutSeconds làm thời gian tự đóng.
-Tự đóng không tạo command REST giả; xem trạng thái cánh cửa qua monitoring/MC-38,
-không suy diễn từ lệnh gần nhất. Reset hủy timer và không tự quay servo khi boot.
+Servo mở ở 180° và đóng ở 90°. Sau UNLOCK, Node 2 chờ MC-38 ghi nhận
+cửa mở rồi đóng ổn định mới quay về 90°, kể cả khi mất mạng sau lệnh mở.
+CLOSE từ App đóng ngay và hủy việc chờ cảm biến. Báo nhiệt hủy việc chờ,
+chặn CLOSE và giữ mở. Sau hết báo nhiệt, cần đóng chủ động.
+`openTimeoutSeconds` chỉ dùng cho cảnh báo mở lâu. Xem trạng thái cánh cửa
+qua monitoring/MC-38. Reset xóa trạng thái chờ cảm biến.

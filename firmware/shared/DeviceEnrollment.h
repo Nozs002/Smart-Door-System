@@ -37,7 +37,14 @@ class DeviceEnrollment {
     }
     stored.clear(); value=prefs.getString("identity","");
     bool ready=!deserializeJson(stored,value) && stored["unitCode"].as<String>()==unitCode && load(stored);
+    WiFi.onEvent([](WiFiEvent_t, WiFiEventInfo_t info) {
+      Serial.printf("[WIFI] Disconnected (reason=%u)\n", info.wifi_sta_disconnected.reason);
+    }, ARDUINO_EVENT_WIFI_STA_DISCONNECTED);
+    WiFi.onEvent([](WiFiEvent_t) {
+      Serial.print("[WIFI] Connected, IP: "); Serial.println(WiFi.localIP());
+    }, ARDUINO_EVENT_WIFI_STA_GOT_IP);
     WiFi.mode(WIFI_STA);
+    WiFi.setAutoReconnect(true);
     if (!wifiSsid.isEmpty()) WiFi.begin(wifiSsid.c_str(),wifiPassword.c_str());
     const char* headers[]={"X-Setup-Code"}; server.collectHeaders(headers,1);
     server.on("/api/info",HTTP_GET,[this]() {
@@ -89,10 +96,21 @@ class DeviceEnrollment {
       if (millis()-portalSince>1200000UL) { server.stop(); WiFi.softAPdisconnect(true); portal=false; }
     }
     if (reconnectAt && static_cast<int32_t>(millis()-reconnectAt)>=0) {
-      reconnectAt=0; WiFi.begin(wifiSsid.c_str(),wifiPassword.c_str()); lastEnroll=0;
+      // Stop the station's current attempt while keeping the setup AP available.
+      if (!WiFi.enableSTA(false)) {
+        Serial.println("[WIFI] Could not stop the previous connection attempt");
+        reconnectAt=millis()+5000;
+        return;
+      }
+      reconnectAt=0;
+      lastEnroll=0;
+      if (WiFi.begin(wifiSsid.c_str(),wifiPassword.c_str())==WL_CONNECT_FAILED) {
+        Serial.println("[WIFI] Could not start connection with the saved configuration");
+        reconnectAt=millis()+5000;
+      }
     }
     if (restartAt && static_cast<int32_t>(millis()-restartAt)>=0) ESP.restart();
-    if (applicationReady || restartAt || WiFi.status()!=WL_CONNECTED || millis()-lastEnroll<10000) return;
+    if (applicationReady || reconnectAt || restartAt || WiFi.status()!=WL_CONNECTED || millis()-lastEnroll<10000) return;
     lastEnroll=millis(); enroll();
   }
  private:
@@ -139,6 +157,7 @@ class DeviceEnrollment {
     JsonDocument request; request["unitCode"]=unitCode; request["bootstrapSecret"]=bootstrapSecret;
     String body; serializeJson(request,body); http.addHeader("Content-Type","application/json");
     int status=http.POST(body); body="";
+    if (status!=200) Serial.printf("[SETUP] Enrollment failed (HTTP result=%d)\n", status);
     if (status==200 && http.getSize()<=4096) {
       JsonDocument response;
       if (!deserializeJson(response,http.getString())) {

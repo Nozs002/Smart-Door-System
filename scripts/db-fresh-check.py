@@ -1,7 +1,7 @@
 """Verify every Flyway migration on a NEW isolated MySQL schema, preserving the real database.
 
 Requires the built Backend image and running Compose MySQL. Reproduces the V9
-outbox restriction, then checks V10-V13 with existing rows. Keeps the isolated test
+outbox restriction, then checks V10-V14 with existing rows. Keeps the isolated test
 schema for inspection; does not drop/reset any database.
 """
 from datetime import datetime, timezone
@@ -12,7 +12,7 @@ import subprocess
 import sys
 
 ROOT = Path(__file__).resolve().parents[1]
-EXPECTED_VERSIONS = ",".join(str(version) for version in range(1, 14))
+EXPECTED_VERSIONS = ",".join(str(version) for version in range(1, 15))
 
 
 def check_outbox_upgrade(query, migrate):
@@ -135,6 +135,37 @@ def check_onboarding_upgrade(query, migrate):
     print("PASS V13: customer accounts preserved; inventory/kit schema and role/FK constraints valid", flush=True)
 
 
+def check_replacement_upgrade(query, migrate):
+    before = query("SELECT id,owner_account_id,status FROM doors ORDER BY id")
+    migrate()
+    if query("SELECT id,owner_account_id,status FROM doors ORDER BY id") != before:
+        raise RuntimeError("V14 changed existing doors")
+    def row(identifier, digest, **overrides):
+        values = dict(door=1, old=1, new="NULL", owner=1, role="NODE_1", status="OPEN") | overrides
+        return ("INSERT INTO replacement_requests "
+                "(id,door_id,old_device_id,new_device_id,owner_account_id,node_type,code_hash,status,reason,created_at,expires_at) "
+                f"VALUES ('{identifier}',{values['door']},{values['old']},{values['new']},{values['owner']},"
+                f"'{values['role']}','{digest}','{values['status']}','Migration check',UTC_TIMESTAMP(3),"
+                "DATE_ADD(UTC_TIMESTAMP(3),INTERVAL 1 DAY))")
+    first = row("aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa", "a" * 64)
+    second = row("bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb", "b" * 64)
+    for sql, code in ((row("bad-role", "c" * 64, role="NODE_3"), 3819),
+                      (row("bad-status", "c" * 64, status="UNKNOWN"), 3819),
+                      (row("bad-owner", "c" * 64, owner=999999), 1452),
+                      (row("cross-door", "c" * 64, door=2), 1452),
+                      (row("unbound", "c" * 64, status="BOUND"), 3819),
+                      (first + "; " + second, 1062)):
+        try:
+            query("START TRANSACTION; " + sql + "; ROLLBACK")
+        except RuntimeError as error:
+            if "ERROR " + str(code) + " " not in str(error):
+                raise
+        else:
+            raise RuntimeError("V14 accepted invalid replacement state or duplicate pending role")
+    query("START TRANSACTION; " + first + "; UPDATE replacement_requests SET status='CANCELLED'; " + second + "; ROLLBACK")
+    print("PASS V14: doors preserved; owner/door FK, binding checks and generated pending-role uniqueness enforced", flush=True)
+
+
 def main():
     setup = module("mqtt_setup", "setup-mqtt.py")
     audit = module("db_audit", "db-check.py")
@@ -153,7 +184,7 @@ def main():
             "--spring.profiles.active=local,device-security", "--app.settings-mqtt.enabled=false", "--app.outbox.enabled=false",
             "--spring.datasource.url=jdbc:mysql://mysql:3306/" + schema + "?connectionTimeZone=UTC",
             "--spring.flyway.target=" + str(target),
-            "--spring.jpa.hibernate.ddl-auto=" + ("validate" if target >= 13 else "none"),
+            "--spring.jpa.hibernate.ddl-auto=" + ("validate" if target >= 14 else "none"),
             "--security.action=check-schema", "--security.output=/run/local/schema-v" + str(target) + ".local.json"],
             cwd=ROOT, capture_output=True, text=True, encoding="utf-8", errors="replace", timeout=120)
         log = folder / ("migration-v" + str(target) + ".local.log")
@@ -167,14 +198,15 @@ def main():
     check_close_upgrade(lambda sql: audit.query("USE `" + schema + "`; " + sql), lambda: migrate(11))
     check_revocation_upgrade(lambda sql: audit.query("USE `" + schema + "`; " + sql), lambda: migrate(12))
     check_onboarding_upgrade(lambda sql: audit.query("USE `" + schema + "`; " + sql), lambda: migrate(13))
+    check_replacement_upgrade(lambda sql: audit.query("USE `" + schema + "`; " + sql), lambda: migrate(14))
     versions = audit.query("SELECT GROUP_CONCAT(version ORDER BY installed_rank) FROM `" + schema + "`.flyway_schema_history WHERE success=1")
     if versions != EXPECTED_VERSIONS:
         raise RuntimeError("Unexpected fresh migration history: " + versions)
     tables = audit.query("SELECT COUNT(*) FROM information_schema.TABLES WHERE TABLE_SCHEMA='" + schema + "'")
     foreign_keys = audit.query("SELECT COUNT(*) FROM information_schema.REFERENTIAL_CONSTRAINTS WHERE CONSTRAINT_SCHEMA='" + schema + "'")
-    if tables != "22" or foreign_keys != "35":
+    if tables != "23" or foreign_keys != "40":
         raise RuntimeError("Fresh schema has unexpected table/FK counts: " + tables + "/" + foreign_keys)
-    print("PASS Flyway V1-V13 and Hibernate validation: 21 business tables, 35 foreign keys")
+    print("PASS Flyway V1-V14 and Hibernate validation: 22 business tables, 40 foreign keys")
     print("Isolated test schema kept for inspection:", schema)
     print("Migration logs:", folder.relative_to(ROOT))
     print("Existing application database was preserved.")

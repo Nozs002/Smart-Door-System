@@ -19,18 +19,6 @@ class SecurityMode {
   bool initialized_ = false;
   bool security_ = true;
 };
-class AutoClose {
- public:
-  static constexpr unsigned long HOLD_MS = 10000;
-  void opened(unsigned long now) { openedAt_ = now; armed_ = true; }
-  void cancel() { armed_ = false; }
-  bool due(unsigned long now, bool closeAllowed) const {
-    return armed_ && closeAllowed && now - openedAt_ >= HOLD_MS;
-  }
- private:
-  unsigned long openedAt_ = 0;
-  bool armed_ = false;
-};
 inline bool fire(bool enabled, bool validReading, float temperature, float threshold, bool active) {
   return enabled && (validReading ? temperature > threshold : active);
 }

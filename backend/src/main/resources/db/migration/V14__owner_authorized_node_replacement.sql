@@ -1,0 +1,30 @@
+CREATE TABLE replacement_requests (
+    id VARCHAR(36) NOT NULL PRIMARY KEY,
+    door_id BIGINT UNSIGNED NOT NULL,
+    old_device_id BIGINT UNSIGNED NOT NULL,
+    new_device_id BIGINT UNSIGNED NULL UNIQUE,
+    owner_account_id BIGINT UNSIGNED NOT NULL,
+    technician_id BIGINT UNSIGNED NULL,
+    node_type VARCHAR(10) NOT NULL,
+    code_hash CHAR(64) NOT NULL UNIQUE,
+    status VARCHAR(16) NOT NULL,
+    reason VARCHAR(500) NOT NULL,
+    created_at DATETIME(3) NOT NULL,
+    expires_at DATETIME(3) NOT NULL,
+    completed_at DATETIME(3) NULL,
+    pending_node_type VARCHAR(10) GENERATED ALWAYS AS
+        (CASE WHEN status IN ('OPEN','BOUND','REVOKING') THEN node_type ELSE NULL END) STORED,
+    CONSTRAINT uq_replacement_pending_role UNIQUE (door_id, pending_node_type),
+    CONSTRAINT fk_replacement_door FOREIGN KEY (door_id) REFERENCES doors(id) ON DELETE RESTRICT,
+    CONSTRAINT fk_replacement_old FOREIGN KEY (old_device_id,door_id) REFERENCES devices(id,door_id) ON DELETE RESTRICT,
+    CONSTRAINT fk_replacement_new FOREIGN KEY (new_device_id,door_id) REFERENCES devices(id,door_id) ON DELETE RESTRICT,
+    CONSTRAINT fk_replacement_owner FOREIGN KEY (owner_account_id) REFERENCES accounts(id) ON DELETE RESTRICT,
+    CONSTRAINT fk_replacement_technician FOREIGN KEY (technician_id) REFERENCES accounts(id) ON DELETE RESTRICT,
+    CONSTRAINT chk_replacement_role CHECK (node_type IN ('NODE_1','NODE_2')),
+    CONSTRAINT chk_replacement_status CHECK (status IN ('OPEN','BOUND','REVOKING','COMPLETED','CANCELLED','EXPIRED')),
+    CONSTRAINT chk_replacement_time CHECK (expires_at > created_at),
+    CONSTRAINT chk_replacement_binding CHECK (status NOT IN ('BOUND','REVOKING','COMPLETED') OR
+        (new_device_id IS NOT NULL AND technician_id IS NOT NULL)),
+    CONSTRAINT chk_replacement_distinct CHECK (new_device_id IS NULL OR new_device_id <> old_device_id),
+    CONSTRAINT chk_replacement_completed CHECK (status <> 'COMPLETED' OR completed_at IS NOT NULL)
+);
