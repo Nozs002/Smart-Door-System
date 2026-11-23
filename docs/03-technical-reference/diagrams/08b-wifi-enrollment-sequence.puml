@@ -27,7 +27,7 @@ loop Từng ESP32
   Owner -> App : Chọn Cài Wi-Fi NODE_1 hoặc NODE_2\nBấm Mở cài đặt Wi-Fi điện thoại
   App --> Owner : Hiển thị SSID và mật khẩu thiết lập
   Owner -> ESP : Trong Android: kết nối SoftAP\nGiữ kết nối dù không có Internet
-  Owner -> App : Quay lại App; mã đã điền sẵn\nCó thể quét QR hoặc nhập mã trên tem
+  Owner -> App : Quay lại App và kiểm tra mã thiết lập\nCó thể sửa theo mã trên tem
   App -> ESP : Wi-Fi transport Android → 192.168.4.1/api/info
   ESP --> App : unitCode / nodeType / connectivity
   alt Kết nối nhầm bo

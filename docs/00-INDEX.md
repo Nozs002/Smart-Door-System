@@ -26,7 +26,8 @@ Tài liệu của dự án Smart Door System được tổ chức theo các nhó
 
 - [Hoàn thiện Người 1, Người 4: thay đổi, database và cách test](05-backend/person1-person4-completion.md)
 - [Sửa lỗi trước onboarding: keypad, kích hoạt Node, thu hồi MQTT và V12](05-backend/pre-onboarding-fixes.md)
-- [Luồng kỹ thuật viên, QR/mã bàn giao, cài Wi-Fi và kích hoạt V13](05-backend/device-onboarding.md)
+- [Luồng kỹ thuật viên, mã bàn giao, cài Wi-Fi và kích hoạt](05-backend/device-onboarding.md)
+- [Thay Node và phục hồi vị trí đã ngừng sử dụng V14](05-backend/node-replacement.md)
 - [Quy chuẩn quản lý tài liệu](00-getting-started/00-docs-vault.md)
 - [Hướng dẫn bắt đầu phát triển](00-getting-started/01-getting-started.md)
 - [Bộ mẫu tài liệu](00-getting-started/02-template-pack.md)

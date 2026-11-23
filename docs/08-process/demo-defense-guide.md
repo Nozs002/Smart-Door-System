@@ -327,9 +327,9 @@ source hiện tại mới có luồng xác thực online và cache snapshot PIN/
 kênh mở offline giữa hai Node, chính sách quyền offline và đối soát đã nghiệm thu.
 Không trình bày chức năng offline đã hoàn thành chỉ vì app có nhãn OFFLINE.
 
-**Phần nào chưa xong?** Onboarding kỹ thuật viên/QR/Wi-Fi, offline, push nền,
-TLS và nghiệm thu phần cứng. Đã có công cụ thu hồi Broker trước thay Node và
-firmware tích hợp; không lấy simulator làm bằng chứng servo/cảm biến hoạt động thật.
+**Phần nào chưa xong?** Luồng RFID/PIN offline giữa hai Node, thông báo nền
+và TLS cho MQTT vẫn cần hoàn thiện. Nhóm đã thử bàn giao và cài Wi-Fi bằng
+hai ESP32 thật. Khi demo, hãy thử riêng thao tác khóa lại theo cảm biến MC38.
 
 ## 10. Điểm nhấn khi trình bày phần Door/Device
 
